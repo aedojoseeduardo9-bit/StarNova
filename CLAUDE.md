@@ -32,8 +32,11 @@ El dueño habla **español**: responde siempre en español, claro y sin tecnicis
 2. **En CI**: cada push corre `.github/workflows/ojos.yml` y publica capturas + informe en el release
    **`diagnostico`**. Descárgalas con `bash tools/capturas.sh <carpeta> [filtro]`.
    El trabajo falla si `report.txt` tiene `consola:`, `ERROR` o `FALLO`.
-3. Servidor local para probar a mano: `node tools/serve.mjs 8080` → `http://127.0.0.1:8080/`.
-4. **Después de cualquier cambio visual, mira las capturas** antes de dar el trabajo por terminado.
+3. **APK en el contenedor** (si CI no está disponible): `bash tools/compilar_apk.sh <carpeta_scratchpad>`
+   descarga Gradle + SDK de Android (dl.google.com sí está permitido) y compila. Su llave es local:
+   esa APK no se instala encima de la de CI (habría que desinstalar).
+4. Servidor local para probar a mano: `node tools/serve.mjs 8080` → `http://127.0.0.1:8080/`.
+5. **Después de cualquier cambio visual, mira las capturas** antes de dar el trabajo por terminado.
    Si el dueño manda capturas de su teléfono, úsalas también.
 
 ### Atajos de URL (para pruebas y capturas)
