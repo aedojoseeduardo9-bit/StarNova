@@ -3,6 +3,25 @@
 Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **en horizontal** o en PC).
 El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
 
+## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
+> **Aviso (nov 2026):** GitHub suspendió la cuenta del dueño (`aedoniororebolledo6-lgtm`). Mientras no se
+> recupere, no se puede hacer push, PR ni CI. Entonces: compilar la APK en el contenedor
+> (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile**, y entregarle
+> también un **respaldo .zip** del proyecto (con `.git`), porque el contenedor se borra al terminar la sesión.
+
+Con GitHub disponible:
+1. Trabajar en la rama asignada → push → esperar en verde **"Compilar APK"** (`build.yml`, en ramas solo
+   compila) y **"Ojos (capturas)"** (`ojos.yml`).
+2. Mirar las capturas si el cambio es visual (ver "los ojos").
+3. Crear el PR a `main` y fusionarlo **sin preguntar**: el dueño lo autorizó para siempre.
+4. En `main`, `build.yml` compila la APK y reemplaza el release **`latest`** (`StarNova.apk` + `qr.png`).
+   Enlace fijo: `https://github.com/aedoniororebolledo6-lgtm/Star-Nova/releases/latest/download/StarNova.apk`.
+   La app compara su número de compilación con el título del release `latest` ("compilación N") y muestra
+   el botón "Actualizar" en la pantalla de título.
+5. Si la rama ya se fusionó antes, reiníciala desde `origin/main` antes de seguir.
+6. Cambios solo de documentación (`*.md`, `docs/`, `tools/`, `ci/`) no compilan una APK nueva.
+7. Si la compilación falla, el error queda en el release **`build-error`**.
+
 ## Visión (lo que pidió el dueño)
 - **Pip**, una ardilla diminuta, recorre islas flotantes para reunir los fragmentos de la estrella **Nova**.
 - **Mundo abierto con misiones** (no niveles lineales): cada región tiene misiones que se hacen en cualquier orden.
@@ -74,7 +93,14 @@ El dueño habla **español**: responde siempre en español, claro y sin tecnicis
 - `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
 - `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos). `js/util.js` — utilidades.
 - `tools/ojos.cjs` (capturas), `tools/serve.mjs` (servidor), `tools/capturas.sh` (bajar capturas de CI).
-- `.github/workflows/ojos.yml` (capturas en cada push), `pages.yml` (publica el juego al fusionar en `main`).
+- `.github/workflows/ojos.yml` (capturas en cada push), `build.yml` (APK + QR), `pages.yml` (versión web).
+- `tools/compilar_apk.sh` — compila la APK en el contenedor (Gradle + SDK de Android descargados en caché).
+- `android/` — app de Android (Kotlin, sin librerías): `MainActivity.kt` es una WebView que sirve el juego
+  desde los assets en `https://appassets.androidplatform.net/` (los módulos ES funcionan sin internet),
+  pantalla completa en horizontal, botón Atrás → `game.backButton()`, puente `window.StarNovaAndroid`
+  (`build()`, `version()`, `exit()`). Antes de compilar se copian `index.html`, `css/`, `js/`, `vendor/`…
+  a `android/app/src/main/assets/` (carpeta ignorada por git). La llave de firma nunca va en el repo.
+  Versiones: AGP 8.10.1, Kotlin 1.9.24, Gradle 8.14.3, compileSdk 36, minSdk 26.
 
 ## Reglas del proyecto
 - Unidades: **1 = 1 metro**. Pip mide ~0.55. Gravedad −22. Arriba es +y; el norte es −z.
@@ -100,6 +126,7 @@ Hecho (v0.1):
 - [x] Físicas: campanas colgantes, puente de tablones con bisagras, cajas, farolillos en cadena, esquirlas.
 - [x] Controles táctiles en horizontal (joystick + botones + ayuda de puntería), aviso de girar el teléfono.
 - [x] Ojos: `tools/ojos.cjs` + workflow con release `diagnostico`; publicación en GitHub Pages.
+- [x] APK de Android (WebView con el juego dentro), QR en el release `latest`, aviso de actualización.
 
 Pendiente / ideas:
 - [ ] Guardado de progreso (misiones, objetos) en `localStorage`.
@@ -108,4 +135,5 @@ Pendiente / ideas:
 - [ ] Música adaptativa; mezcla de sonido más rica.
 - [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
 - [ ] Postproceso suave (bloom en estrellas/cristales) con opción para teléfonos lentos.
-- [ ] Empaquetar como APK (Capacitor/TWA) si el dueño lo pide.
+- [ ] Recuperar GitHub (cuenta suspendida) o mudar el proyecto a otro alojamiento, y subir este historial.
+- [ ] Llave de firma permanente en Secrets (`SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) cuando haya GitHub.
