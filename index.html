@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f6c9b0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Star Nova</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.min.js",
+      "three/addons/utils/BufferGeometryUtils.js": "./vendor/three/BufferGeometryUtils.js",
+      "rapier": "./vendor/rapier3d-compat-0.21.0.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+    <div id="crosshair" class="hidden"></div>
+
+    <div id="hud" class="hidden">
+      <div class="hud-tl">
+        <div id="frags" class="frags"></div>
+        <div class="row"><span class="spark-ico"></span><span id="sparks">0</span></div>
+        <div class="row small">Nivel <b id="lvl">1</b></div>
+      </div>
+      <div class="hud-tr">
+        <div id="timer" class="timer">00:00</div>
+        <div class="diff"><span id="diffName">Brisa</span><div class="diff-bar"><div id="diffFill"></div></div></div>
+        <div class="hud-buttons">
+          <button id="btnJournal" title="Misiones (Tab)">Misiones</button>
+          <button id="btnMute" title="Sonido (M)">♪</button>
+          <button id="btnPause" title="Pausa (Esc)">❚❚</button>
+        </div>
+      </div>
+      <div id="tracker" class="tracker"></div>
+      <div class="hud-bottom">
+        <div id="items" class="items"></div>
+        <div class="bars">
+          <div class="hp"><div id="hpFill"></div><span id="hpText">100 / 100</span></div>
+          <div class="xp"><div id="xpFill"></div></div>
+        </div>
+        <div id="skills" class="skills"></div>
+      </div>
+      <div id="prompt" class="prompt hidden"></div>
+      <div id="bossbar" class="bossbar hidden"><div class="name">El Guardián de Nova</div><div class="bar"><div id="bossFill"></div></div></div>
+    </div>
+
+    <div id="touch" class="touch hidden">
+      <div id="stickZone" class="stick-zone"><div id="stickBase" class="stick-base"><div id="stickKnob" class="stick-knob"></div></div></div>
+      <div class="tbtns">
+        <button data-k="special" class="tb s">★</button>
+        <button data-k="utility" class="tb u">»</button>
+        <button data-k="secondary" class="tb x">◎</button>
+        <button data-k="primary" class="tb p">●</button>
+        <button data-k="jump" class="tb j">⤒</button>
+        <button data-k="interact" class="tb e hidden" id="tbInteract">E</button>
+      </div>
+    </div>
+
+    <div id="banner" class="banner"></div>
+    <div id="toasts" class="toasts"></div>
+    <div id="itemPop" class="item-pop hidden"><canvas width="96" height="96"></canvas><div><div class="name"></div><div class="desc"></div></div></div>
+    <div id="dialog" class="dialog hidden"><div class="who"></div><div class="text"></div><div class="hint">Toca o pulsa E para continuar</div></div>
+
+    <div id="title" class="screen title">
+      <div class="title-inner">
+        <div class="kicker">una pequeña ardilla · un cielo sin estrellas</div>
+        <h1>STAR&nbsp;NOVA</h1>
+        <p class="story">La estrella Nova cayó y se rompió en fragmentos.<br>Pip, una ardilla diminuta, recorrerá las islas del cielo para devolverle su luz.</p>
+        <button id="btnStart" class="big">Comenzar</button>
+        <div class="controls">
+          <div><b>WASD</b> moverse · <b>Espacio</b> saltar (doble salto) · <b>Ratón</b> mirar</div>
+          <div><b>Clic</b> bellotazo · <b>Clic der.</b> coletazo · <b>Shift</b> voltereta · <b>R</b> lluvia estelar</div>
+          <div><b>E</b> interactuar · <b>Tab</b> misiones · <b>Esc</b> pausa · <b>M</b> sonido</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pause" class="screen hidden">
+      <div class="panel">
+        <h2>Pausa</h2>
+        <button id="btnResume" class="big">Continuar</button>
+        <button id="btnRestart">Nueva partida</button>
+      </div>
+    </div>
+
+    <div id="journal" class="screen hidden">
+      <div class="panel wide">
+        <h2>Misiones</h2>
+        <div id="journalList"></div>
+        <button id="btnCloseJournal">Cerrar</button>
+      </div>
+    </div>
+
+    <div id="dead" class="screen hidden">
+      <div class="panel">
+        <h2>Pip se desvaneció…</h2>
+        <p>Las estrellas te recuerdan. Volverás junto a la hoguera del Claro.</p>
+        <button id="btnRespawn" class="big">Volver</button>
+      </div>
+    </div>
+
+    <div id="ending" class="screen hidden">
+      <div class="panel wide">
+        <div class="kicker">fin del primer viaje</div>
+        <h2>Nova brilla de nuevo</h2>
+        <p id="endStats"></p>
+        <button id="btnContinue" class="big">Seguir explorando</button>
+      </div>
+    </div>
+
+    <div id="rotate" class="rotate"><div><div class="phone"></div>Gira tu teléfono para jugar en horizontal</div></div>
+    <div id="loading" class="loading"><div class="spinner"></div><div id="loadingText">Despertando las islas…</div></div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

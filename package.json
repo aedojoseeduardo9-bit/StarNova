@@ -1,0 +1,15 @@
+{
+  "name": "star-nova",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Star Nova — aventura 3D de mundo abierto con misiones (Three.js + Rapier)",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "ojos": "node tools/ojos.cjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "three": "0.180.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Star Nova",
+  "short_name": "Star Nova",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#f6c9b0",
+  "theme_color": "#f6c9b0",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

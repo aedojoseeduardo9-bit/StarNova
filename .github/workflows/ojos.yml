@@ -1,0 +1,40 @@
+# "Los ojos": abre el juego en Chromium, recorre las escenas con atajos de URL,
+# y publica capturas + report.txt en el release "diagnostico" (y como artefacto).
+name: Ojos (capturas)
+on:
+  push:
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ojos-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ojos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar Playwright + Chromium
+        run: |
+          npm i --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Recorrer el juego y capturar
+        run: node tools/ojos.cjs ojos
+      - name: Fallar si hubo errores de consola o pruebas rotas
+        run: |
+          if grep -qE "consola:|ERROR|FALLO" ojos/report.txt; then echo "::error::Revisa ojos/report.txt"; grep -E "consola:|ERROR|FALLO" ojos/report.txt; exit 1; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ojos
+          path: ojos/
+      - name: Publicar en el release "diagnostico"
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash ci/publicar_diagnostico.sh ojos
