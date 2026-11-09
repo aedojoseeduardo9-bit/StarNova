@@ -26,6 +26,15 @@ const SCENES = [
   { name: '13_diario', q: 'auto=1&diario=1&frag=2', wait: 2500 },
   { name: '14_objetos', q: 'auto=1&items=1&ir=claro&cam=-0.6,0.3,4', wait: 3000 },
   { name: '15_movil', q: 'auto=1&ir=coral&cam=1.9,0.3,5', wait: 3500, mobile: true },
+  { name: '16_cofres', q: 'auto=1&ir=claro&cofre=todos&cam=-0.4,0.45,6', wait: 3000 },
+  { name: '17_arma_rayo', q: 'auto=1&ir=coral&arma=rayo:3&enemigos=5&tipo=sombra,chispita&dios=1&cam=1.6,0.3,6', wait: 2000, hold: ['primary', 2500] },
+  { name: '18_enemigos', q: 'auto=1&ir=coral&enemigos=16&dios=1&cam=1.6,0.45,9', wait: 2500 },
+  { name: '19_elites', q: 'auto=1&ir=menta&enemigos=6&tipo=sombra,totem,erizo&elite=1&dios=1&cam=0.2,0.4,8', wait: 2500 },
+  { name: '20_compendio', q: 'auto=1&compendio=1&items=1', wait: 2000 },
+  { name: '21_pip', q: 'auto=1&ir=claro&hud=0&cam=3.3,0.15,1.6', wait: 2500 },
+  { name: '22_movil_combate', q: 'auto=1&ir=coral&arma=prisma:4&enemigos=4&tipo=sombra,farol&dios=1&cam=1.6,0.3,5', wait: 3500, mobile: true },
+  { name: '23_movil_pausa', q: 'auto=1&pausa=1', wait: 1500, mobile: true },
+  { name: '24_poder', q: 'auto=1&ir=coral&poder=agujero&enemigos=6&tipo=sombra&dios=1&cam=1.6,0.4,7', wait: 1500, keys: [['KeyR', 600]] },
 ];
 
 (async () => {

@@ -1,16 +1,20 @@
-/* Star Nova — interfaz en DOM + capa 2D para números de daño y marcadores. */
+/* Star Nova — interfaz: HUD en DOM + capa 2D (números de daño, barras de enemigos, marcador de misión). */
 import * as THREE from 'three';
-import { ITEMS, drawItemIcon, star } from './items.js';
+import { ITEMS, ITEM_LIST, RARITY } from './content/items.js';
+import { drawIcon, star } from './content/icons.js';
+import { ATTACKS, ATTACK_LIST, POWERS, POWER_LIST } from './content/attacks.js';
+import { CHEST_LIST, RANKS, RANK_COLORS } from './content/chests.js';
+import { ENEMY_LIST, ELITE_LIST } from './content/enemies.js';
 import { MISSIONS } from './missions.js';
 import { REGIONS } from './world/palette.js';
 
 const $ = (id) => document.getElementById(id);
 const DIFF_NAMES = ['Brisa', 'Llovizna', 'Lluvia', 'Chubasco', 'Tormenta', 'Diluvio', '¡NOVA!'];
 const SKILLS = [
-  { id: 'primary', key: 'Clic', name: 'Bellotazo' },
-  { id: 'secondary', key: 'Q', name: 'Coletazo' },
-  { id: 'utility', key: 'Shift', name: 'Voltereta' },
-  { id: 'special', key: 'R', name: 'Lluvia estelar' },
+  { id: 'primary', key: 'Clic' },
+  { id: 'secondary', key: 'Q' },
+  { id: 'utility', key: 'Shift' },
+  { id: 'special', key: 'R' },
 ];
 
 export class HUD {
@@ -27,6 +31,10 @@ export class HUD {
     this.buildFrags();
     this.itemPopT = 0;
     this.bannerT = 0;
+    this.touchBtns = {};
+    document.querySelectorAll('.tb').forEach(b => { this.touchBtns[b.dataset.k] = b; });
+    const j = this.touchBtns.jump && this.touchBtns.jump.querySelector('canvas');
+    if (j) { j.width = j.height = 96; drawSkillIcon(j.getContext('2d'), 'jump', 96); }
   }
 
   show(v) { $('hud').classList.toggle('hidden', !v); $('crosshair').classList.toggle('hidden', !v); }
@@ -38,17 +46,35 @@ export class HUD {
     for (const s of SKILLS) {
       const d = document.createElement('div');
       d.className = 'skill';
-      d.title = s.name;
       const c = document.createElement('canvas');
       c.width = c.height = 92;
-      drawSkillIcon(c.getContext('2d'), s.id, 92);
       d.append(c);
       const cd = document.createElement('div'); cd.className = 'cd'; d.append(cd);
       const ct = document.createElement('div'); ct.className = 'cdt'; d.append(ct);
       const k = document.createElement('span'); k.className = 'key'; k.textContent = s.key; d.append(k);
       wrap.append(d);
-      this.skillEls[s.id] = { cd, ct };
+      this.skillEls[s.id] = { cd, ct, canvas: c };
     }
+  }
+  /* Redibuja los íconos del ataque y del poder equipados (barra de PC y botones táctiles). */
+  refreshLoadout() {
+    const A = this.game.arsenal;
+    const atk = ATTACKS[A.attack.id], pw = POWERS[A.power];
+    const draw = (canvas, id) => {
+      if (!canvas) return;
+      canvas.width = canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      if (id === 'primary') drawIcon(ctx, atk, 96, A.attack.tier);
+      else if (id === 'special') drawIcon(ctx, pw, 96, 3);
+      else drawSkillIcon(ctx, id, 96);
+    };
+    for (const s of SKILLS) {
+      draw(this.skillEls[s.id].canvas, s.id);
+      const b = this.touchBtns[s.id];
+      if (b) draw(b.querySelector('canvas'), s.id);
+    }
+    const t = RARITY[A.attack.tier];
+    $('loadout').innerHTML = `<span style="color:${t.color === '#e9e2d8' ? 'inherit' : t.color}">${atk.name} · ${t.name}</span>·<span>${pw.name}</span>`;
   }
   buildFrags() {
     const f = $('frags');
@@ -56,7 +82,7 @@ export class HUD {
     for (let i = 0; i < 4; i++) { const d = document.createElement('div'); d.className = 'frag'; f.append(d); }
   }
 
-  addItem(id) {
+  addItem(id, silent) {
     const n = this.game.items[id];
     let el = this.itemEls[id];
     if (!el) {
@@ -64,19 +90,29 @@ export class HUD {
       el.className = 'item';
       el.title = ITEMS[id].name + ' — ' + ITEMS[id].desc;
       const c = document.createElement('canvas'); c.width = c.height = 60;
-      drawItemIcon(c.getContext('2d'), id, 60);
+      drawIcon(c.getContext('2d'), ITEMS[id], 60, ITEMS[id].rar);
       const s = document.createElement('span');
       el.append(c, s);
       $('items').append(el);
       this.itemEls[id] = el;
     }
     el.querySelector('span').textContent = n > 1 ? 'x' + n : '';
+    el.classList.toggle('hidden', !n);
+    if (!silent) this.popup('item', id);
+  }
+  refreshItems() { for (const id in this.itemEls) this.addItem(id, true); }
+
+  popup(type, v) {
     const pop = $('itemPop');
-    drawItemIcon(pop.querySelector('canvas').getContext('2d'), id, 96);
-    pop.querySelector('.name').textContent = ITEMS[id].name;
-    pop.querySelector('.desc').textContent = ITEMS[id].desc;
+    const ctx = pop.querySelector('canvas').getContext('2d');
+    let name, desc, tier;
+    if (type === 'item') { const it = ITEMS[v]; drawIcon(ctx, it, 96, it.rar); name = it.name; desc = it.desc; tier = RARITY[it.rar]; }
+    else if (type === 'attack') { const a = ATTACKS[v.id]; drawIcon(ctx, a, 96, v.tier); name = 'Nuevo ataque: ' + a.name; desc = a.desc + ' (daño ×' + RARITY[v.tier].mul + ')'; tier = RARITY[v.tier]; }
+    else { const p = POWERS[v]; drawIcon(ctx, p, 96, 3); name = 'Nuevo poder: ' + p.name; desc = p.desc; tier = { name: 'Poder especial', color: '#c79bff' }; }
+    pop.querySelector('.name').innerHTML = `<div class="tier" style="color:${tier.color === '#e9e2d8' ? '#9a8f86' : tier.color}">${tier.name}</div>${name}`;
+    pop.querySelector('.desc').textContent = desc;
     pop.classList.remove('hidden');
-    this.itemPopT = 3;
+    this.itemPopT = 3.2;
   }
 
   toast(text) {
@@ -95,12 +131,63 @@ export class HUD {
     this.bannerT = 3.2;
   }
 
-  prompt(text) {
+  prompt(text, btnLabel) {
     const p = $('prompt');
     if (!text) { p.classList.add('hidden'); $('tbInteract').classList.add('hidden'); return; }
     p.textContent = text;
     p.classList.remove('hidden');
     $('tbInteract').classList.remove('hidden');
+    if (btnLabel) $('tbInteractText').textContent = btnLabel;
+  }
+
+  showTab(tab) {
+    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    $('journalList').classList.toggle('hidden', tab !== 'misiones');
+    $('codex').classList.toggle('hidden', tab !== 'compendio');
+    if (tab === 'compendio') this.refreshCodex();
+  }
+
+  /* Compendio: todo el contenido del juego; lo no descubierto aparece como "???". */
+  refreshCodex() {
+    const g = this.game, C = g.codex;
+    const box = $('codex');
+    box.innerHTML = '';
+    const sections = [
+      ['Objetos', ITEM_LIST, 'item', (x) => ({ glyph: x.glyph, color: x.color, rar: x.rar, name: x.name, desc: `${RARITY[x.rar].name} · ${x.desc}` })],
+      ['Ataques', ATTACK_LIST, 'attack', (x) => ({ glyph: x.glyph, color: x.color, rar: x.minTier, name: x.name, desc: x.desc })],
+      ['Poderes', POWER_LIST, 'power', (x) => ({ glyph: x.glyph, color: x.color, rar: 3, name: x.name, desc: x.desc })],
+      ['Cofres', CHEST_LIST, 'chest', (x) => ({ glyph: 'cube', color: x.look.base, rar: x.rank, name: x.name, desc: `${RANKS[x.rank]} · ${x.desc}` })],
+      ['Enemigos', ENEMY_LIST, 'enemy', (x) => ({ glyph: 'eye', color: x.colors[0], rar: 0, name: x.name, desc: x.desc })],
+      ['Élites', ELITE_LIST, 'elite', (x) => ({ glyph: 'spikes', color: x.color, rar: 4, name: 'Élite ' + x.name, desc: x.desc })],
+    ];
+    let total = 0, found = 0;
+    for (const [title, list, cat, f] of sections) {
+      const sec = document.createElement('div');
+      sec.className = 'codex-sec';
+      const seen = C[cat] || [];
+      total += list.length; found += list.filter(x => seen.includes(x.id)).length;
+      sec.innerHTML = `<h3>${title} <span class="codex-count">${list.filter(x => seen.includes(x.id)).length} / ${list.length}</span></h3>`;
+      const grid = document.createElement('div');
+      grid.className = 'codex-grid';
+      for (const x of list) {
+        const known = seen.includes(x.id);
+        const d = f(x);
+        const card = document.createElement('div');
+        card.className = 'codex-card' + (known ? '' : ' unk');
+        const c = document.createElement('canvas'); c.width = c.height = 68;
+        drawIcon(c.getContext('2d'), known ? d : { glyph: 'star', color: '#d8cfc6' }, 68, known ? d.rar : 0);
+        const txt = document.createElement('div');
+        txt.innerHTML = known ? `<b>${d.name}</b>${d.desc}` : '<b>???</b>Aún no lo descubres';
+        card.append(c, txt);
+        grid.append(card);
+      }
+      sec.append(grid);
+      box.append(sec);
+    }
+    const head = document.createElement('div');
+    head.className = 'codex-count';
+    head.textContent = `Descubierto: ${found} de ${total}`;
+    box.prepend(head);
   }
 
   refreshMissions() {
@@ -116,7 +203,6 @@ export class HUD {
       d.innerHTML = `<b>${m.title}${prog}</b>${s.done ? '' : m.desc}`;
       tr.append(d);
     }
-    // diario
     const list = $('journalList');
     list.innerHTML = '';
     for (const m of MISSIONS) {
@@ -140,7 +226,7 @@ export class HUD {
   }
 
   number(pos, value, crit, color) {
-    this.numbers.push({ p: pos.clone(), v: Math.round(value), crit, color, t: 0 });
+    this.numbers.push({ p: pos.clone(), v: typeof value === 'number' ? Math.round(value) : value, crit, color, t: 0 });
     if (this.numbers.length > 60) this.numbers.shift();
   }
 
@@ -150,7 +236,8 @@ export class HUD {
     $('lvl').textContent = g.level;
     const hpk = Math.max(0, g.hp / st.maxHp);
     $('hpFill').style.width = (hpk * 100).toFixed(1) + '%';
-    $('hpText').textContent = Math.ceil(Math.max(0, g.hp)) + ' / ' + Math.round(st.maxHp);
+    $('shieldFill').style.width = (Math.min(1, g.shield / st.maxHp) * 100).toFixed(1) + '%';
+    $('hpText').textContent = Math.ceil(Math.max(0, g.hp)) + ' / ' + Math.round(st.maxHp) + (g.shield > 0.5 ? ' +' + Math.round(g.shield) : '');
     $('xpFill').style.width = (g.xp / g.xpNext() * 100).toFixed(1) + '%';
     const s = Math.floor(g.time);
     $('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
@@ -163,6 +250,8 @@ export class HUD {
       const el = this.skillEls[sk.id];
       el.cd.style.height = (k * 100).toFixed(1) + '%';
       el.ct.textContent = left > 0.5 && sk.id !== 'primary' ? Math.ceil(left) : '';
+      const b = this.touchBtns[sk.id];
+      if (b) b.style.setProperty('--cd', sk.id === 'primary' ? 0 : k.toFixed(3));
     }
     if (this.itemPopT > 0) { this.itemPopT -= dt; if (this.itemPopT <= 0) $('itemPop').classList.add('hidden'); }
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
@@ -172,7 +261,7 @@ export class HUD {
     } else $('bossbar').classList.add('hidden');
   }
 
-  /* Capa 2D: números de daño y marcador de misión. */
+  /* Capa 2D: números de daño, barras de enemigos y marcador de misión. */
   draw(camera, dt) {
     const cv = this.overlay, ctx = this.ctx;
     const dpr = Math.min(2, devicePixelRatio || 1);
@@ -181,8 +270,30 @@ export class HUD {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     const v = new THREE.Vector3();
+    const toScreen = (p) => { v.copy(p).project(camera); if (v.z > 1) return null; return [(v.x * 0.5 + 0.5) * W, (-v.y * 0.5 + 0.5) * H]; };
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    // barras de vida de enemigos (dañados, élites y gólems)
+    const pp = this.game.player.pos;
+    for (const e of this.game.enemies) {
+      if (e.dead || e.isBoss || e.untargetable) continue;
+      const big = e.elite || e.def.ai === 'golem';
+      if (e.hp >= e.maxHp && !big) continue;
+      if (e.pos.distanceTo(pp) > 26) continue;
+      const s = toScreen(e.center().add(new THREE.Vector3(0, e.hh + 0.35, 0)));
+      if (!s) continue;
+      const w = big ? 70 : 40;
+      ctx.fillStyle = 'rgba(40,30,70,.45)';
+      ctx.fillRect(s[0] - w / 2, s[1], w, 5);
+      ctx.fillStyle = e.elite ? e.elite.color : '#ff9fa8';
+      ctx.fillRect(s[0] - w / 2, s[1], w * Math.max(0, e.hp / e.maxHp), 5);
+      if (big) {
+        ctx.font = '700 11px Quicksand, sans-serif';
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(60,45,80,.7)';
+        const name = e.def.name + (e.elite ? ' ' + e.elite.name : '');
+        ctx.strokeText(name, s[0], s[1] - 8); ctx.fillStyle = '#fffaf3'; ctx.fillText(name, s[0], s[1] - 8);
+      }
+    }
     for (let i = this.numbers.length - 1; i >= 0; i--) {
       const n = this.numbers[i];
       n.t += dt;
@@ -192,7 +303,7 @@ export class HUD {
       if (v.z > 1) continue;
       const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
       const a = 1 - Math.max(0, n.t - 0.5) / 0.4;
-      const size = n.crit ? 22 : 16;
+      const size = n.crit ? 22 : typeof n.v === 'string' ? 14 : 16;
       ctx.font = `700 ${size}px Quicksand, sans-serif`;
       ctx.globalAlpha = a;
       ctx.lineWidth = 3.5;
@@ -202,11 +313,9 @@ export class HUD {
       ctx.fillText(n.v, x, y);
     }
     ctx.globalAlpha = 1;
-    // marcador de la misión seguida
     if (this.game.state !== 'play') return;
     const targets = this.game.missions.targets();
     if (!targets.length) return;
-    const pp = this.game.player.pos;
     let best = targets[0], bd = Infinity;
     for (const t of targets) { const d = t.distanceTo(pp); if (d < bd) { bd = d; best = t; } }
     v.copy(best); v.y += 0.6;
@@ -250,18 +359,17 @@ function drawSkillIcon(ctx, id, s) {
   ctx.translate(s / 2, s / 2);
   ctx.scale(s / 64, s / 64);
   ctx.lineWidth = 3; ctx.strokeStyle = '#4a3f5c'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  if (id === 'primary') {
-    ctx.fillStyle = '#c98a4b'; ctx.beginPath(); ctx.ellipse(0, 5, 11, 14, 0, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#7a4e33'; ctx.beginPath(); ctx.ellipse(0, -8, 14, 7, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
-  } else if (id === 'secondary') {
+  if (id === 'secondary') {
     ctx.strokeStyle = '#de8f55'; ctx.lineWidth = 9;
     ctx.beginPath(); ctx.arc(0, 0, 16, 0.3, Math.PI * 1.7); ctx.stroke();
     ctx.strokeStyle = '#4a3f5c'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 22, 0.3, Math.PI * 1.7); ctx.stroke();
   } else if (id === 'utility') {
     ctx.strokeStyle = '#7fc6b4'; ctx.lineWidth = 7;
     for (const x of [-10, 6]) { ctx.beginPath(); ctx.moveTo(x - 6, -14); ctx.lineTo(x + 8, 0); ctx.lineTo(x - 6, 14); ctx.stroke(); }
-  } else {
-    star(ctx, 0, 0, 20, 9); ctx.fillStyle = '#ffd36e'; ctx.fill(); ctx.stroke();
+  } else if (id === 'jump') {
+    ctx.fillStyle = '#fff6d8';
+    ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(16, 0); ctx.lineTo(6, 0); ctx.lineTo(6, 16); ctx.lineTo(-6, 16); ctx.lineTo(-6, 0); ctx.lineTo(-16, 0); ctx.closePath();
+    ctx.fill(); ctx.stroke();
   }
   ctx.restore();
 }

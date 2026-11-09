@@ -49,7 +49,7 @@ export function buildWorld(game) {
     b.arch(0, 13.2, 0, 3.2, 3.6, 1.2, {});
     for (const [x, z, s] of [[-10, 9, 1], [5, -10, 1.1], [11, 3, 0.9], [-4, 10.5, 0.8], [-11, -1.5, 0.9]]) b.tree(x, 0, z, s);
     b.finish(scene);
-    spots.chests.push({ pos: [5.5, 0, 4.5], region: 'claro' });
+    spots.chests.push({ pos: [5.5, 0, 4.5], region: 'claro' }, { pos: [-5, 0, -9.5], region: 'claro' }, { pos: [2.5, 0, 9], region: 'claro' });
     spots.crates.push([-3, 0.4, 7], [-3, 1.1, 7], [-2.2, 0.4, 7.2]);
     spots.lanterns.push({ anchor: [gx, 2.85, gz], len: 3 });
   }
@@ -99,7 +99,7 @@ export function buildWorld(game) {
     b.dome(cx + 12, 2.4, cz - 4, 1.0, p.roof);
     for (const [x, z, s] of [[-3, 4, 1.1], [6, -3, 1], [-12, -9, 1.2], [2, 12, 0.9], [13, 6, 1], [-4, -14, 0.9], [9, 13, 0.8]]) b.tree(cx + x, 0, cz + z, s);
     b.finish(scene);
-    spots.chests.push({ pos: [cx + 2, 0, cz - 9], region: 'coral' }, { pos: [isl[0] + 1.6, isl[2], isl[1] - 0.8], region: 'coral' });
+    spots.chests.push({ pos: [cx + 2, 0, cz - 9], region: 'coral' }, { pos: [isl[0] + 1.6, isl[2], isl[1] - 0.8], region: 'coral' }, { pos: [cx - 8, 0, cz + 2], region: 'coral' });
     spots.crates.push([cx + 5, 0.5, cz + 2], [cx + 6.1, 0.5, cz + 2.3], [cx + 5.5, 1.5, cz + 2.1]);
     spots.spawnZones.push({ region: 'coral', c: [cx, cz], r: 15 });
   }
@@ -127,7 +127,7 @@ export function buildWorld(game) {
     b.arch(cx + 2, cz + 6, 0, 3, 3.4, 1, { ry: 0 });
     for (const [x, z, s] of [[5, 9, 1], [-12, 6, 1.1], [12, -10, 0.9], [-6, -16, 1], [14, 2, 0.9], [-15, -1, 1]]) b.tree(cx + x, 0, cz + z, s);
     b.finish(scene);
-    spots.chests.push({ pos: [cx + 11, 0, cz + 4], region: 'menta' }, { pos: [cx - 2, 14.27, cz - 12], region: 'menta' });
+    spots.chests.push({ pos: [cx + 11, 0, cz + 4], region: 'menta' }, { pos: [cx - 2, 14.27, cz - 12], region: 'menta' }, { pos: [cx + 5, 0, cz - 14], region: 'menta' }, { pos: [cx - 12, 0, cz + 2], region: 'menta' });
     spots.crates.push([cx - 4, 0.5, cz + 10], [cx - 3, 0.5, cz + 10.4]);
     spots.spawnZones.push({ region: 'menta', c: [cx, cz], r: 15 });
   }
@@ -163,7 +163,7 @@ export function buildWorld(game) {
     b.tower(cx - 8, cz + 6, 0, 2, 4, { roof: 'dome' });
     for (const [x, z, s] of [[-6, -9, 1], [7, -7, 1.1], [-9, 1, 0.9], [2, 10, 0.8]]) b.tree(cx + x, 0, cz + z, s);
     b.finish(scene);
-    spots.chests.push({ pos: [cx - 6, 0, cz + 2.5], region: 'lavanda' });
+    spots.chests.push({ pos: [cx - 6, 0, cz + 2.5], region: 'lavanda' }, { pos: [cx + 8, 0, cz - 4], region: 'lavanda' });
     spots.crates.push([cx + 2, 0.5, cz - 3]);
     spots.spawnZones.push({ region: 'lavanda', c: [cx, cz], r: 10 });
   }
@@ -198,6 +198,7 @@ export function buildWorld(game) {
     b.box(cx, 0, cz + 10, 4, 2.2, 2, p.stone2, {});
     for (const [x, z, s] of [[-14, 6, 1], [14, 6, 1], [-8, 14, 0.9], [8, 14, 0.9]]) b.tree(cx + x, 0, cz + z, s);
     b.finish(scene);
+    spots.chests.push({ pos: [cx - 10, 0, cz + 8], region: 'nova' });
     spots.arena = { c: [cx, cz], r: 16, enter: cz - 12 };
     spots.novaStar = [cx, 0.6, cz];
   }
