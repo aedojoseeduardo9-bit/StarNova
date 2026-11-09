@@ -31,6 +31,7 @@ export class FX {
         float a = smoothstep(0.5, 0.15, r) * vA; gl_FragColor = vec4(vC, a); }`,
       vertexColors: true, transparent: true, depthWrite: false,
     });
+    this.scene = scene;
     this.points = new THREE.Points(g, m);
     this.points.frustumCulled = false;
     scene.add(this.points);
@@ -75,7 +76,62 @@ export class FX {
     }
   }
 
+  /* Rayo (línea en zigzag) entre dos puntos. */
+  bolt(a, b, color = '#fff27a', life = 0.18) {
+    if (!this.bolts) { this.bolts = []; this.boltNext = 0; }
+    let L = this.bolts[this.boltNext];
+    if (!L) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9 * 3), 3));
+      L = { line: new THREE.Line(g, new THREE.LineBasicMaterial({ color, transparent: true, depthWrite: false })), life: 0, max: 1 };
+      L.line.frustumCulled = false;
+      this.scene.add(L.line);
+      this.bolts[this.boltNext] = L;
+    }
+    this.boltNext = (this.boltNext + 1) % 16;
+    const pos = L.line.geometry.attributes.position.array;
+    const d = Math.max(0.3, a.distanceTo(b));
+    for (let i = 0; i < 9; i++) {
+      const k = i / 8, j = i === 0 || i === 8 ? 0 : 0.25 * Math.min(1, d / 3);
+      pos[i * 3] = a.x + (b.x - a.x) * k + (Math.random() - 0.5) * j;
+      pos[i * 3 + 1] = a.y + (b.y - a.y) * k + (Math.random() - 0.5) * j;
+      pos[i * 3 + 2] = a.z + (b.z - a.z) * k + (Math.random() - 0.5) * j;
+    }
+    L.line.geometry.attributes.position.needsUpdate = true;
+    L.line.material.color.set(color);
+    L.line.material.opacity = 1;
+    L.line.visible = true;
+    L.life = L.max = life;
+    for (let i = 0; i < 4; i++) this.emit(b.x, b.y, b.z, (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, color, 0.12, 0.3, -4);
+  }
+
+  /* Línea de aviso (francotiradores). from = null la borra. */
+  warnLine(owner, from, to, timer) {
+    if (!this.warns) this.warns = new Map();
+    let L = this.warns.get(owner);
+    if (!from) { if (L) { this.scene.remove(L); L.geometry.dispose(); this.warns.delete(owner); } return; }
+    if (!L) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      L = new THREE.Line(g, new THREE.LineBasicMaterial({ color: '#ff8fb5', transparent: true, depthWrite: false }));
+      L.frustumCulled = false;
+      this.scene.add(L);
+      this.warns.set(owner, L);
+    }
+    const p = L.geometry.attributes.position.array;
+    const end = to.clone().sub(from).normalize().multiplyScalar(40).add(from);
+    p[0] = from.x; p[1] = from.y; p[2] = from.z; p[3] = end.x; p[4] = end.y; p[5] = end.z;
+    L.geometry.attributes.position.needsUpdate = true;
+    L.material.opacity = timer < 0.3 ? (Math.floor(timer * 30) % 2 ? 1 : 0.3) : 0.55;
+  }
+
   update(dt) {
+    if (this.bolts) for (const L of this.bolts) {
+      if (!L || L.life <= 0) continue;
+      L.life -= dt;
+      L.line.material.opacity = Math.max(0, L.life / L.max);
+      if (L.life <= 0) L.line.visible = false;
+    }
     for (let i = 0; i < N; i++) {
       if (this.life[i] <= 0) { if (this.alpha[i] !== 0) { this.alpha[i] = 0; } continue; }
       this.life[i] -= dt;

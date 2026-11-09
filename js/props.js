@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { R, G, ALL, groups } from './physics.js';
 import { mat, GEO, part, makeOwl } from './entities/models.js';
 import { Audio } from './audio.js';
+import { CHESTS, RANKS, rollChest } from './content/chests.js';
 
 const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
@@ -217,39 +218,107 @@ export class Firefly {
   }
 }
 
-/* Cofre: se abre con chispas y suelta un objeto. */
+/* Cofre con rango y estilo (ver js/content/chests.js). Tras abrirse, reaparece con un rango acorde al avance. */
 export class Chest {
   constructor(game, spot) {
     this.game = game; this.kind = 'chest';
     this.p = v3(spot.pos);
     this.region = spot.region;
-    this.opened = false;
-    const g = new THREE.Group();
-    g.add(part(GEO.box(), mat('#7fc6b4'), 0, 0.2, 0, 0.75, 0.4, 0.5));
-    g.add(part(GEO.box(), mat('#f2c46c'), 0, 0.2, 0, 0.78, 0.08, 0.53));
-    this.lid = new THREE.Group();
-    this.lid.position.set(0, 0.4, -0.25);
-    this.lid.add(part(GEO.box(), mat('#9ad8c6'), 0, 0.07, 0.25, 0.78, 0.15, 0.52));
-    this.lid.add(part(GEO.oct(), mat('#ffd36e', { emissive: 0x6a4a10 }), 0, 0.05, 0.52, 0.06));
-    g.add(this.lid);
-    g.position.copy(this.p);
-    g.rotation.y = Math.atan2(-this.p.x, -this.p.z) * 0 + (spot.ry || 0);
-    this.mesh = g;
-    game.scene.add(g);
-    const c = game.phys.world.createCollider(R.ColliderDesc.cuboid(0.38, 0.27, 0.27).setTranslation(this.p.x, this.p.y + 0.27, this.p.z)
+    this.ry = spot.ry || Math.random() * Math.PI * 2;
+    const c = game.phys.world.createCollider(R.ColliderDesc.cuboid(0.4, 0.3, 0.3).setTranslation(this.p.x, this.p.y + 0.3, this.p.z)
+      .setRotation({ x: 0, y: Math.sin(this.ry / 2), z: 0, w: Math.cos(this.ry / 2) })
       .setCollisionGroups(groups(G.PROP, ALL)), game.phys.fixed);
     game.phys.own(c, { kind: 'chestBody' });
-    this.lidT = 0;
+    this.setType(spot.type || rollChest(game.progress(), game.stats ? game.stats.luck : 0));
   }
-  cost() { return this.game.chestCost(); }
+  setType(id) {
+    if (this.mesh) this.game.scene.remove(this.mesh);
+    this.def = CHESTS[id];
+    this.opened = false;
+    this.lidT = 0;
+    this.respawnT = 0;
+    const L = this.def.look;
+    const g = new THREE.Group();
+    const base = mat(L.base), trim = mat(L.trim), gem = mat(L.gem, { emissive: new THREE.Color(L.gem).multiplyScalar(0.45).getHex() });
+    this.lid = new THREE.Group();
+    this.lid.position.set(0, 0.4, -0.25);
+    if (L.shape === 'basket') {
+      g.add(part(GEO.cyl(10), base, 0, 0.18, 0, 0.36, 0.36, 0.28));
+      for (const y of [0.08, 0.2, 0.32]) g.add(part(GEO.torus(), trim, 0, y, 0, 0.37, 0.37, 0.12));
+      g.children.slice(-3).forEach(t => { t.rotation.x = Math.PI / 2; });
+      for (let i = 0; i < 4; i++) g.add(part(GEO.ico(1), mat('#b9774a'), Math.cos(i * 1.6) * 0.15, 0.38, Math.sin(i * 1.6) * 0.12, 0.08, 0.08, 0.1));
+      const h = part(GEO.torus(), trim, 0, 0.36, 0, 0.3, 0.3, 0.12);
+      this.lid.add(h); this.lid.position.set(0, 0, 0);
+    } else if (L.shape === 'crystal') {
+      g.add(part(GEO.box(), mat(L.base, { transparent: true, opacity: 0.6 }), 0, 0.2, 0, 0.74, 0.4, 0.5));
+      g.add(part(GEO.oct(), gem, 0, 0.22, 0, 0.14, 0.2, 0.14));
+      for (const x of [-0.37, 0.37]) for (const z of [-0.25, 0.25]) g.add(part(GEO.box(), trim, x, 0.2, z, 0.06, 0.42, 0.06));
+      this.lid.add(part(GEO.box(), mat(L.base, { transparent: true, opacity: 0.7 }), 0, 0.07, 0.25, 0.78, 0.14, 0.54));
+      this.lid.add(part(GEO.oct(), gem, 0, 0.2, 0.25, 0.08, 0.12, 0.08));
+    } else if (L.shape === 'rune') {
+      g.add(part(GEO.box(), base, 0, 0.2, 0, 0.76, 0.4, 0.52));
+      const rune = mat(L.gem, { emissive: new THREE.Color(L.gem).multiplyScalar(0.7).getHex() });
+      for (const x of [-0.2, 0, 0.2]) g.add(part(GEO.box(), rune, x, 0.2, 0.265, 0.05, 0.22, 0.01));
+      this.lid.add(part(GEO.box(), trim, 0, 0.07, 0.25, 0.8, 0.14, 0.55));
+      this.lid.add(part(GEO.oct(), gem, 0, 0.2, 0.25, 0.08, 0.12, 0.08));
+      const ring = part(GEO.torus(), rune, 0, 0.75, 0, 0.45, 0.45, 0.1);
+      ring.rotation.x = Math.PI / 2; ring.castShadow = false;
+      g.add(ring); this.ring = ring;
+    } else if (L.shape === 'trunk') {
+      g.add(part(GEO.box(), base, 0, 0.2, 0, 0.75, 0.4, 0.5));
+      for (const x of [-0.25, 0.25]) g.add(part(GEO.box(), trim, x, 0.2, 0, 0.08, 0.42, 0.52));
+      const top = part(GEO.cyl(10), base, 0, 0.0, 0.25, 0.26, 0.76, 0.26);
+      top.rotation.z = Math.PI / 2;
+      this.lid.add(top);
+      for (const x of [-0.25, 0.25]) { const b = part(GEO.cyl(10), trim, x, 0.0, 0.25, 0.27, 0.08, 0.27); b.rotation.z = Math.PI / 2; this.lid.add(b); }
+      this.lid.add(part(GEO.oct(), gem, 0, 0.0, 0.53, 0.06));
+      this.lid.position.y = 0.42;
+    } else {
+      g.add(part(GEO.box(), base, 0, 0.2, 0, 0.75, 0.4, 0.5));
+      g.add(part(GEO.box(), trim, 0, 0.2, 0, 0.78, 0.08, 0.53));
+      this.lid.add(part(GEO.box(), base, 0, 0.07, 0.25, 0.78, 0.15, 0.52));
+      this.lid.add(part(GEO.box(), trim, 0, 0.07, 0.25, 0.8, 0.05, 0.54));
+      this.lid.add(part(GEO.oct(), gem, 0, 0.05, 0.52, 0.06));
+    }
+    g.add(this.lid);
+    if (L.glow) {
+      const halo = part(GEO.ico(1), mat(L.glow, { basic: true, transparent: true, opacity: 0.16, depthWrite: false }), 0, 0.3, 0, 0.75);
+      halo.castShadow = false;
+      g.add(halo); this.halo = halo;
+    } else this.halo = null;
+    g.position.copy(this.p);
+    g.rotation.y = this.ry;
+    g.scale.setScalar(1 + this.def.rank * 0.07);
+    this.mesh = g;
+    this.game.scene.add(g);
+  }
+  cost() { return this.def.rule === 'blood' ? 0 : this.game.chestCost(this.def.cost); }
+  label() {
+    const d = this.def;
+    const price = d.rule === 'blood' ? '25% de vida' : this.cost() + ' chispas';
+    return `${d.name} (${RANKS[d.rank]}) · ${price}`;
+  }
   open() {
     this.opened = true;
+    this.respawnT = 70 + Math.random() * 40;
     Audio.play('chest');
-    this.game.fx.burst(this.p.clone().add(new THREE.Vector3(0, 0.5, 0)), '#ffe7a0', 26, 4);
-    this.game.dropItem(this.p.clone().add(new THREE.Vector3(0, 0.8, 0)));
+    this.game.fx.burst(this.p.clone().add(new THREE.Vector3(0, 0.5, 0)), this.def.look.gem, 26 + this.def.rank * 8, 4 + this.def.rank);
+    this.game.openChestLoot(this);
   }
-  update(dt) {
-    if (this.opened && this.lidT < 1) { this.lidT = Math.min(1, this.lidT + dt * 3); this.lid.rotation.x = -this.lidT * 1.9; }
+  update(dt, t) {
+    if (this.opened) {
+      if (this.lidT < 1) { this.lidT = Math.min(1, this.lidT + dt * 3); this.lid.rotation.x = -this.lidT * 1.9; }
+      this.respawnT -= dt;
+      if (this.respawnT <= 0) {
+        this.setType(rollChest(this.game.progress(), this.game.stats.luck));
+        this.game.fx.burst(this.p.clone().add(new THREE.Vector3(0, 0.4, 0)), this.def.look.gem, 30, 3);
+        if (this.def.rank >= 3) this.game.hud.toast(`Apareció un ${this.def.name} (${RANKS[this.def.rank]})`);
+      }
+      return;
+    }
+    if (this.ring) { this.ring.rotation.z = t; this.ring.position.y = 0.75 + Math.sin(t * 2) * 0.05; }
+    if (this.halo) this.halo.scale.setScalar(0.75 + Math.sin(t * 2.5) * 0.05);
+    if (this.def.rank >= 2 && Math.random() < 0.05 * this.def.rank) this.game.fx.sparkle(this.p.clone().add(new THREE.Vector3(0, 0.5, 0)), this.def.look.gem, 1, 0.9);
   }
 }
 

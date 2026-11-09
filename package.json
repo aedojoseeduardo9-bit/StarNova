@@ -1,6 +1,6 @@
 {
   "name": "star-nova",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Star Nova — aventura 3D de mundo abierto con misiones (Three.js + Rapier)",

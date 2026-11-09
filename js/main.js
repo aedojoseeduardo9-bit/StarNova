@@ -20,7 +20,7 @@ async function boot() {
   }
 }
 /* En la app de Android: muestra la versión y avisa si hay una compilación nueva en GitHub. */
-const REPO = 'aedojoseeduardo9-bit/Star-Nova';
+const REPO = 'aedojoseeduardo9-bit/StarNova';
 async function checkUpdate() {
   const A = window.StarNovaAndroid;
   if (!A) return;
@@ -34,7 +34,7 @@ async function checkUpdate() {
     const latest = m ? parseInt(m[1], 10) : 0;
     if (mine > 0 && latest > mine) {
       const b = document.getElementById('btnUpdate');
-      b.textContent = 'Actualizar a la versión 0.1.' + latest;
+      b.textContent = 'Actualizar a la versión 0.2.' + latest;
       b.classList.remove('hidden');
       b.onclick = () => { location.href = `https://github.com/${REPO}/releases/latest/download/StarNova.apk`; };
     }

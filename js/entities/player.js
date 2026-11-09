@@ -1,7 +1,7 @@
 /* Star Nova — Pip: control del personaje con el controlador cinemático de Rapier. */
 import * as THREE from 'three';
 import { R, G, groups, GRAVITY } from '../physics.js';
-import { makeSquirrel } from './models.js';
+import { makePip, PipAnimator } from './pip.js';
 import { Audio } from '../audio.js';
 
 const HALF = 0.1, RAD = 0.17;          // cápsula: alto total 0.54
@@ -19,8 +19,13 @@ export class Player {
       this.body);
     phys.own(this.collider, this);
     this.kind = 'player';
-    this.model = makeSquirrel();
+    this.model = makePip();
     game.scene.add(this.model);
+    this.anim = new PipAnimator(this.model);
+    this.tailT = 0;
+    this.slowT = 0;
+    this.burnT = 0;
+    this.fallPeak = 0;
     this.yaw = 0;
     this.grounded = false;
     this.coyote = 0;
@@ -59,7 +64,8 @@ export class Player {
     const wl = Math.min(1, wish.length());
     if (wl > 0.01) wish.normalize().multiplyScalar(wl);
 
-    const speed = 5.6 * st.speed;
+    if (this.slowT > 0) this.slowT -= dt;
+    const speed = 5.6 * st.speed * game.buffMul('speed') * (this.slowT > 0 ? 0.6 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vel.x = this.dashDir.x * 15;
@@ -81,18 +87,24 @@ export class Player {
     if (input.pressed.jump) this.jumpBuf = 0.14;
     if (this.jumpBuf > 0) {
       if (this.grounded || this.coyote > 0) {
-        this.vel.y = 8.0; this.jumpBuf = 0; this.coyote = 0; this.grounded = false;
+        this.vel.y = 8.0 * Math.sqrt(st.jump); this.jumpBuf = 0; this.coyote = 0; this.grounded = false;
         Audio.play('jump');
         game.fx.puff(this.pos, 6, '#ffffff');
       } else if (this.airJumps > 0) {
-        this.airJumps--; this.vel.y = 7.0; this.jumpBuf = 0;
+        this.airJumps--; this.vel.y = 7.0 * Math.sqrt(st.jump); this.jumpBuf = 0;
         Audio.play('jump');
         game.fx.ring(this.pos, '#fff3d0');
+        this.anim.flip();
+        game.vibrate(10);
       }
     }
     if (!input.held.jump && this.vel.y > 2.5) this.vel.y += GRAVITY * 0.9 * dt; // salto variable
     this.vel.y += GRAVITY * dt * (this.vel.y < 0 ? 1.18 : 1);
     if (this.vel.y < -24) this.vel.y = -24;
+    // planeo (Alas de Cometa): mantener saltar mientras cae
+    this.gliding = st.glide && !this.grounded && input.held.jump && this.vel.y < -1.5;
+    if (this.gliding) { this.vel.y = Math.max(this.vel.y, -2.2); if (Math.random() < 0.3) game.fx.emit(this.pos.x, this.pos.y + 0.3, this.pos.z, 0, -0.5, 0, '#e8f0ff', 0.12, 0.5, 0); }
+    if (!this.grounded) this.fallPeak = Math.min(this.fallPeak, this.vel.y);
 
     // voltereta
     if (input.pressed.utility && game.skills.ready('utility')) {
@@ -116,7 +128,11 @@ export class Player {
     this.grounded = cc.computedGrounded() && this.vel.y <= 0.5;
     if (desired.y > 0 && m.y < desired.y * 0.4) this.vel.y = Math.min(this.vel.y, 0);
     if (this.grounded) {
-      if (!wasGrounded && this.vel.y < -6) { this.landT = 0.18; game.fx.puff(this.pos, 5, '#ffffff'); }
+      if (!wasGrounded) {
+        if (this.fallPeak < -6) { this.anim.land(-this.fallPeak); game.fx.puff(this.pos, 5, '#ffffff'); }
+        if (this.fallPeak < -11 && st.stomp > 0) game.stomp(this.pos.clone(), st.stomp);
+        this.fallPeak = 0;
+      }
       this.vel.y = -0.5;
       this.coyote = 0.11;
       this.airJumps = st.airJumps;
@@ -134,7 +150,8 @@ export class Player {
 
     // orientación: hacia donde apunta la cámara si dispara, si no hacia donde camina
     let targetYaw = this.yaw;
-    if (input.held.primary || game.aimHold > 0) targetYaw = Math.atan2(fwd.x, fwd.z);
+    if (this.faceYaw != null) targetYaw = this.faceYaw;
+    else if (input.held.primary || game.aimHold > 0) targetYaw = Math.atan2(fwd.x, fwd.z);
     else if (wish.lengthSq() > 0.02) targetYaw = Math.atan2(wish.x, wish.z);
     let dy = targetYaw - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
@@ -150,30 +167,11 @@ export class Player {
   }
 
   animate(dt, t) {
-    const u = this.model.userData;
-    this.model.position.copy(this.pos);
-    this.model.rotation.y = this.yaw;
-    const hs = Math.hypot(this.vel.x, this.vel.z);
-    const running = this.grounded && hs > 0.6;
-    this.walkPhase += dt * (running ? 6 + hs * 2.2 : 0);
-    const ph = this.walkPhase;
-    // brinco al correr (las ardillas saltan a pasitos)
-    const hop = running ? Math.abs(Math.sin(ph)) * 0.06 : 0;
-    u.body.position.y = hop - this.landT * 0.25;
-    u.body.scale.set(1 + this.landT * 0.5, 1 - this.landT * 0.8, 1 + this.landT * 0.5);
-    u.body.rotation.x = running ? 0.12 + Math.sin(ph * 2) * 0.05 : (this.grounded ? 0 : THREE.MathUtils.clamp(-this.vel.y * 0.04, -0.4, 0.4));
-    if (this.spin > 0) u.body.rotation.x = this.spin;
-    u.legs.forEach((l, i) => {
-      const s = (i < 2 ? 1 : -1) * Math.sin(ph);
-      l.position.z = (i < 2 ? 0.08 : -0.07) + (running ? s * 0.05 : 0);
-      l.position.y = 0.035 + (running ? Math.max(0, s) * 0.04 : 0);
+    if (this.tailT > 0) this.tailT -= dt;
+    this.anim.update(dt, {
+      pos: this.pos, yaw: this.yaw, speed: Math.hypot(this.vel.x, this.vel.z), grounded: this.grounded, vy: this.vel.y,
+      dash: this.dashT, spin: this.spin, tailSpin: Math.max(0, this.tailT),
+      invulnBlink: this.invuln > 0 && this.hurtT > 0 && Math.floor(t * 20) % 2 === 0,
     });
-    u.tail.rotation.x = -0.15 + Math.sin(t * 2.2) * 0.08 + (running ? Math.sin(ph) * 0.15 : 0) + (this.grounded ? 0 : 0.35);
-    u.tail.rotation.z = Math.sin(t * 1.3) * 0.12;
-    u.head.rotation.x = running ? -0.1 : Math.sin(t * 0.7) * 0.05;
-    u.head.rotation.y = Math.sin(t * 0.45) * (running ? 0 : 0.25);
-    u.scTail.rotation.x = 0.5 + hs * 0.12 + Math.sin(t * 9) * 0.1;
-    u.pin.rotation.y = t * 2;
-    this.model.visible = !(this.invuln > 0 && this.hurtT > 0 && Math.floor(t * 20) % 2 === 0);
   }
 }

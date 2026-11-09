@@ -4,10 +4,12 @@ Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **e
 El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
 
 ## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
-> **Aviso (nov 2026):** GitHub suspendió la cuenta del dueño (`aedojoseeduardo9-bit`). Mientras no se
-> recupere, no se puede hacer push, PR ni CI. Entonces: compilar la APK en el contenedor
-> (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile**, y entregarle
-> también un **respaldo .zip** del proyecto (con `.git`), porque el contenedor se borra al terminar la sesión.
+> **Cuenta de GitHub (nov 2026):** el proyecto vive SOLO en **`aedojoseeduardo9-bit/StarNova`**.
+> La cuenta antigua (`aedoniororebolledo6-lgtm`) fue suspendida: **no usarla nunca más** (ni en enlaces,
+> ni en remotos, ni en código). El repositorio se llama `StarNova` (sin guion) para no chocar con el
+> `Star-Nova` antiguo. Si una sesión no tiene acceso de escritura a `aedojoseeduardo9-bit/StarNova`, compilar la APK en el contenedor
+> (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile** junto con un
+> **respaldo .zip** del proyecto (con `.git`), y pedirle que abra una sesión nueva con ese repositorio.
 
 Con GitHub disponible:
 1. Trabajar en la rama asignada → push → esperar en verde **"Compilar APK"** (`build.yml`, en ramas solo
@@ -15,7 +17,7 @@ Con GitHub disponible:
 2. Mirar las capturas si el cambio es visual (ver "los ojos").
 3. Crear el PR a `main` y fusionarlo **sin preguntar**: el dueño lo autorizó para siempre.
 4. En `main`, `build.yml` compila la APK y reemplaza el release **`latest`** (`StarNova.apk` + `qr.png`).
-   Enlace fijo: `https://github.com/aedojoseeduardo9-bit/Star-Nova/releases/latest/download/StarNova.apk`.
+   Enlace fijo: `https://github.com/aedojoseeduardo9-bit/StarNova/releases/latest/download/StarNova.apk`.
    La app compara su número de compilación con el título del release `latest` ("compilación N") y muestra
    el botón "Actualizar" en la pantalla de título.
 5. Si la rama ya se fusionó antes, reiníciala desde `origin/main` antes de seguir.
@@ -64,7 +66,10 @@ Con GitHub disponible:
 - `cam=yaw,pitch,dist` — orientar la cámara (yaw 0 = mirando al norte, -z).
 - `dios=1` (sin daño) · `t=600` (segundos de partida: sube la dificultad) · `items=1` (todos los objetos).
 - `frag=N` (completa N misiones de fragmento; con 3 se abre el santuario) · `puente=1` (activa los cristales).
-- `jefe=1` (3 fragmentos + dentro del santuario: empieza el jefe) · `enemigos=N` (N enemigos alrededor).
+- `jefe=1` (3 fragmentos + dentro del santuario: empieza el jefe) · `enemigos=N` (N enemigos alrededor;
+  `tipo=sombra,erizo` elige tipos, `elite=1` los hace élite).
+- `arma=rayo:3` (ataque y rango 0–5) · `poder=agujero` · `cofre=oro` o `cofre=todos` (estilos de cofre)
+  · `compendio=1` (abre el compendio).
 - `diario=1` · `pausa=1` · `final=1` (pantalla final) · `hud=0` (sin interfaz, para fotos bonitas).
 - `ojos=1` lo pone `tools/ojos.cjs` (conserva el búfer de dibujo para las capturas).
 - En la consola del navegador: `window.__starnova.game` da acceso a todo el estado.
@@ -82,13 +87,30 @@ Con GitHub disponible:
 - `js/world/layout.js` — **el mapa**: dónde está cada isla, torre, campana, cristal, cofre, etc.
 - `js/entities/models.js` — modelos low-poly hechos con primitivas (Pip, Sombra, Farol, Tótem, Guardián, Lechuza).
 - `js/entities/player.js` — Pip: movimiento (controlador cinemático), doble salto, voltereta, animación.
-- `js/entities/enemies.js` — enemigos (`ENEMY_DEFS`), IA, el jefe `Guardian`, `shatter` (esquirlas).
-- `js/combat.js` — bellotas, lluvia de estrellas, orbes enemigos, recogibles (chispas, xp, objetos), esquirlas.
+- `js/entities/enemies.js` — IA de los 16 enemigos (`ai`: hopper, flyer, heavy, swarm, roller, turret, bomber,
+  splitter, healer, shielder, blinker, summoner, sniper, burrower, twister, golem), estados (`tickStatus`),
+  élites, el jefe `Guardian` y `shatter` (esquirlas).
+- `js/combat.js` — `Shot` (todos los proyectiles de Pip), `StarFall`, `EnemyOrb`, `VoidHole`, `PoisonCloud`,
+  aliados (`Turret`, `Spirit`, `OwlSpirit`, `Orbitals`, `Drones`), `Pickup` (chispas, xp, vida, objeto, ataque,
+  poder, fragmento) y `Debris`.
 - `js/props.js` — campanas (articulación esférica), cristales, cajas, puente de tablones (bisagras),
   luciérnagas, cofres, portón, farolillos (cadena), hoguera, lechuza, estrella Nova.
-- `js/items.js` — objetos acumulables, rarezas, `computeStats`, íconos 2D.
-- `js/missions.js` — misiones, progreso y objetivos del marcador.
-- `js/hud.js` — HUD en DOM + capa 2D (números de daño, marcador de misión).
+- **Contenido (123 entradas, datos puros)** en `js/content/`:
+  `items.js` (49 objetos en 6 rarezas + `computeStats`), `attacks.js` (21 ataques con rango 0–5 + 13 poderes),
+  `chests.js` (18 estilos de cofre en 6 rangos + `rollChest(progreso)`), `enemies.js` (16 enemigos + 6 élites),
+  `icons.js` (rarezas y ~60 glifos 2D para íconos). Para añadir contenido basta con agregar una entrada:
+  un objeto usa claves de `stats` que ya entiende `computeStats`; un ataque usa un `kind` y efectos existentes;
+  un enemigo usa un `ai` y un `model` existentes (o se añade uno nuevo en `enemies.js` / `enemyModels.js`).
+- `js/arsenal.js` — ataque equipado (cómo dispara cada `kind`), haz continuo, poderes, efectos al golpear
+  (quemar, congelar, cadena, veneno, robo de vida, aturdir, agujero negro…) y aliados/efectos periódicos.
+- `js/entities/pip.js` — modelo de Pip (grupos tipo esqueleto) y `PipAnimator` (galope, cola con resorte,
+  parpadeo, orejas, voltereta del doble salto, lanzamiento, aplastarse al caer, daño).
+- `js/entities/enemyModels.js` — modelos geométricos de los 16 enemigos y el aura de los élite.
+- `js/missions.js` — misiones **principales** (historia de Nova) y **secundarias** (premios), progreso y
+  objetivos del marcador. El jugador elige cuál seguir en el menú (nada se elige solo). En pantalla solo
+  hay un botoncito con la misión seguida (`#trackChip`): **no poner paneles que tapen el juego**.
+- `js/hud.js` — HUD en DOM + capa 2D (números de daño, barras/nombres de enemigos, marcador de misión),
+  íconos y recarga en los botones táctiles, ventana de premio y el **Compendio** (pestaña del diario).
 - `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas. `js/fx.js` — partículas (un solo `Points`).
 - `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
 - `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos). `js/util.js` — utilidades.
@@ -111,6 +133,10 @@ Con GitHub disponible:
 - Rendimiento en teléfono: la arquitectura estática va por `Builder` (una malla por región). No crear
   geometrías ni materiales por cuadro; reutiliza `mat()` y `GEO` de `models.js`. Máximo 1 luz puntual.
 - Textos visibles **en español**. Estilo de la interfaz: suave, redondeado, tipografía serif para títulos.
+- **En táctil nunca se muestran teclas de PC** (el dueño lo pidió). Usa `game.k(textoPC, textoTáctil)` y las
+  clases CSS `pc-only` / `touch-only`. El cuerpo lleva `is-touch` en teléfonos y en la app de Android.
+- Ajustes guardados en `localStorage` (`starnova.ajustes`): sensibilidad, disparo automático (táctil),
+  cámara que acompaña, vibración. El compendio se guarda en `starnova.compendio`.
 - Nada de identificadores de modelo en commits, PR ni código.
 - Licencias: Three.js (MIT) y Rapier (Apache-2.0) en `vendor/`; mantener sus avisos.
 - **Nunca** subir llaves, contraseñas ni tokens al repositorio (es público). Van en Secrets o en la caché de CI.
@@ -128,10 +154,18 @@ Hecho (v0.1):
 - [x] Ojos: `tools/ojos.cjs` + workflow con release `diagnostico`; publicación en GitHub Pages.
 - [x] APK de Android (WebView con el juego dentro), QR en el release `latest`, aviso de actualización.
 
+Hecho (v0.2):
+- [x] Pip nuevo: modelo más tierno y animación procedural completa.
+- [x] Controles táctiles: botones con íconos y recarga, joystick flotante con zona muerta, disparo
+  automático, cámara que acompaña, sensibilidad, vibración; sin teclas de PC en táctil.
+- [x] Más de 100 contenidos: 49 objetos, 21 ataques con rango, 13 poderes, 18 cofres en 6 rangos,
+  16 enemigos, 6 élites (+ Compendio). Los cofres reaparecen con rango según el avance.
+
+- [x] Menú de misiones: principales y secundarias, el jugador elige; sin panel fijo en pantalla.
+
 Pendiente / ideas:
 - [ ] Guardado de progreso (misiones, objetos) en `localStorage`.
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
-- [ ] Más enemigos y élites (con modificadores), más objetos y equipo activo.
 - [ ] Música adaptativa; mezcla de sonido más rica.
 - [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
 - [ ] Postproceso suave (bloom en estrellas/cristales) con opción para teléfonos lentos.

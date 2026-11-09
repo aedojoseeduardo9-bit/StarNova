@@ -97,6 +97,7 @@ export class Input {
       this.stick = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       base.style.left = (e.clientX - r.left) + 'px';
       base.style.top = (e.clientY - r.top) + 'px';
+      base.classList.add('on');
     });
     zone.addEventListener('pointermove', (e) => {
       if (e.pointerId !== this.stick.id) return;
@@ -104,12 +105,17 @@ export class Input {
       const d = Math.hypot(dx, dy);
       if (d > R) { dx *= R / d; dy *= R / d; }
       knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      this.mx = dx / R; this.my = -dy / R;
+      // zona muerta pequeña y respuesta suave
+      const m = Math.hypot(dx, dy) / R;
+      const k = m < 0.12 ? 0 : Math.min(1, (m - 0.12) / 0.88) / Math.max(m, 1e-3);
+      this.mx = dx / R * k; this.my = -dy / R * k;
     });
     const end = (e) => {
       if (e.pointerId !== this.stick.id) return;
       this.stick.id = null; this.mx = 0; this.my = 0;
       knob.style.transform = '';
+      base.style.left = ''; base.style.top = '';
+      base.classList.remove('on');
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
