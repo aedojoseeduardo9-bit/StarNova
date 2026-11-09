@@ -190,39 +190,66 @@ export class HUD {
     box.prepend(head);
   }
 
+  /* Botoncito de la misión seguida (no tapa la pantalla) + menú de misiones principales y secundarias. */
   refreshMissions() {
-    const M = this.game.missions;
-    const tr = $('tracker');
-    tr.innerHTML = '';
-    for (const m of MISSIONS) {
-      const s = M.state[m.id];
-      if (!s.discovered) continue;
-      const d = document.createElement('div');
-      d.className = 'm' + (s.done ? ' done' : '') + (M.tracked === m.id && !s.done ? ' tracked' : '');
-      const prog = m.goal > 1 ? ` <span>${s.progress}/${m.goal}</span>` : '';
-      d.innerHTML = `<b>${m.title}${prog}</b>${s.done ? '' : m.desc}`;
-      tr.append(d);
+    const g = this.game, M = g.missions;
+    const chip = $('trackChip');
+    const tm = M.tracked ? M.def(M.tracked) : null;
+    if (tm) {
+      const s = M.state[tm.id];
+      chip.textContent = '★ ' + tm.title + (tm.goal > 1 ? ` ${s.progress}/${tm.goal}` : '');
+      chip.classList.remove('pick');
+    } else {
+      const anyOpen = Object.keys(M.state).some(id => M.state[id].discovered && !M.state[id].done);
+      chip.textContent = anyOpen ? '★ Elegir misión' : '★ Misiones';
+      chip.classList.toggle('pick', anyOpen);
     }
+    chip.onclick = () => g.openJournal(true, 'misiones');
+    this.renderMissionMenu();
+    const n = M.fragments();
+    document.querySelectorAll('.frag').forEach((f, i) => f.classList.toggle('on', i < n));
+  }
+
+  renderMissionMenu() {
+    const g = this.game, M = g.missions;
     const list = $('journalList');
     list.innerHTML = '';
-    for (const m of MISSIONS) {
+    if (!M.tracked) {
+      const ask = document.createElement('div');
+      ask.className = 'mission-ask';
+      ask.textContent = '¿Qué misión quieres hacer primero?';
+      list.append(ask);
+    }
+    const sub = document.createElement('div');
+    sub.className = 'subtabs';
+    this.missionTab = this.missionTab || 'principal';
+    for (const [id, label] of [['principal', 'Principales'], ['secundaria', 'Secundarias']]) {
+      const b = document.createElement('button');
+      const open = M.list(id).filter(m => M.state[m.id].discovered && !M.state[m.id].done).length;
+      b.textContent = label + (open ? ` (${open})` : '');
+      b.classList.toggle('on', this.missionTab === id);
+      b.onclick = () => { this.missionTab = id; this.renderMissionMenu(); };
+      sub.append(b);
+    }
+    list.append(sub);
+    for (const m of M.list(this.missionTab)) {
       const s = M.state[m.id];
       const d = document.createElement('div');
-      d.className = 'journal-m' + (s.done ? ' done' : '');
-      if (!s.discovered) d.innerHTML = `<div class="reg">${REGIONS[m.region].name}</div><b>???</b><div>Explora ${REGIONS[m.region].name} para descubrir esta misión.</div>`;
-      else {
-        d.innerHTML = `<div class="reg">${REGIONS[m.region].name}</div><b>${m.title}</b>${s.done ? ' ✓' : (m.goal > 1 ? ` — ${s.progress}/${m.goal}` : '')}<div>${m.desc}</div>`;
+      d.className = 'journal-m' + (s.done ? ' done' : '') + (M.tracked === m.id ? ' tracked' : '');
+      const where = m.region ? REGIONS[m.region].name : 'Todo el mundo';
+      if (!s.discovered) {
+        d.innerHTML = `<div class="reg">${where}</div><b>???</b><div>Explora ${where} para descubrir esta misión.</div>`;
+      } else {
+        d.innerHTML = `<div class="reg">${where}</div><b>${m.title}</b>${s.done ? ' ✓' : (m.goal > 1 ? ` — ${s.progress}/${m.goal}` : '')}<div>${m.desc}</div>`;
         if (!s.done) {
           const btn = document.createElement('button');
-          btn.textContent = M.tracked === m.id ? 'Siguiendo' : 'Seguir';
-          btn.onclick = () => { M.tracked = m.id; this.refreshMissions(); };
+          btn.textContent = M.tracked === m.id ? 'Siguiendo ★' : 'Seguir';
+          btn.onclick = () => { M.track(M.tracked === m.id ? null : m.id); if (M.tracked) g.openJournal(false); };
           d.prepend(btn);
         }
       }
       list.append(d);
     }
-    const n = M.fragments();
-    document.querySelectorAll('.frag').forEach((f, i) => f.classList.toggle('on', i < n));
   }
 
   number(pos, value, crit, color) {

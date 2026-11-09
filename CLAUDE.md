@@ -4,10 +4,12 @@ Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **e
 El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
 
 ## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
-> **Aviso (nov 2026):** GitHub suspendió la cuenta del dueño (`aedojoseeduardo9-bit`). Mientras no se
-> recupere, no se puede hacer push, PR ni CI. Entonces: compilar la APK en el contenedor
-> (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile**, y entregarle
-> también un **respaldo .zip** del proyecto (con `.git`), porque el contenedor se borra al terminar la sesión.
+> **Cuenta de GitHub (nov 2026):** el proyecto vive SOLO en **`aedojoseeduardo9-bit/Star-Nova`**.
+> La cuenta antigua (`aedoniororebolledo6-lgtm`) fue suspendida: **no usarla nunca más** (ni en enlaces,
+> ni en remotos, ni en código). Si una sesión no tiene acceso de escritura a `aedojoseeduardo9-bit/Star-Nova`
+> (por ejemplo, si arrancó con otro repositorio del mismo nombre), compilar la APK en el contenedor
+> (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile** junto con un
+> **respaldo .zip** del proyecto (con `.git`), y pedirle que abra una sesión nueva con ese repositorio.
 
 Con GitHub disponible:
 1. Trabajar en la rama asignada → push → esperar en verde **"Compilar APK"** (`build.yml`, en ramas solo
@@ -104,7 +106,9 @@ Con GitHub disponible:
 - `js/entities/pip.js` — modelo de Pip (grupos tipo esqueleto) y `PipAnimator` (galope, cola con resorte,
   parpadeo, orejas, voltereta del doble salto, lanzamiento, aplastarse al caer, daño).
 - `js/entities/enemyModels.js` — modelos geométricos de los 16 enemigos y el aura de los élite.
-- `js/missions.js` — misiones, progreso y objetivos del marcador.
+- `js/missions.js` — misiones **principales** (historia de Nova) y **secundarias** (premios), progreso y
+  objetivos del marcador. El jugador elige cuál seguir en el menú (nada se elige solo). En pantalla solo
+  hay un botoncito con la misión seguida (`#trackChip`): **no poner paneles que tapen el juego**.
 - `js/hud.js` — HUD en DOM + capa 2D (números de daño, barras/nombres de enemigos, marcador de misión),
   íconos y recarga en los botones táctiles, ventana de premio y el **Compendio** (pestaña del diario).
 - `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas. `js/fx.js` — partículas (un solo `Points`).
@@ -156,6 +160,8 @@ Hecho (v0.2):
   automático, cámara que acompaña, sensibilidad, vibración; sin teclas de PC en táctil.
 - [x] Más de 100 contenidos: 49 objetos, 21 ataques con rango, 13 poderes, 18 cofres en 6 rangos,
   16 enemigos, 6 élites (+ Compendio). Los cofres reaparecen con rango según el avance.
+
+- [x] Menú de misiones: principales y secundarias, el jugador elige; sin panel fijo en pantalla.
 
 Pendiente / ideas:
 - [ ] Guardado de progreso (misiones, objetos) en `localStorage`.

@@ -377,6 +377,7 @@ export class Game {
       }
     }
     if (L.refund) { const r = Math.round(chest.cost() * L.refund); for (let i = 0; i < 4; i++) this.pickups.push(new Pickup(this, 'spark', p, r / 4)); }
+    this.missions.event('chest');
     if (d.rule === 'shadow') {
       for (let i = 0; i < 2; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -559,7 +560,7 @@ export class Game {
       this.fx.ring(p, '#ffd36e', 20, 3);
       setTimeout(() => { if (this.state === 'play') this.explodeAt(p, 2.6, e.def.dmg * e.dmgMul * 1.5, '#ffd36e', true); }, 450);
     }
-    this.missions.event('kill', { region: regionAt(e.pos.x, e.pos.z) });
+    this.missions.event('kill', { region: regionAt(e.pos.x, e.pos.z), elite: !!el, type: e.type });
     if (e.isBoss) this.bossDefeated();
   }
 
@@ -683,8 +684,14 @@ export class Game {
 
   onMissionComplete(m) {
     Audio.play('mission');
-    this.hud.banner('Misión cumplida', m.title);
+    this.hud.banner(m.type === 'secundaria' ? 'Misión secundaria cumplida' : 'Misión cumplida', m.title);
     this.vibrate(60);
+    if (m.reward) {
+      this.sparks += 60;
+      const f = this.cam.forward.clone().setY(0).normalize();
+      this.dropItem(this.player.center.addScaledVector(f, 1.2).add(new THREE.Vector3(0, 0.6, 0)), m.reward);
+      this.hud.toast('Premio: +60 chispas y un objeto');
+    }
     if (m.fragment) {
       const n = this.missions.fragments();
       this.sparks += 40;
@@ -772,7 +779,8 @@ export class Game {
       $('dialog').classList.add('hidden');
       this.state = 'play';
       this.missions.discoverAll();
-      this.hud.toast(this.k('Misiones anotadas en tu diario (Tab)', 'Misiones anotadas en tu diario (botón Misiones)'));
+      // el jugador elige qué misión hacer primero
+      if (!this.missions.tracked) setTimeout(() => this.openJournal(true, 'misiones'), 300);
       return;
     }
     $('dialog').querySelector('.text').textContent = OWL_LINES[this.owlLine];
@@ -946,6 +954,7 @@ export class Game {
       this.region = reg;
       this.hud.banner(REGIONS[reg].name, REGIONS[reg].sub);
       if (reg !== 'claro') this.missions.discover(reg);
+      this.missions.event('region', reg);
     }
     // jefe
     const nc = REGIONS.nova.center;

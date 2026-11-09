@@ -34,6 +34,8 @@ const SCENES = [
   { name: '21_pip', q: 'auto=1&ir=claro&hud=0&cam=3.3,0.15,1.6', wait: 2500 },
   { name: '22_movil_combate', q: 'auto=1&ir=coral&arma=prisma:4&enemigos=4&tipo=sombra,farol&dios=1&cam=1.6,0.3,5', wait: 3500, mobile: true },
   { name: '23_movil_pausa', q: 'auto=1&pausa=1', wait: 1500, mobile: true },
+  { name: '25_movil_misiones', q: 'auto=1&diario=1', wait: 1800, mobile: true },
+  { name: '26_movil_jugando', q: 'auto=1&ir=menta&cam=0.2,0.35,6', wait: 3500, mobile: true },
   { name: '24_poder', q: 'auto=1&ir=coral&poder=agujero&enemigos=6&tipo=sombra&dios=1&cam=1.6,0.4,7', wait: 1500, keys: [['KeyR', 600]] },
 ];
 

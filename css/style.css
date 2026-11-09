@@ -33,7 +33,15 @@ button.big:hover { background: #5d5075; }
 #crosshair.hit::before, #crosshair.hit::after { background: #ffd27a; }
 
 /* HUD */
-.hud-tl { position: absolute; left: max(14px, env(safe-area-inset-left)); top: 12px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.hud-tl { position: absolute; left: max(14px, env(safe-area-inset-left)); top: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.track-chip { pointer-events: auto; max-width: 230px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(255,249,243,.7); border: 1px solid rgba(242,196,108,.6); }
+.track-chip.pick { background: rgba(255,230,170,.9); animation: pulse 1.6s infinite ease-in-out; }
+.subtabs { display: flex; gap: 6px; justify-content: center; margin: 2px 0 8px; }
+.subtabs button { font-size: 13px; padding: 6px 14px; }
+.subtabs button.on { background: #f2c46c; color: var(--ink); border-color: #f2c46c; }
+.mission-ask { font-family: var(--serif); font-size: 19px; margin-bottom: 6px; }
+.journal-m.tracked { outline: 2px solid rgba(242,196,108,.95); }
+.journal-m .reward { font-size: 11px; opacity: .7; }
 .hud-tl .row { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 18px; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
 .hud-tl .row.small { font-size: 13px; font-weight: 600; opacity: .85; }
 .spark-ico { width: 14px; height: 14px; background: var(--gold); transform: rotate(45deg); border-radius: 3px; box-shadow: 0 0 8px rgba(242,196,108,.9); }
@@ -47,11 +55,6 @@ button.big:hover { background: #5d5075; }
 #diffFill { height: 100%; width: 0; background: linear-gradient(90deg, var(--mint), var(--gold), var(--coral), #8b6fc9); }
 .hud-buttons { display: flex; gap: 6px; }
 .hud-buttons button { padding: 5px 11px; font-size: 13px; }
-.tracker { position: absolute; right: max(14px, env(safe-area-inset-right)); top: 118px; width: 250px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
-.tracker .m { background: var(--paper); border-radius: 12px; padding: 7px 10px; font-size: 12.5px; box-shadow: 0 2px 10px rgba(74,63,92,.08); }
-.tracker .m.tracked { outline: 2px solid rgba(242,196,108,.9); }
-.tracker .m b { display: block; font-size: 13.5px; }
-.tracker .m.done { opacity: .55; text-decoration: line-through; }
 .hud-bottom { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .bars { width: 360px; display: flex; flex-direction: column; gap: 4px; }
 .hp { position: relative; height: 16px; border-radius: 10px; background: rgba(74,63,92,.25); overflow: hidden; }
@@ -108,14 +111,18 @@ button.big:hover { background: #5d5075; }
 .journal-m b { font-family: var(--serif); font-size: 20px; }
 .journal-m .reg { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; opacity: .6; }
 .journal-m.done { opacity: .6; }
-.journal-m button { float: right; padding: 4px 10px; font-size: 12px; }
+.journal-m { position: relative; padding-right: 104px; }
+.journal-m button { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 1; padding: 7px 12px; font-size: 13px; }
+.journal-m button:hover { transform: translateY(-50%); }
 
 button.update { background: #ffe39a; border: none; box-shadow: 0 4px 16px rgba(242,196,108,.6); animation: pulse 1.6s infinite ease-in-out; }
 @keyframes pulse { 50% { transform: scale(1.05); } }
 .version { position: absolute; right: 10px; bottom: 6px; font-size: 10px; opacity: .55; pointer-events: none; }
 
 /* Táctil */
-.touch { position: absolute; inset: 0; pointer-events: none; }
+.touch { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.hud-tl, .hud-tr { z-index: 6; }
+.screen, .dialog { z-index: 20; }
 .stick-zone { position: absolute; left: 0; bottom: 0; width: 45%; height: 78%; pointer-events: auto; }
 .stick-base { position: absolute; width: clamp(104px, 30vh, 140px); height: clamp(104px, 30vh, 140px); transform: translate(-50%, -50%); border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.55); left: max(96px, 14vw); top: calc(100% - max(92px, 26vh)); transition: opacity .2s; opacity: .55; }
 .stick-base.on { opacity: 1; background: rgba(255,255,255,.26); }
@@ -137,8 +144,10 @@ body.is-touch .hud-bottom { left: 50%; bottom: 8px; }
 body.is-touch .bars { width: min(240px, 32vw); }
 body.is-touch .items { max-width: 34vw; }
 body.is-touch .item, body.is-touch .item canvas { width: 24px; height: 24px; }
-body.is-touch .tracker { top: 100px; width: 200px; }
-body.is-touch .tracker .m { padding: 5px 8px; font-size: 11px; }
+body.is-touch .track-chip { max-width: 190px; font-size: 11px; }
+body.is-touch .banner { top: 16%; }
+body.is-touch .banner .t { font-size: clamp(24px, 4.5vw, 40px); }
+body.is-touch .banner .s { font-size: 11px; }
 body.is-touch .prompt { top: auto; bottom: 30vh; }
 body.is-touch #crosshair { opacity: .5; }
 
@@ -177,7 +186,6 @@ body:not(.is-touch) .touch-only { display: none !important; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-height: 460px) {
   .timer { font-size: 20px; }
-  .tracker { top: 92px; }
   .title h1 { font-size: 54px; }
   .title .story { font-size: 13px; }
   .controls { display: none; }
