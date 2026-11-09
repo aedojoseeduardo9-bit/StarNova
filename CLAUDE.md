@@ -4,10 +4,10 @@ Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **e
 El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
 
 ## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
-> **Cuenta de GitHub (nov 2026):** el proyecto vive SOLO en **`aedojoseeduardo9-bit/Star-Nova`**.
+> **Cuenta de GitHub (nov 2026):** el proyecto vive SOLO en **`aedojoseeduardo9-bit/StarNova`**.
 > La cuenta antigua (`aedoniororebolledo6-lgtm`) fue suspendida: **no usarla nunca más** (ni en enlaces,
-> ni en remotos, ni en código). Si una sesión no tiene acceso de escritura a `aedojoseeduardo9-bit/Star-Nova`
-> (por ejemplo, si arrancó con otro repositorio del mismo nombre), compilar la APK en el contenedor
+> ni en remotos, ni en código). El repositorio se llama `StarNova` (sin guion) para no chocar con el
+> `Star-Nova` antiguo. Si una sesión no tiene acceso de escritura a `aedojoseeduardo9-bit/StarNova`, compilar la APK en el contenedor
 > (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile** junto con un
 > **respaldo .zip** del proyecto (con `.git`), y pedirle que abra una sesión nueva con ese repositorio.
 
@@ -17,7 +17,7 @@ Con GitHub disponible:
 2. Mirar las capturas si el cambio es visual (ver "los ojos").
 3. Crear el PR a `main` y fusionarlo **sin preguntar**: el dueño lo autorizó para siempre.
 4. En `main`, `build.yml` compila la APK y reemplaza el release **`latest`** (`StarNova.apk` + `qr.png`).
-   Enlace fijo: `https://github.com/aedojoseeduardo9-bit/Star-Nova/releases/latest/download/StarNova.apk`.
+   Enlace fijo: `https://github.com/aedojoseeduardo9-bit/StarNova/releases/latest/download/StarNova.apk`.
    La app compara su número de compilación con el título del release `latest` ("compilación N") y muestra
    el botón "Actualizar" en la pantalla de título.
 5. Si la rama ya se fusionó antes, reiníciala desde `origin/main` antes de seguir.
