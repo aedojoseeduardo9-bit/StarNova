@@ -20,7 +20,7 @@ async function boot() {
   }
 }
 /* En la app de Android: muestra la versión y avisa si hay una compilación nueva en GitHub. */
-const REPO = 'aedoniororebolledo6-lgtm/Star-Nova';
+const REPO = 'aedojoseeduardo9-bit/Star-Nova';
 async function checkUpdate() {
   const A = window.StarNovaAndroid;
   if (!A) return;
