@@ -6,7 +6,7 @@
 set -e
 DEST="${1:-./capturas}"
 FILTRO="${2:-}"
-REPO="aedoniororebolledo6-lgtm/Star-Nova"
+REPO="aedojoseeduardo9-bit/Star-Nova"
 BASE="https://github.com/$REPO/releases/download/diagnostico"
 mkdir -p "$DEST"
 curl -sSL -f -o "$DEST/report.txt" "$BASE/report.txt" || { echo "Todavía no hay informe (release diagnostico)"; exit 1; }

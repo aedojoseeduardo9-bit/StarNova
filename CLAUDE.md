@@ -4,7 +4,7 @@ Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **e
 El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
 
 ## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
-> **Aviso (nov 2026):** GitHub suspendió la cuenta del dueño (`aedoniororebolledo6-lgtm`). Mientras no se
+> **Aviso (nov 2026):** GitHub suspendió la cuenta del dueño (`aedojoseeduardo9-bit`). Mientras no se
 > recupere, no se puede hacer push, PR ni CI. Entonces: compilar la APK en el contenedor
 > (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile**, y entregarle
 > también un **respaldo .zip** del proyecto (con `.git`), porque el contenedor se borra al terminar la sesión.
@@ -15,7 +15,7 @@ Con GitHub disponible:
 2. Mirar las capturas si el cambio es visual (ver "los ojos").
 3. Crear el PR a `main` y fusionarlo **sin preguntar**: el dueño lo autorizó para siempre.
 4. En `main`, `build.yml` compila la APK y reemplaza el release **`latest`** (`StarNova.apk` + `qr.png`).
-   Enlace fijo: `https://github.com/aedoniororebolledo6-lgtm/Star-Nova/releases/latest/download/StarNova.apk`.
+   Enlace fijo: `https://github.com/aedojoseeduardo9-bit/Star-Nova/releases/latest/download/StarNova.apk`.
    La app compara su número de compilación con el título del release `latest` ("compilación N") y muestra
    el botón "Actualizar" en la pantalla de título.
 5. Si la rama ya se fusionó antes, reiníciala desde `origin/main` antes de seguir.

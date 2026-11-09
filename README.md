@@ -9,7 +9,7 @@ de arquitectura pastel para devolverle la luz a la estrella **Nova**.
 - Se juega en **PC** (teclado y ratón) o en el **teléfono en horizontal** (controles táctiles).
 
 ## Jugar
-- En línea (cuando esté activado GitHub Pages): `https://aedoniororebolledo6-lgtm.github.io/Star-Nova/`
+- En línea (cuando esté activado GitHub Pages): `https://aedojoseeduardo9-bit.github.io/Star-Nova/`
 - En local: `node tools/serve.mjs 8080` y abrir `http://127.0.0.1:8080/`
 
 ## Controles
