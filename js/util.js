@@ -25,5 +25,6 @@ export const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y
 
 export const store = {
   get(k, d) { try { const v = localStorage.getItem('starnova.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('starnova.' + k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } },
+  set(k, v) { try { localStorage.setItem('starnova.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  del(k) { try { localStorage.removeItem('starnova.' + k); } catch (e) { /* sin almacenamiento */ } },
 };

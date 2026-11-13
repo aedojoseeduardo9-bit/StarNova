@@ -61,7 +61,8 @@ Con GitHub disponible:
    Si el dueño manda capturas de su teléfono, úsalas también.
 
 ### Atajos de URL (para pruebas y capturas)
-`index.html?auto=1` empieza sin pantalla de título. Se combinan con `&`:
+`index.html?auto=1` empieza sin pantalla de título, como **partida de prueba** (sin perfil: no lee ni escribe
+guardados). Se combinan con `&`:
 - `ir=claro|coral|campana|menta|torre|lavanda|puente|altar|nova|santuario` — aparecer en ese lugar.
 - `cam=yaw,pitch,dist` — orientar la cámara (yaw 0 = mirando al norte, -z).
 - `dios=1` (sin daño) · `t=600` (segundos de partida: sube la dificultad) · `items=1` (todos los objetos).
@@ -71,6 +72,9 @@ Con GitHub disponible:
 - `arma=rayo:3` (ataque y rango 0–5) · `poder=agujero` · `cofre=oro` o `cofre=todos` (estilos de cofre)
   · `compendio=1` (abre el compendio).
 - `diario=1` · `pausa=1` · `final=1` (pantalla final) · `hud=0` (sin interfaz, para fotos bonitas).
+- `menu=misiones|mochila|mapa|compendio|sistema` (abre el menú en esa página) · `perfiles=1` (pantalla de
+  perfiles) · `perfil=2` (entra con la ranura 2, sin `auto`; `nombre=Nuez` si hay que crearla).
+  `tools/ojos.cjs` puede sembrar perfiles de ejemplo con `store:` en la escena.
 - `ojos=1` lo pone `tools/ojos.cjs` (conserva el búfer de dibujo para las capturas).
 - En la consola del navegador: `window.__starnova.game` da acceso a todo el estado.
 
@@ -78,7 +82,15 @@ Con GitHub disponible:
 - `index.html` — interfaz (HUD, pantallas, controles táctiles) e `importmap`. `css/style.css` — estilos.
 - `js/main.js` — arranque: inicia Rapier (WASM) y crea `Game`.
 - `js/game.js` — **núcleo**: ciclo fijo de 60 pasos/s, habilidades, daño/críticos/efectos de objetos,
-  director de enemigos (dificultad por tiempo), interacción (cofres, lechuza), misiones, jefe, atajos.
+  director de enemigos (dificultad por tiempo), interacción (cofres, lechuza), misiones, jefe, atajos,
+  perfiles (`playSlot`, `saveNow`, `saveSoon`, `saveAndQuit`) y el menú (`openMenu(página)`, estado `'menu'`).
+- `js/save.js` — **perfiles de guardado**: 3 ranuras en `localStorage` (`starnova.perfil.1..3`).
+  `snapshot(juego)` fotografía la partida y `restore(juego, datos)` la aplica **en silencio** sobre el mundo
+  recién creado (sin premios ni sonidos). Como el mundo solo está "nuevo" al cargar la página, "Guardar y
+  salir" recarga y vuelve a los perfiles. Si se añade algo que deba recordarse, va en ambas funciones.
+- `js/menus.js` — pantalla de **perfiles** (nueva aventura, continuar, copiar, borrar) y **menú del juego por
+  páginas**: Misiones · Mochila (ataque, poder, datos de Pip, objetos) · Mapa (islas, misión seguida, dónde
+  está Pip) · Compendio · Sistema (guardar, guardar y salir, ajustes).
 - `js/physics.js` — mundo Rapier, **grupos de colisión** (`G`), controladores de personaje, rayos.
 - `js/world/palette.js` — paletas y nombres de las 5 regiones; mezcla de cielo por posición.
 - `js/world/builder.js` — piezas de arquitectura (caja, cilindro, torre, arco, cúpula, isla, pasarela…);
@@ -110,7 +122,8 @@ Con GitHub disponible:
   objetivos del marcador. El jugador elige cuál seguir en el menú (nada se elige solo). En pantalla solo
   hay un botoncito con la misión seguida (`#trackChip`): **no poner paneles que tapen el juego**.
 - `js/hud.js` — HUD en DOM + capa 2D (números de daño, barras/nombres de enemigos, marcador de misión),
-  íconos y recarga en los botones táctiles, ventana de premio y el **Compendio** (pestaña del diario).
+  íconos y recarga en los botones táctiles, ventana de premio, aviso de guardado y las páginas de
+  Misiones y Compendio del menú.
 - `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas. `js/fx.js` — partículas (un solo `Points`).
 - `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
 - `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos). `js/util.js` — utilidades.
@@ -137,6 +150,9 @@ Con GitHub disponible:
   clases CSS `pc-only` / `touch-only`. El cuerpo lleva `is-touch` en teléfonos y en la app de Android.
 - Ajustes guardados en `localStorage` (`starnova.ajustes`): sensibilidad, disparo automático (táctil),
   cámara que acompaña, vibración. El compendio se guarda en `starnova.compendio`.
+- **Menú como en una aventura clásica** (el dueño lo pidió): título → **perfiles** → juego. Una partida nueva
+  solo nace al elegir una ranura vacía; **el menú del juego no tiene "Nueva partida"**. Se guarda solo (cada
+  30 s, al abrir el menú, al cumplir misiones, recoger objetos, subir de nivel y al salir de la app).
 - Nada de identificadores de modelo en commits, PR ni código.
 - Licencias: Three.js (MIT) y Rapier (Apache-2.0) en `vendor/`; mantener sus avisos.
 - **Nunca** subir llaves, contraseñas ni tokens al repositorio (es público). Van en Secrets o en la caché de CI.
@@ -163,8 +179,12 @@ Hecho (v0.2):
 
 - [x] Menú de misiones: principales y secundarias, el jugador elige; sin panel fijo en pantalla.
 
+Hecho (v0.3):
+- [x] Perfiles de guardado (3 ranuras): nueva aventura, continuar, copiar y borrar; guardado automático.
+- [x] Menú del juego por páginas: Misiones, Mochila, Mapa, Compendio y Sistema (sin "Nueva partida").
+- [x] Prueba automática de guardado en los ojos (`prueba_guardado`: crear → guardar y salir → continuar → borrar).
+
 Pendiente / ideas:
-- [ ] Guardado de progreso (misiones, objetos) en `localStorage`.
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
 - [ ] Música adaptativa; mezcla de sonido más rica.
 - [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
