@@ -38,10 +38,11 @@
         <div id="timer" class="timer">00:00</div>
         <div class="diff"><span id="diffName">Brisa</span><div class="diff-bar"><div id="diffFill"></div></div></div>
         <div class="hud-buttons">
-          <button id="btnJournal">Misiones</button>
+          <button id="btnJournal">Menú</button>
           <button id="btnMute">♪</button>
           <button id="btnPause">❚❚</button>
         </div>
+        <div id="saveIcon" class="save-icon">✦ guardado</div>
       </div>
 
       <div class="hud-bottom">
@@ -84,7 +85,7 @@
         <div class="controls pc-only">
           <div><b>WASD</b> moverse · <b>Espacio</b> saltar (doble salto) · <b>Ratón</b> mirar</div>
           <div><b>Clic</b> atacar · <b>Q</b> coletazo · <b>Shift</b> voltereta · <b>R</b> poder especial</div>
-          <div><b>E</b> interactuar · <b>Tab</b> misiones · <b>Esc</b> pausa · <b>M</b> sonido</div>
+          <div><b>E</b> interactuar · <b>Tab</b> menú · <b>Esc</b> pausa · <b>M</b> sonido</div>
         </div>
         <div class="controls touch-only">
           <div>Joystick izquierdo para moverte · desliza a la derecha para mirar</div>
@@ -93,28 +94,64 @@
       </div>
     </div>
 
-    <div id="version" class="version"></div>
-
-    <div id="pause" class="screen hidden">
-      <div class="panel">
-        <h2>Pausa</h2>
-        <div class="settings">
-          <label>Sensibilidad de cámara <input type="range" id="optSens" min="0.3" max="2.5" step="0.1"></label>
-          <label class="touch-only"><input type="checkbox" id="optAuto"> Disparo automático</label>
-          <label class="touch-only"><input type="checkbox" id="optAssist"> La cámara acompaña al moverte</label>
-          <label class="touch-only"><input type="checkbox" id="optVib"> Vibración</label>
+    <!-- Perfiles: el único lugar donde se empieza una aventura nueva -->
+    <div id="profiles" class="screen title hidden">
+      <div class="profiles-inner">
+        <div class="kicker">elige tu aventura</div>
+        <h2>Perfiles</h2>
+        <div id="slotList" class="slots"></div>
+        <div id="profileMsg" class="profile-msg"></div>
+        <button id="btnProfilesBack">Volver</button>
+      </div>
+      <div id="nameBox" class="name-box hidden">
+        <div class="panel">
+          <h2>Nueva aventura</h2>
+          <p>¿Cómo se llamará este perfil?</p>
+          <input id="nameInput" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
+          <div class="row-buttons"><button id="btnNameCancel">Cancelar</button><button id="btnNameOk" class="big">Empezar</button></div>
         </div>
-        <button id="btnResume" class="big">Continuar</button>
-        <button id="btnRestart">Nueva partida</button>
       </div>
     </div>
 
-    <div id="journal" class="screen hidden">
-      <div class="panel wide">
-        <div class="tabs"><button data-tab="misiones">Misiones</button><button data-tab="compendio">Compendio</button></div>
-        <div id="journalList" class="tab-misiones"></div>
-        <div id="codex" class="tab-compendio hidden"></div>
-        <button id="btnCloseJournal">Cerrar</button>
+    <div id="version" class="version"></div>
+
+    <!-- Menú del juego por páginas (pausa el juego) -->
+    <div id="menu" class="screen hidden">
+      <div class="menu">
+        <div class="menu-head">
+          <button id="menuPrev" class="menu-arrow" aria-label="Página anterior">‹</button>
+          <div id="menuTabs" class="menu-tabs">
+            <button data-tab="misiones">Misiones</button>
+            <button data-tab="mochila">Mochila</button>
+            <button data-tab="mapa">Mapa</button>
+            <button data-tab="compendio">Compendio</button>
+            <button data-tab="sistema">Sistema</button>
+          </div>
+          <button id="menuNext" class="menu-arrow" aria-label="Página siguiente">›</button>
+        </div>
+        <div class="menu-body">
+          <div id="journalList" class="page"></div>
+          <div id="bag" class="page hidden"></div>
+          <div id="mapPage" class="page hidden"><canvas id="mapCanvas"></canvas><div id="mapList" class="map-list"></div></div>
+          <div id="codex" class="page hidden"></div>
+          <div id="system" class="page hidden">
+            <div id="sysProfile" class="slot sys-profile"></div>
+            <div class="sys-actions">
+              <button id="btnSave">Guardar</button>
+              <button id="btnSaveQuit">Guardar y salir</button>
+            </div>
+            <div class="settings">
+              <label>Sensibilidad de cámara <input type="range" id="optSens" min="0.3" max="2.5" step="0.1"></label>
+              <label class="touch-only"><input type="checkbox" id="optAuto"> Disparo automático</label>
+              <label class="touch-only"><input type="checkbox" id="optAssist"> La cámara acompaña al moverte</label>
+              <label class="touch-only"><input type="checkbox" id="optVib"> Vibración</label>
+            </div>
+          </div>
+        </div>
+        <div class="menu-foot">
+          <span class="menu-hint pc-only"><b>Q</b> / <b>E</b> cambian de página · <b>Esc</b> vuelve al juego</span>
+          <button id="btnResume" class="big">Volver al juego</button>
+        </div>
       </div>
     </div>
 

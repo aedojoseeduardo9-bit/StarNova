@@ -10,6 +10,18 @@ try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = requ
 const OUT = path.resolve(process.argv[2] || 'ojos');
 const FILTER = process.argv[3] || '';
 
+/* Perfiles de ejemplo para las capturas (se inyectan en localStorage antes de cargar la página). */
+const M_DEMO = { campanas: [3, 1, 1], luciernagas: [3, 1, 1], puente: [1, 0, 1], guardian: [0, 0, 0], sombras: [5, 0, 1], explorador: [3, 0, 1], cofres: [2, 0, 1], elites: [0, 0, 1], golem: [0, 0, 1] };
+const DEMO = {
+  'perfil.1': {
+    v: 1, name: 'Pip', created: 1, saved: Date.now(), time: 1560, level: 7, xp: 30, sparks: 240, hp: 150, kills: 86, frags: 2, region: 'coral',
+    items: { bellota: 2, cascabel: 1, pluma: 1, miel: 2, te: 1, piedra: 1 }, attack: { id: 'rayo', tier: 3 }, power: 'agujero',
+    missions: M_DEMO, tracked: 'puente', visited: ['claro', 'coral', 'menta'], owl: 1, pos: [-46, 0.4, 1], cam: [1.9, 0.3],
+    world: { bells: [1, 1, 1], crystals: [1, 0], fireflies: [1, 1, 1], chests: [], extra: [], altar: 0, gate: 0, boss: 0 },
+  },
+  'perfil.3': { v: 1, name: 'Luna', created: 1, saved: Date.now(), time: 5400, level: 14, frags: 4, region: 'nova', world: { boss: 1 } },
+};
+
 const SCENES = [
   { name: '01_titulo', q: '', wait: 2500 },
   { name: '02_claro', q: 'auto=1&cam=0.5,0.35,5', wait: 3500 },
@@ -36,6 +48,14 @@ const SCENES = [
   { name: '23_movil_pausa', q: 'auto=1&pausa=1', wait: 1500, mobile: true },
   { name: '25_movil_misiones', q: 'auto=1&diario=1', wait: 1800, mobile: true },
   { name: '26_movil_jugando', q: 'auto=1&ir=menta&cam=0.2,0.35,6', wait: 3500, mobile: true },
+  { name: '27_perfiles_vacios', q: 'perfiles=1', wait: 1500, mobile: true },
+  { name: '28_perfiles', q: 'perfiles=1', wait: 1500, mobile: true, store: DEMO },
+  { name: '29_perfiles_pc', q: 'perfiles=1', wait: 1500, store: DEMO },
+  { name: '30_menu_mochila', q: 'auto=1&items=1&arma=rayo:3&menu=mochila', wait: 1800, mobile: true },
+  { name: '31_menu_mapa', q: 'perfil=1&menu=mapa', wait: 1800, mobile: true, store: DEMO },
+  { name: '32_menu_sistema', q: 'perfil=1&menu=sistema', wait: 1800, mobile: true, store: DEMO },
+  { name: '33_menu_mapa_pc', q: 'perfil=1&menu=mapa', wait: 1800, store: DEMO },
+  { name: '34_partida_cargada', q: 'perfil=1', wait: 3500, mobile: true, store: DEMO },
   { name: '24_poder', q: 'auto=1&ir=coral&poder=agujero&enemigos=6&tipo=sombra&dios=1&cam=1.6,0.4,7', wait: 1500, keys: [['KeyR', 600]] },
 ];
 
@@ -55,6 +75,7 @@ const SCENES = [
     const ctx = await browser.newContext(sc.mobile
       ? { viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true }
       : { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+    if (sc.store) await ctx.addInitScript((data) => { for (const k in data) localStorage.setItem('starnova.' + k, JSON.stringify(data[k])); }, sc.store);
     const page = await ctx.newPage();
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -104,6 +125,73 @@ const SCENES = [
     const c = await page.evaluate(() => window.__starnova.game.player.pos.toArray());
     const moved = Math.hypot(b[0] - a[0], b[2] - a[2]);
     report.push(`\n[prueba_mover] avanzó ${moved.toFixed(2)} m (esperado > 1) → ${moved > 1 ? 'OK' : 'FALLO'} · salto: altura ${(c[1] - b[1]).toFixed(2)} m → ${c[1] - b[1] > 0.2 ? 'OK' : 'FALLO'}`);
+    await ctx.close();
+  }
+  // prueba de guardado: crear un perfil, avanzar, "Guardar y salir", continuar y borrar
+  if (!FILTER || FILTER === 'guardar') {
+    const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', (e) => errs.push(e.message));
+    const ready = () => page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
+    const fails = [];
+    const check = (ok, what) => { if (!ok) fails.push(what); };
+    try {
+      await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1`);
+      await ready();
+      await page.click('#btnStart');
+      await page.click('.slot[data-slot="2"] .go');
+      await page.fill('#nameInput', 'Nuez');
+      await page.click('#btnNameOk');
+      await page.waitForTimeout(600);
+      const a = await page.evaluate(() => {
+        const g = window.__starnova.game;
+        g.addItem('bellota', true);
+        g.sparks = 123;
+        g.props.bells.forEach(b => b.ring());            // completa "Las Tres Campanas" (+40 chispas y un fragmento)
+        g.missions.track('luciernagas');
+        g.player.teleport([-46, 0.4, 1]);
+        return { state: g.state, slot: g.slot, name: g.profile.name };
+      });
+      check(a.state === 'play' && a.slot === 2 && a.name === 'Nuez', 'no empezó el perfil nuevo');
+      await page.waitForTimeout(1800);                    // Pip pisa suelo firme en el Jardín de Coral
+      await page.click('#btnPause');
+      const noNew = await page.evaluate(() => !/nueva partida/i.test(document.getElementById('menu').innerText));
+      check(noNew, 'el menú todavía ofrece "Nueva partida"');
+      await page.screenshot({ path: path.join(OUT, '35_guardar_y_salir.png') });
+      await Promise.all([page.waitForNavigation(), page.click('#btnSaveQuit')]);
+      await ready();
+      const b = await page.evaluate(() => ({
+        perfiles: !document.getElementById('profiles').classList.contains('hidden'),
+        texto: document.querySelector('.slot[data-slot="2"]').innerText,
+        estrellas: document.querySelectorAll('.slot[data-slot="2"] .stars .on').length,
+      }));
+      check(b.perfiles, 'tras salir no volvió a los perfiles');
+      check(/Nuez/.test(b.texto) && b.estrellas === 1, 'la ranura no muestra el perfil guardado');
+      await page.click('.slot[data-slot="2"] .go');
+      await page.waitForTimeout(1500);
+      const c = await page.evaluate(() => {
+        const g = window.__starnova.game, p = g.player.pos;
+        return {
+          state: g.state, bellota: g.items.bellota, sparks: Math.floor(g.sparks), frags: g.missions.fragments(), campanas: g.missions.state.campanas.done,
+          rung: g.props.bells.every(x => x.rung), tracked: g.missions.tracked, dist: Math.hypot(p.x + 46, p.z - 1), y: p.y,
+        };
+      });
+      check(c.state === 'play', 'no continuó la partida');
+      check(c.bellota === 1 && c.sparks === 163, `objetos o chispas mal restaurados (${c.bellota}, ${c.sparks})`);
+      check(c.frags === 1 && c.campanas && c.rung, 'misión o campanas mal restauradas');
+      check(c.tracked === 'luciernagas', 'misión seguida mal restaurada');
+      check(c.dist < 3 && c.y > -1, `lugar mal restaurado (a ${c.dist.toFixed(1)} m, altura ${c.y.toFixed(1)})`);
+      await page.click('#btnPause');
+      await Promise.all([page.waitForNavigation(), page.click('#btnSaveQuit')]);
+      await ready();
+      await page.click('.slot[data-slot="2"] .acts button:nth-child(2)');   // Borrar
+      await page.click('.slot[data-slot="2"] .danger');                     // Sí, borrar
+      const gone = await page.evaluate(() => localStorage.getItem('starnova.perfil.2') === null && document.querySelector('.slot[data-slot="2"]').classList.contains('empty'));
+      check(gone, 'no se borró el perfil');
+      for (const e of errs) fails.push('error: ' + e.slice(0, 200));
+    } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
+    report.push(`\n[prueba_guardado] crear perfil → avanzar → guardar y salir → continuar → borrar → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
     await ctx.close();
   }
   report.push(`\nErrores de consola en total: ${errorsTotal}`);

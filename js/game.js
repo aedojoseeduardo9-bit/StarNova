@@ -20,8 +20,11 @@ import { Missions } from './missions.js';
 import { HUD } from './hud.js';
 import { Audio } from './audio.js';
 import { store } from './util.js';
+import { Profiles, SLOTS, snapshot, restore } from './save.js';
+import { Menus, MENU_TABS } from './menus.js';
 
 const STEP = 1 / 60;
+const AUTOSAVE = 30;      // segundos entre guardados automáticos
 const $ = (id) => document.getElementById(id);
 
 const OWL_LINES = [
@@ -62,6 +65,11 @@ export class Game {
     this.v3 = (x, y, z) => new THREE.Vector3(x, y, z);
     this.settings = Object.assign({ sens: 1, autofire: true, vibration: true, camAssist: true }, store.get('ajustes', {}));
     this.codex = store.get('compendio', { item: [], attack: [], power: [], chest: [], enemy: [], elite: [] });
+    this.slot = 0;                                        // ranura en uso (0 = partida de prueba: no se guarda)
+    this.profile = { name: 'Prueba', created: Date.now() };
+    this.saveT = 0;
+    this.lastSaved = 0;
+    this.menuTab = 'misiones';
   }
 
   get touch() { return this.input && this.input.touch; }
@@ -125,6 +133,7 @@ export class Game {
     this.skills = new Skills(this);
 
     this.hud = new HUD(this);
+    this.menus = new Menus(this);
     this.missions = new Missions(this);
     this.player = new Player(this, this.spots.spawn);
     const S = this.spots;
@@ -152,6 +161,10 @@ export class Game {
     this.onResize();
     addEventListener('resize', () => this.onResize());
     this.applyDebug();
+    // tras "Guardar y salir" la página se recarga y vuelve directo a los perfiles
+    let back = false;
+    try { back = sessionStorage.getItem('starnova.perfiles') === '1'; sessionStorage.removeItem('starnova.perfiles'); } catch (e) { /* sin almacenamiento */ }
+    if (back && this.state === 'title') this.menus.showProfiles(true);
     this.hud.refreshMissions();
     this.hud.refreshLoadout();
     this.last = performance.now();
@@ -186,7 +199,9 @@ export class Game {
     if (P.get('cam')) { const [y, p, d] = P.get('cam').split(',').map(Number); this.cam.yaw = y || 0; this.cam.pitch = p ?? 0.32; if (d) this.cam.want = this.cam.cur = d; }
     else if (go === 'lavanda' || go === 'puente') this.cam.yaw = -Math.PI / 2;
     else if (go === 'nova' || go === 'santuario') this.cam.yaw = Math.PI;
+    const slot = parseInt(P.get('perfil') || '0', 10);
     if (P.get('auto')) this.start();
+    else if (SLOTS.includes(slot)) this.playSlot(slot, P.get('nombre'));
     if (P.get('enemigos')) {
       const n = parseInt(P.get('enemigos'), 10);
       const forced = P.get('tipo') ? P.get('tipo').split(',') : null;
@@ -200,26 +215,34 @@ export class Game {
         this.spawnEnemy(type, this.v3(p.x + Math.cos(a) * 6, p.y + (fly ? 2 : 0.3), p.z + Math.sin(a) * 6), { force: true, elite });
       }
     }
-    if (P.get('diario')) this.openJournal(true);
-    if (P.get('compendio')) this.openJournal(true, 'compendio');
-    if (P.get('pausa')) this.pause(true);
+    if (P.get('diario')) this.openMenu('misiones');
+    if (P.get('compendio')) this.openMenu('compendio');
+    if (P.get('pausa')) this.openMenu('sistema');
+    if (P.get('menu')) this.openMenu(P.get('menu'));
+    if (P.get('perfiles') && this.state === 'title') this.menus.showProfiles(true);
     if (P.get('final')) setTimeout(() => this.showEnding(), 300);
     if (P.get('hud') === '0') { this.hud.show(false); this.hideHud = true; }
   }
 
   bindUI() {
-    $('btnStart').onclick = () => this.start(true);
-    $('btnResume').onclick = () => this.pause(false);
-    $('btnRestart').onclick = () => location.reload();
-    $('btnJournal').onclick = () => this.openJournal(true);
-    $('btnCloseJournal').onclick = () => this.openJournal(false);
+    $('btnStart').onclick = () => { Audio.init(); Audio.play('select'); this.menus.showProfiles(true); };
+    $('btnResume').onclick = () => this.closeMenu();
+    $('btnJournal').onclick = () => this.openMenu();
     $('btnMute').onclick = () => this.toggleMute();
-    $('btnPause').onclick = () => this.pause(true);
+    $('btnPause').onclick = () => this.openMenu('sistema');
     $('btnRespawn').onclick = () => this.respawn();
-    $('btnContinue').onclick = () => { $('ending').classList.add('hidden'); this.state = 'play'; this.input.enabled = true; };
+    $('btnContinue').onclick = () => { $('ending').classList.add('hidden'); this.state = 'play'; this.input.enabled = true; this.saveSoon(); };
     $('dialog').onclick = () => this.advanceDialog();
     $('btnMute').textContent = Audio.muted ? '♪̸' : '♪';
-    document.querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => this.hud.showTab(b.dataset.tab); });
+    // menú: pasar de página con el teclado
+    addEventListener('keydown', (e) => {
+      if (this.state !== 'menu' || (e.target && e.target.tagName === 'INPUT')) return;
+      if (e.code === 'KeyQ' || e.code === 'ArrowLeft') this.flipMenu(-1);
+      else if (e.code === 'KeyE' || e.code === 'ArrowRight') this.flipMenu(1);
+    });
+    // guardar al salir de la app o cambiar de pestaña
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.saveNow(true); });
+    addEventListener('pagehide', () => this.saveNow(true));
     // ajustes
     const sens = $('optSens'), auto = $('optAuto'), vib = $('optVib'), assist = $('optAssist');
     sens.value = this.settings.sens; auto.checked = this.settings.autofire; vib.checked = this.settings.vibration; assist.checked = this.settings.camAssist;
@@ -236,6 +259,8 @@ export class Game {
   start(fromButton) {
     if (this.state === 'play') return;
     $('title').classList.add('hidden');
+    $('profiles').classList.add('hidden');
+    document.body.classList.add('playing');
     this.state = 'play';
     this.input.enabled = true;
     if (!this.hideHud) this.hud.show(true);
@@ -246,34 +271,78 @@ export class Game {
         if (el.requestFullscreen) el.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {});
       }
     }
-    this.hud.banner(REGIONS.claro.name, REGIONS.claro.sub);
-    if (!this.params.get('ir') && !this.params.get('jefe')) setTimeout(() => this.hud.toast(this.k('Habla con la Abuela Lechuza (E) para empezar', 'Acércate a la Abuela Lechuza y toca el botón ✋ para hablar')), 2500);
+    if (!this.loadedPos) this.hud.banner(REGIONS.claro.name, REGIONS.claro.sub);
+    if (this.loadedPos) setTimeout(() => this.hud.toast('Partida de ' + this.profile.name + ' cargada'), 3800);
+    if (!this.owlDone && !this.params.get('ir') && !this.params.get('jefe')) setTimeout(() => this.hud.toast(this.k('Habla con la Abuela Lechuza (E) para empezar', 'Acércate a la Abuela Lechuza y toca el botón ✋ para hablar')), 2500);
   }
 
-  /* Botón "atrás" de Android: pausa, cierra paneles o sale desde la pantalla de título. */
+  /* ---------- perfiles y guardado (ver js/save.js) ---------- */
+  /* Entra al juego con una ranura: carga su partida o, si está vacía, crea el perfil.
+   * Es el ÚNICO lugar donde nace una partida nueva (el menú del juego no tiene "partida nueva"). */
+  playSlot(n, name, fromButton) {
+    if (this.state !== 'title' || !SLOTS.includes(n)) return;
+    let d = Profiles.read(n);
+    if (!d) { d = Profiles.blank(name); Profiles.write(n, d); }
+    this.slot = n;
+    restore(this, d);
+    this.start(fromButton);
+    this.saveNow(true);
+  }
+  /* Guarda la partida en la ranura en uso. Con quiet no muestra el avisito "guardado". */
+  saveNow(quiet) {
+    if (!this.slot || this.state === 'title' || this.state === 'dead') return false;
+    const ok = Profiles.write(this.slot, snapshot(this));
+    this.saveT = 0;
+    if (ok) this.lastSaved = Date.now();
+    if (!quiet || !ok) this.hud.saved(ok);
+    return ok;
+  }
+  /* Pide un guardado en un momento (tras recoger algo, cumplir una misión, subir de nivel…). */
+  saveSoon() { this.saveT = Math.max(this.saveT, AUTOSAVE - 1.5); }
+  saveAndQuit() {
+    this.saveNow(true);
+    this.slot = 0;                       // nada más que guardar mientras la página se recarga
+    try { sessionStorage.setItem('starnova.perfiles', '1'); } catch (e) { /* sin almacenamiento */ }
+    location.reload();
+  }
+
+  /* ---------- menú por páginas (pausa el juego) ---------- */
+  openMenu(tab) {
+    if (this.state !== 'play' && this.state !== 'menu') return;
+    this.menuTab = MENU_TABS.includes(tab) ? tab : this.menuTab;
+    if (this.state === 'play') {
+      this.state = 'menu';
+      this.saveNow(true);
+      if (document.exitPointerLock) document.exitPointerLock();
+    }
+    $('menu').classList.remove('hidden');
+    this.menus.showTab(this.menuTab);
+  }
+  closeMenu() {
+    if (this.state !== 'menu') return;
+    this.state = 'play';
+    $('menu').classList.add('hidden');
+  }
+  flipMenu(dir) {
+    const i = MENU_TABS.indexOf(this.menuTab);
+    Audio.play('select');
+    this.openMenu(MENU_TABS[(i + dir + MENU_TABS.length) % MENU_TABS.length]);
+  }
+  /* Compatibilidad: la app de Android llama a pause(true) al pasar a segundo plano. */
+  pause(v) {
+    if (!v) { this.closeMenu(); return; }
+    if (this.state === 'play') this.openMenu('sistema'); else this.saveNow(true);
+  }
+  openJournal(v, tab) { if (v) this.openMenu(tab || 'misiones'); else this.closeMenu(); }
+
+  /* Botón "atrás" de Android: abre el menú, cierra lo abierto o sale desde la pantalla de título. */
   backButton() {
-    if (this.state === 'play') { this.pause(true); return 'pausa'; }
-    if (this.state === 'pause') { this.pause(false); return 'sigue'; }
-    if (this.state === 'journal') { this.openJournal(false); return 'cerrar'; }
+    if (this.state === 'play') { this.openMenu('sistema'); return 'pausa'; }
+    if (this.state === 'menu') { this.closeMenu(); return 'sigue'; }
     if (this.state === 'dialog') { this.advanceDialog(); return 'dialogo'; }
     if (this.state === 'dead' || this.state === 'ending') return 'nada';
+    if (this.menus.back()) return 'cerrar';
     return 'salir';
-  }
-
-  pause(v) {
-    if (this.state === 'title' || this.state === 'dead' || this.state === 'ending') return;
-    if (v && this.state === 'journal') this.openJournal(false);
-    this.state = v ? 'pause' : 'play';
-    $('pause').classList.toggle('hidden', !v);
-    if (v && document.exitPointerLock) document.exitPointerLock();
-  }
-  openJournal(v, tab) {
-    if (this.state === 'title' && v) return;
-    this.hud.refreshMissions();
-    this.hud.showTab(tab || 'misiones');
-    $('journal').classList.toggle('hidden', !v);
-    if (this.state === 'play' || this.state === 'journal') this.state = v ? 'journal' : 'play';
-    if (v && document.exitPointerLock) document.exitPointerLock();
   }
 
   onResize() {
@@ -331,7 +400,7 @@ export class Game {
     if (this.stats.maxShield > 0 && this.shield === 0) this.shield = this.stats.maxShield;
     this.hud.addItem(id, silent);
     this.see('item', id);
-    if (!silent) { Audio.play('item'); this.vibrate(20); }
+    if (!silent) { Audio.play('item'); this.vibrate(20); this.saveSoon(); }
   }
   equipAttack(v, silent) {
     const old = this.arsenal.attack;
@@ -341,7 +410,7 @@ export class Game {
     this.arsenal.attack = { id: v.id, tier: v.tier };
     this.see('attack', v.id);
     this.hud.refreshLoadout();
-    if (!silent) { this.hud.popup('attack', v); Audio.play('item'); this.vibrate(25); }
+    if (!silent) { this.hud.popup('attack', v); Audio.play('item'); this.vibrate(25); this.saveSoon(); }
   }
   equipPower(id, silent) {
     const old = this.arsenal.power;
@@ -350,7 +419,7 @@ export class Game {
     this.skills.cd.special = 0;
     this.see('power', id);
     this.hud.refreshLoadout();
-    if (!silent) { this.hud.popup('power', id); Audio.play('item'); this.vibrate(25); }
+    if (!silent) { this.hud.popup('power', id); Audio.play('item'); this.vibrate(25); this.saveSoon(); }
   }
   dropItem(pos, rarW) {
     const id = rollItem(rarW);
@@ -378,6 +447,7 @@ export class Game {
     }
     if (L.refund) { const r = Math.round(chest.cost() * L.refund); for (let i = 0; i < 4; i++) this.pickups.push(new Pickup(this, 'spark', p, r / 4)); }
     this.missions.event('chest');
+    this.saveSoon();
     if (d.rule === 'shadow') {
       for (let i = 0; i < 2; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -400,6 +470,7 @@ export class Game {
       this.hud.toast('¡Nivel ' + this.level + '!');
       this.fx.burst(this.player.center, '#9ce8d2', 30, 4);
       this.vibrate(30);
+      this.saveSoon();
     }
   }
   collect(p) {
@@ -670,6 +741,7 @@ export class Game {
     for (const e of this.enemies) if (!e.isBoss) { e.dead = true; }
     this.state = 'play';
     this.input.enabled = true;
+    this.saveSoon();
   }
   fellOff() {
     const pl = this.player;
@@ -683,6 +755,7 @@ export class Game {
   }
 
   onMissionComplete(m) {
+    this.saveSoon();
     Audio.play('mission');
     this.hud.banner(m.type === 'secundaria' ? 'Misión secundaria cumplida' : 'Misión cumplida', m.title);
     this.vibrate(60);
@@ -723,6 +796,7 @@ export class Game {
     const nc = REGIONS.nova.center;
     const ch = new Chest(this, { pos: [nc[0] + 3, 0.6, nc[1] - 2], region: 'nova', type: 'nova' });
     this.props.chests.push(ch);
+    this.saveSoon();
     setTimeout(() => this.showEnding(), 6500);
   }
   showEnding() {
@@ -778,7 +852,9 @@ export class Game {
     if (this.owlLine >= OWL_LINES.length) {
       $('dialog').classList.add('hidden');
       this.state = 'play';
+      this.owlDone = true;
       this.missions.discoverAll();
+      this.saveSoon();
       // el jugador elige qué misión hacer primero
       if (!this.missions.tracked) setTimeout(() => this.openJournal(true, 'misiones'), 300);
       return;
@@ -829,8 +905,8 @@ export class Game {
     const t = now / 1000;
     const inp = this.input;
 
-    if (inp.pressed.pause) { if (this.state === 'journal') this.openJournal(false); else this.pause(this.state === 'play'); }
-    if (inp.pressed.journal) this.openJournal(this.state !== 'journal');
+    if (inp.pressed.pause) { if (this.state === 'menu') this.closeMenu(); else this.openMenu('sistema'); }
+    else if (inp.pressed.journal) { if (this.state === 'menu') this.closeMenu(); else this.openMenu(); }
     if (inp.pressed.mute) this.toggleMute();
     if (this.state === 'dialog' && (inp.pressed.interact || inp.pressed.jump)) this.advanceDialog();
 
@@ -958,7 +1034,11 @@ export class Game {
     }
     // jefe
     const nc = REGIONS.nova.center;
-    if (P.gate.open && !this.boss && Math.hypot(pl.pos.x - nc[0], pl.pos.z - nc[1]) < 13) this.startBoss();
+    if (P.gate.open && !this.boss && !this.bossDone && Math.hypot(pl.pos.x - nc[0], pl.pos.z - nc[1]) < 13) this.startBoss();
+
+    // guardado automático (solo con los pies en el suelo)
+    this.saveT += dt;
+    if (this.saveT >= AUTOSAVE && pl.grounded) this.saveNow();
 
     // interacción
     const it = this.nearestInteractable();

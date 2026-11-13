@@ -141,7 +141,7 @@ export class PlankBridge {
     this.planks = [];
     this.t = 0;
   }
-  build() {
+  build(silent) {
     if (this.built) return;
     this.built = true;
     const game = this.game, w = game.phys.world;
@@ -170,7 +170,8 @@ export class PlankBridge {
       prev = body;
     }
     w.createImpulseJoint(R.JointData.revolute({ x: seg / 2, y: 0, z: 0 }, { x: b.x, y: b.y - 0.09, z: b.z }, { x: 0, y: 0, z: 1 }), prev, game.phys.fixed, true);
-    Audio.play('rumble');
+    if (silent) this.t = 10;               // partida cargada: el puente ya está tendido
+    else Audio.play('rumble');
   }
   update(dt) {
     if (!this.built) return;
@@ -353,6 +354,15 @@ export class Gate {
     });
   }
   openGate() { if (this.open) return; this.open = true; Audio.play('rumble'); }
+  /* Partida cargada: el portón ya está abajo (sin ruido ni temblor). */
+  snapOpen() {
+    this.open = true;
+    this.y = -this.spot.h - 0.3;
+    const p = this.base, y = p.y + this.spot.h / 2 + this.y;
+    this.body.setTranslation({ x: p.x, y, z: p.z }, true);
+    this.body.setNextKinematicTranslation({ x: p.x, y, z: p.z });
+    this.mesh.position.y = y;
+  }
   update(dt) {
     if (this.open && this.y > -this.spot.h - 0.3) {
       this.y = Math.max(-this.spot.h - 0.3, this.y - dt * 1.4);
@@ -498,7 +508,7 @@ export class NovaStar {
     const lit = Math.max(this.lit, this.awake > 0 ? 1 : 0);
     this.mat.color.set(lit > 0.5 ? '#fff0b0' : '#8e94d6');
     this.mat.emissive.setRGB(0.1 + lit * 0.7, 0.1 + lit * 0.55, 0.15 + lit * 0.2);
-    this.mesh.rotation.y = t * (0.4 + this.awake * 0.3);
+    this.mesh.rotation.y = t * (0.4 + Math.min(4, this.awake) * 0.3);
     if (this.awake > 0) {
       this.awake += dt;
       this.mesh.position.y = this.p.y + 1.4 + Math.min(14, this.awake * this.awake * 1.4);

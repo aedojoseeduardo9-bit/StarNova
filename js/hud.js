@@ -140,11 +140,13 @@ export class HUD {
     if (btnLabel) $('tbInteractText').textContent = btnLabel;
   }
 
-  showTab(tab) {
-    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-    $('journalList').classList.toggle('hidden', tab !== 'misiones');
-    $('codex').classList.toggle('hidden', tab !== 'compendio');
-    if (tab === 'compendio') this.refreshCodex();
+  /* Avisito discreto de guardado (junto a los botones, sin tapar el juego). */
+  saved(ok) {
+    const e = $('saveIcon');
+    e.textContent = ok ? '✦ guardado' : 'no se pudo guardar';
+    e.classList.add('show');
+    clearTimeout(this.savedT);
+    this.savedT = setTimeout(() => e.classList.remove('show'), ok ? 1500 : 3500);
   }
 
   /* Compendio: todo el contenido del juego; lo no descubierto aparece como "???". */

@@ -34,7 +34,7 @@ async function checkUpdate() {
     const latest = m ? parseInt(m[1], 10) : 0;
     if (mine > 0 && latest > mine) {
       const b = document.getElementById('btnUpdate');
-      b.textContent = 'Actualizar a la versión 0.2.' + latest;
+      b.textContent = 'Actualizar a la versión 0.3.' + latest;
       b.classList.remove('hidden');
       b.onclick = () => { location.href = `https://github.com/${REPO}/releases/latest/download/StarNova.apk`; };
     }
