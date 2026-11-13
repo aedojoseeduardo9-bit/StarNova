@@ -87,6 +87,7 @@ export class Sky {
     this.fogColor = new THREE.Color();
     this.night = 0;
     this.extraNight = 0;
+    this.deepNight = 0;          // noche cerrada en todo el cielo (solo la usan las escenas animadas)
     this._c = new THREE.Color();
   }
 
@@ -103,9 +104,14 @@ export class Sky {
       fog.add(this._c.set(r.fog).multiplyScalar(k));
       night += (r.night || 0) * k;
     }
-    night = Math.max(night, this.extraNight);
+    night = Math.max(night, this.extraNight, this.deepNight);
     const nightTop = this._c.set('#1d2154');
-    top.lerp(nightTop, this.extraNight * 0.8);
+    top.lerp(nightTop, Math.max(this.extraNight, this.deepNight) * 0.8);
+    if (this.deepNight > 0) {
+      hor.lerp(this._c.set('#8b80c6'), this.deepNight * 0.85);
+      bot.lerp(this._c.set('#5b5698'), this.deepNight * 0.85);
+      fog.lerp(this._c.set('#6c66a8'), this.deepNight * 0.8);
+    }
     const ease = 1 - Math.exp(-dt * 2);
     this.u.top.value.lerp(top, ease);
     this.u.hor.value.lerp(hor, ease);

@@ -22,21 +22,14 @@ import { Audio } from './audio.js';
 import { store } from './util.js';
 import { Profiles, SLOTS, snapshot, restore } from './save.js';
 import { Menus, MENU_TABS } from './menus.js';
+import { OUTFITS, applyOutfit } from './entities/outfits.js';
+import { Cinema, SCENE_IDS } from './cinema.js';
+import { OWL_INTRO, owlLines } from './content/story.js';
 
 const STEP = 1 / 60;
 const AUTOSAVE = 30;      // segundos entre guardados automáticos
 const $ = (id) => document.getElementById(id);
 
-const OWL_LINES = [
-  '¡Pip! Qué bueno que despertaste. Soy la Abuela Lechuza, guardiana del Claro.',
-  'Anoche la estrella Nova cayó del cielo y se partió. Sus fragmentos se esconden entre las islas.',
-  'Al oeste, en el Jardín de Coral, tres campanas esperan que alguien las haga sonar.',
-  'Al norte, en las Torres de Menta, se perdieron tres luciérnagas… y las sombras andan inquietas.',
-  'Al este, el Puente de Lavanda duerme. Dicen que dos cristales saben despertarlo.',
-  'Con tres fragmentos, el portón del Santuario de Nova, al sur, se abrirá. Cuidado: el Guardián vigila.',
-  'Los cofres cambian con el tiempo: mientras más avances, más poderosos serán. ¡Ábrelos con chispas!',
-  'Las sombras también se hacen más fuertes con el tiempo. ¡Buen viaje, pequeña!',
-];
 
 class Skills {
   constructor(game) {
@@ -70,6 +63,11 @@ export class Game {
     this.saveT = 0;
     this.lastSaved = 0;
     this.menuTab = 'misiones';
+    this.outfits = { owned: [], on: null };               // trajes comprados y el que lleva puesto
+    this.story = { seen: {} };                            // escenas de la historia ya vistas
+    this.storyQueue = [];                                 // escenas esperando a que Pip pise el suelo
+    this.storyOn = false;                                 // las partidas de prueba (?auto=1) no ponen escenas
+    this.dialogLines = OWL_INTRO;
   }
 
   get touch() { return this.input && this.input.touch; }
@@ -134,6 +132,7 @@ export class Game {
 
     this.hud = new HUD(this);
     this.menus = new Menus(this);
+    this.cinema = new Cinema(this);
     this.missions = new Missions(this);
     this.player = new Player(this, this.spots.spawn);
     const S = this.spots;
@@ -184,6 +183,7 @@ export class Game {
     if (P.get('items')) for (const id of Object.keys(ITEMS)) if (ITEMS[id].rar < 4) this.addItem(id, true);
     if (P.get('arma')) { const [id, t] = P.get('arma').split(':'); if (ATTACKS[id]) this.equipAttack({ id, tier: parseInt(t || '0', 10) }, true); }
     if (P.get('poder') && POWERS[P.get('poder')]) this.equipPower(P.get('poder'), true);
+    if (OUTFITS[P.get('traje')]) { this.outfits.owned.push(P.get('traje')); this.wearOutfit(P.get('traje')); }
     if (P.get('cofre')) {
       const ids = P.get('cofre') === 'todos' ? CHEST_LIST.map(c => c.id) : [P.get('cofre')];
       this.props.chests.forEach((c, i) => { const id = ids[i % ids.length]; if (CHESTS[id]) c.setType(id); });
@@ -220,6 +220,11 @@ export class Game {
     if (P.get('pausa')) this.openMenu('sistema');
     if (P.get('menu')) this.openMenu(P.get('menu'));
     if (P.get('perfiles') && this.state === 'title') this.menus.showProfiles(true);
+    if (SCENE_IDS.includes(P.get('cine')) && this.state === 'play') {
+      this.step(STEP, true);                               // coloca campanas, cajas y farolillos en su sitio
+      this.cinema.play(P.get('cine'));
+      if (P.get('cinet')) this.cinema.seek(parseFloat(P.get('cinet')) || 0);
+    }
     if (P.get('final')) setTimeout(() => this.showEnding(), 300);
     if (P.get('hud') === '0') { this.hud.show(false); this.hideHud = true; }
   }
@@ -256,7 +261,7 @@ export class Game {
 
   toggleMute() { Audio.setMuted(!Audio.muted); $('btnMute').textContent = Audio.muted ? '♪̸' : '♪'; }
 
-  start(fromButton) {
+  start(fromButton, quiet) {
     if (this.state === 'play') return;
     $('title').classList.add('hidden');
     $('profiles').classList.add('hidden');
@@ -271,9 +276,25 @@ export class Game {
         if (el.requestFullscreen) el.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {});
       }
     }
+    if (!quiet) this.welcome();
+  }
+  /* Rótulo y pistas al empezar a jugar (tras el prólogo, si lo hubo). */
+  welcome() {
     if (!this.loadedPos) this.hud.banner(REGIONS.claro.name, REGIONS.claro.sub);
     if (this.loadedPos) setTimeout(() => this.hud.toast('Partida de ' + this.profile.name + ' cargada'), 3800);
     if (!this.owlDone && !this.params.get('ir') && !this.params.get('jefe')) setTimeout(() => this.hud.toast(this.k('Habla con la Abuela Lechuza (E) para empezar', 'Acércate a la Abuela Lechuza y toca el botón ✋ para hablar')), 2500);
+  }
+
+  /* ---------- historia: escenas animadas (ver js/cinema.js) ---------- */
+  /* Pide una escena de la historia: se ve una sola vez y luego queda en Misiones → Historia. */
+  playStory(id, then) {
+    if (!this.storyOn || this.story.seen[id]) { if (then) then(); return; }
+    this.storyQueue.push({ id, then });
+  }
+  replayStory(id) {
+    if (this.state !== 'menu' && this.state !== 'play') return;
+    this.closeMenu();
+    this.cinema.play(id);
   }
 
   /* ---------- perfiles y guardado (ver js/save.js) ---------- */
@@ -285,7 +306,13 @@ export class Game {
     if (!d) { d = Profiles.blank(name); Profiles.write(n, d); }
     this.slot = n;
     restore(this, d);
-    this.start(fromButton);
+    this.storyOn = this.params.get('cine') !== '0';
+    const intro = this.storyOn && !this.story.seen.prologo;
+    this.start(fromButton, intro);
+    if (intro) {
+      this.step(STEP, true);                               // coloca campanas, cajas y farolillos en su sitio
+      this.cinema.play('prologo', () => this.welcome());
+    }
     this.saveNow(true);
   }
   /* Guarda la partida en la ranura en uso. Con quiet no muestra el avisito "guardado". */
@@ -306,9 +333,26 @@ export class Game {
     location.reload();
   }
 
+  /* ---------- trajes (ver js/entities/outfits.js) ---------- */
+  wearOutfit(id) {
+    if (id && !this.outfits.owned.includes(id)) return;
+    this.outfits.on = OUTFITS[id] ? id : null;
+    applyOutfit(this.player.model, this.outfits.on);
+    this.saveNow(true);
+  }
+  buyOutfit(id) {
+    const o = OUTFITS[id];
+    if (!o || this.outfits.owned.includes(id) || this.sparks < o.price) return false;
+    this.sparks -= o.price;
+    this.outfits.owned.push(id);
+    this.wearOutfit(id);
+    return true;
+  }
+
   /* ---------- menú por páginas (pausa el juego) ---------- */
   openMenu(tab) {
     if (this.state !== 'play' && this.state !== 'menu') return;
+    if (tab === 'historia') { this.hud.missionTab = 'historia'; tab = 'misiones'; }
     this.menuTab = MENU_TABS.includes(tab) ? tab : this.menuTab;
     if (this.state === 'play') {
       this.state = 'menu';
@@ -340,6 +384,7 @@ export class Game {
     if (this.state === 'play') { this.openMenu('sistema'); return 'pausa'; }
     if (this.state === 'menu') { this.closeMenu(); return 'sigue'; }
     if (this.state === 'dialog') { this.advanceDialog(); return 'dialogo'; }
+    if (this.state === 'cine') { this.cinema.finish(true); return 'saltar'; }
     if (this.state === 'dead' || this.state === 'ending') return 'nada';
     if (this.menus.back()) return 'cerrar';
     return 'salir';
@@ -354,7 +399,7 @@ export class Game {
     this.fx.uniforms.uScale.value = h * 0.9;
   }
 
-  vibrate(ms) { if (this.settings.vibration && this.touch && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* sin vibración */ } } }
+  vibrate(ms) { if (this.settings.vibration && this.touch && navigator.vibrate && !(navigator.userActivation && !navigator.userActivation.hasBeenActive)) { try { navigator.vibrate(ms); } catch (e) { /* sin vibración */ } } }
 
   /* ---------- compendio ---------- */
   see(cat, id) {
@@ -772,10 +817,12 @@ export class Game {
       this.fx.burst(this.player.center, '#fff0b0', 40, 5, 0.2, 1.2);
       this.props.gate.setLights(Math.min(3, n));
       this.props.nova.setLit(n / 4 * 0.5);
+      setTimeout(() => this.playStory('recuerdo' + n), 1600);
       if (n >= 3 && !this.props.gate.open) {
         this.props.gate.openGate();
         setTimeout(() => this.hud.toast('El portón del Santuario de Nova se abrió (al sur)'), 1500);
         this.missions.state.guardian.discovered = true;
+        setTimeout(() => this.playStory('porton'), 1700);
       }
     }
   }
@@ -786,6 +833,7 @@ export class Game {
     this.boss = new Guardian(this, this.v3(c[0], 0.3, c[1] + 2));
     this.enemies.push(this.boss);
     this.hud.banner('El Guardián de Nova', 'protector de la estrella dormida');
+    this.playStory('guardian');
   }
   bossDefeated() {
     this.bossDone = true;
@@ -797,7 +845,8 @@ export class Game {
     const ch = new Chest(this, { pos: [nc[0] + 3, 0.6, nc[1] - 2], region: 'nova', type: 'nova' });
     this.props.chests.push(ch);
     this.saveSoon();
-    setTimeout(() => this.showEnding(), 6500);
+    if (this.storyOn && !this.story.seen.final) setTimeout(() => this.playStory('final', () => this.showEnding()), 2600);
+    else setTimeout(() => this.showEnding(), 6500);
   }
   showEnding() {
     this.state = 'ending';
@@ -835,6 +884,8 @@ export class Game {
       if (this.sparks >= cost) { this.sparks -= cost; ch.open(); }
       else { Audio.play('deny'); this.hud.toast('Necesitas ' + cost + ' chispas'); }
     } else if (it.type === 'owl') {
+      // la primera charla enseña a jugar; después la lechuza cuenta más de la historia según el avance
+      this.dialogLines = this.owlDone ? owlLines(this.missions.fragments(), this.props.gate.open, !!this.bossDone) : OWL_INTRO;
       this.owlLine = 0;
       this.openDialog();
     }
@@ -843,13 +894,13 @@ export class Game {
     this.state = 'dialog';
     $('dialog').classList.remove('hidden');
     $('dialog').querySelector('.who').textContent = 'Abuela Lechuza';
-    $('dialog').querySelector('.text').textContent = OWL_LINES[this.owlLine];
+    $('dialog').querySelector('.text').textContent = this.dialogLines[this.owlLine];
     $('dialog').querySelector('.hint').textContent = this.k('Haz clic o pulsa E para continuar', 'Toca para continuar');
     Audio.play('select');
   }
   advanceDialog() {
     this.owlLine++;
-    if (this.owlLine >= OWL_LINES.length) {
+    if (this.owlLine >= this.dialogLines.length) {
       $('dialog').classList.add('hidden');
       this.state = 'play';
       this.owlDone = true;
@@ -859,7 +910,7 @@ export class Game {
       if (!this.missions.tracked) setTimeout(() => this.openJournal(true, 'misiones'), 300);
       return;
     }
-    $('dialog').querySelector('.text').textContent = OWL_LINES[this.owlLine];
+    $('dialog').querySelector('.text').textContent = this.dialogLines[this.owlLine];
     Audio.play('select');
   }
 
@@ -914,6 +965,11 @@ export class Game {
     inp.lookDX *= this.settings.sens; inp.lookDY *= this.settings.sens;
     if (this.state === 'play' && this.touch && this.settings.camAssist && inp.lookTouch.id === null && Math.abs(inp.mx) > 0.25) inp.lookDX += inp.mx * 1.1 * dt;
 
+    // escenas de la historia en espera: empiezan cuando Pip pisa el suelo
+    if (this.state === 'play' && this.storyQueue.length && this.player.grounded && !this.cinema.playing) {
+      const s = this.storyQueue.shift();
+      this.cinema.play(s.id, s.then);
+    }
     if (this.state === 'play') {
       this.acc += dt;
       let first = true;
@@ -931,7 +987,8 @@ export class Game {
     }
 
     const focus = this.player.pos.clone().add(new THREE.Vector3(0, 0.55, 0));
-    this.cam.update(dt, (this.state === 'play' || this.state === 'title') ? inp : { lookDX: 0, lookDY: 0, zoom: 0 }, focus, t);
+    if (this.state === 'cine') this.cinema.update(dt, t);
+    else this.cam.update(dt, (this.state === 'play' || this.state === 'title') ? inp : { lookDX: 0, lookDY: 0, zoom: 0 }, focus, t);
     // haz arcoíris (necesita la cámara ya actualizada)
     const beamOn = this.state === 'play' && this.arsenal.def.kind === 'beam' && (inp.held.primary || (this.touch && this.settings.autofire && this.autoTarget));
     this.arsenal.updateBeam(dt, beamOn, this.player.muzzle, beamOn ? (inp.held.primary ? this.aimPoint() : this.autoTarget.center()) : null);
@@ -943,8 +1000,9 @@ export class Game {
     this.sun.position.copy(this.player.pos).add(this.sunOffset);
     this.sun.target.position.copy(this.player.pos);
     this.player.animate(dt, t);
+    if (this.state === 'menu' && this.menuTab === 'trajes') this.menus.wardrobeFrame(dt);
     this.renderer.render(this.scene, this.camera);
-    if (this.state !== 'title') { this.hud.update(dt); this.hud.draw(this.camera, dt); }
+    if (this.state !== 'title' && this.state !== 'cine') { this.hud.update(dt); this.hud.draw(this.camera, dt); }
     inp.consume();
   }
 

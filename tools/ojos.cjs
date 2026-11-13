@@ -17,6 +17,7 @@ const DEMO = {
     v: 1, name: 'Pip', created: 1, saved: Date.now(), time: 1560, level: 7, xp: 30, sparks: 240, hp: 150, kills: 86, frags: 2, region: 'coral',
     items: { bellota: 2, cascabel: 1, pluma: 1, miel: 2, te: 1, piedra: 1 }, attack: { id: 'rayo', tier: 3 }, power: 'agujero',
     missions: M_DEMO, tracked: 'puente', visited: ['claro', 'coral', 'menta'], owl: 1, pos: [-46, 0.4, 1], cam: [1.9, 0.3],
+    outfits: { owned: ['coral', 'flores', 'maga'], on: 'maga' }, story: ['prologo', 'recuerdo1', 'recuerdo2'],
     world: { bells: [1, 1, 1], crystals: [1, 0], fireflies: [1, 1, 1], chests: [], extra: [], altar: 0, gate: 0, boss: 0 },
   },
   'perfil.3': { v: 1, name: 'Luna', created: 1, saved: Date.now(), time: 5400, level: 14, frags: 4, region: 'nova', world: { boss: 1 } },
@@ -56,6 +57,15 @@ const SCENES = [
   { name: '32_menu_sistema', q: 'perfil=1&menu=sistema', wait: 1800, mobile: true, store: DEMO },
   { name: '33_menu_mapa_pc', q: 'perfil=1&menu=mapa', wait: 1800, store: DEMO },
   { name: '34_partida_cargada', q: 'perfil=1', wait: 3500, mobile: true, store: DEMO },
+  { name: '36_menu_trajes', q: 'perfil=1&menu=trajes', wait: 2200, mobile: true, store: DEMO },
+  { name: '37_menu_trajes_pc', q: 'auto=1&menu=trajes&traje=nova', wait: 2200 },
+  { name: '38_traje_en_juego', q: 'auto=1&ir=claro&traje=aviadora&hud=0&cam=2.9,0.15,1.8', wait: 2500 },
+  { name: '39_menu_historia', q: 'perfil=1&menu=historia', wait: 1800, mobile: true, store: DEMO },
+  { name: '40_cine_prologo', q: 'auto=1&cine=prologo&cinet=28', wait: 1500, mobile: true },
+  { name: '41_cine_prologo_pip', q: 'auto=1&cine=prologo&cinet=35', wait: 1500 },
+  { name: '42_cine_recuerdo', q: 'auto=1&ir=menta&cine=recuerdo2&cinet=9', wait: 1500, mobile: true },
+  { name: '43_cine_guardian', q: 'auto=1&ir=santuario&cine=guardian&cinet=6', wait: 1500, mobile: true },
+  { name: '44_cine_final', q: 'auto=1&ir=santuario&cine=final&cinet=14', wait: 1500 },
   { name: '24_poder', q: 'auto=1&ir=coral&poder=agujero&enemigos=6&tipo=sombra&dios=1&cam=1.6,0.4,7', wait: 1500, keys: [['KeyR', 600]] },
 ];
 
@@ -136,6 +146,9 @@ const SCENES = [
     const ready = () => page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
     const fails = [];
     const check = (ok, what) => { if (!ok) fails.push(what); };
+    const cine = () => page.evaluate(() => { const g = window.__starnova.game; return g.state === 'cine' && g.cinema.scene ? g.cinema.scene.id : g.state; });
+    // mantener apretado el botón de la esquina para saltar una escena
+    const skip = async () => { await page.dispatchEvent('#cineSkip', 'pointerdown'); await page.waitForTimeout(1600); await page.dispatchEvent('#cineSkip', 'pointerup'); await page.waitForTimeout(300); };
     try {
       await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1`);
       await ready();
@@ -143,18 +156,27 @@ const SCENES = [
       await page.click('.slot[data-slot="2"] .go');
       await page.fill('#nameInput', 'Nuez');
       await page.click('#btnNameOk');
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(900);
+      check(await cine() === 'prologo', 'el perfil nuevo no empezó con el prólogo animado');
+      await skip();
+      check(await cine() === 'play', 'mantener el botón de la esquina no saltó el prólogo');
       const a = await page.evaluate(() => {
         const g = window.__starnova.game;
         g.addItem('bellota', true);
         g.sparks = 123;
+        const bought = g.buyOutfit('coral');             // 60 chispas
+        g.player.teleport([-46, 0.4, 1]);
         g.props.bells.forEach(b => b.ring());            // completa "Las Tres Campanas" (+40 chispas y un fragmento)
         g.missions.track('luciernagas');
-        g.player.teleport([-46, 0.4, 1]);
-        return { state: g.state, slot: g.slot, name: g.profile.name };
+        return { state: g.state, slot: g.slot, name: g.profile.name, bought };
       });
       check(a.state === 'play' && a.slot === 2 && a.name === 'Nuez', 'no empezó el perfil nuevo');
-      await page.waitForTimeout(1800);                    // Pip pisa suelo firme en el Jardín de Coral
+      check(a.bought, 'no se pudo comprar el traje');
+      await page.waitForTimeout(3200);                    // Pip pisa suelo firme y empieza el recuerdo del fragmento
+      check(await cine() === 'recuerdo1', 'el primer fragmento no mostró su recuerdo');
+      await skip();
+      check(await cine() === 'play', 'no se pudo saltar el recuerdo');
+      await page.waitForTimeout(800);
       await page.click('#btnPause');
       const noNew = await page.evaluate(() => !/nueva partida/i.test(document.getElementById('menu').innerText));
       check(noNew, 'el menú todavía ofrece "Nueva partida"');
@@ -175,10 +197,13 @@ const SCENES = [
         return {
           state: g.state, bellota: g.items.bellota, sparks: Math.floor(g.sparks), frags: g.missions.fragments(), campanas: g.missions.state.campanas.done,
           rung: g.props.bells.every(x => x.rung), tracked: g.missions.tracked, dist: Math.hypot(p.x + 46, p.z - 1), y: p.y,
+          traje: g.outfits.on, puesto: g.player.model.userData.outfit, vistas: Object.keys(g.story.seen).sort().join(','),
         };
       });
-      check(c.state === 'play', 'no continuó la partida');
-      check(c.bellota === 1 && c.sparks === 163, `objetos o chispas mal restaurados (${c.bellota}, ${c.sparks})`);
+      check(c.state === 'play', 'no continuó la partida (¿volvió a poner el prólogo?)');
+      check(c.bellota === 1 && c.sparks === 103, `objetos o chispas mal restaurados (${c.bellota}, ${c.sparks})`);
+      check(c.traje === 'coral' && c.puesto === 'coral', `traje mal restaurado (${c.traje})`);
+      check(c.vistas === 'prologo,recuerdo1', `escenas vistas mal restauradas (${c.vistas})`);
       check(c.frags === 1 && c.campanas && c.rung, 'misión o campanas mal restauradas');
       check(c.tracked === 'luciernagas', 'misión seguida mal restaurada');
       check(c.dist < 3 && c.y > -1, `lugar mal restaurado (a ${c.dist.toFixed(1)} m, altura ${c.y.toFixed(1)})`);
@@ -191,7 +216,7 @@ const SCENES = [
       check(gone, 'no se borró el perfil');
       for (const e of errs) fails.push('error: ' + e.slice(0, 200));
     } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
-    report.push(`\n[prueba_guardado] crear perfil → avanzar → guardar y salir → continuar → borrar → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
+    report.push(`\n[prueba_guardado] crear perfil → prólogo (saltar) → traje, fragmento y recuerdo → guardar y salir → continuar → borrar → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
     await ctx.close();
   }
   report.push(`\nErrores de consola en total: ${errorsTotal}`);

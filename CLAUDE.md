@@ -33,6 +33,11 @@ Con GitHub disponible:
 - Estética **inspirada en Monument Valley**: arquitectura geométrica pastel, arcos, cúpulas, cielos en
   degradado, bruma. **Todo es original**: no copiar personajes, niveles, música ni arte de ese juego.
 - **Físicas en todo** (motor Rapier): personaje, enemigos, proyectiles, campanas, puentes, cajas, esquirlas.
+- **Historia** (original, resumida en `js/content/story.js`): bajo las islas dormía la *Penumbra*; para que no
+  la devoraran, Nova se rompió en fragmentos. Su amigo el Guardián se tragó la Penumbra y por eso ya no
+  recuerda quién es. Cada fragmento guarda un recuerdo de Nova; Pip los reúne, despierta al Guardián y
+  devuelve a Nova al cielo. Se cuenta con **escenas animadas** hechas con el propio mundo del juego.
+- **Trajes**: 10 atuendos para Pip que se compran con chispas en el menú (página Trajes).
 
 ## Tecnología (y por qué)
 - **Three.js 0.180** (render 3D) + **Rapier 3D 0.21** (físicas, el mismo motor que usa Bevy). Ambos están
@@ -72,9 +77,13 @@ guardados). Se combinan con `&`:
 - `arma=rayo:3` (ataque y rango 0–5) · `poder=agujero` · `cofre=oro` o `cofre=todos` (estilos de cofre)
   · `compendio=1` (abre el compendio).
 - `diario=1` · `pausa=1` · `final=1` (pantalla final) · `hud=0` (sin interfaz, para fotos bonitas).
-- `menu=misiones|mochila|mapa|compendio|sistema` (abre el menú en esa página) · `perfiles=1` (pantalla de
-  perfiles) · `perfil=2` (entra con la ranura 2, sin `auto`; `nombre=Nuez` si hay que crearla).
+- `menu=misiones|historia|mochila|trajes|mapa|compendio|sistema` (abre el menú en esa página) · `perfiles=1`
+  (pantalla de perfiles) · `perfil=2` (entra con la ranura 2, sin `auto`; `nombre=Nuez` si hay que crearla).
   `tools/ojos.cjs` puede sembrar perfiles de ejemplo con `store:` en la escena.
+- `traje=maga` (pone ese traje; ids en `js/entities/outfits.js`).
+- `cine=prologo|recuerdo1|recuerdo2|recuerdo3|recuerdo4|porton|guardian|final` (pone esa escena animada;
+  con `cinet=12` la adelanta a ese segundo, para capturas). Las partidas de prueba (`auto=1`) no ponen
+  escenas solas; con un perfil sí (`perfil=1&cine=0` las apaga).
 - `ojos=1` lo pone `tools/ojos.cjs` (conserva el búfer de dibujo para las capturas).
 - En la consola del navegador: `window.__starnova.game` da acceso a todo el estado.
 
@@ -89,8 +98,20 @@ guardados). Se combinan con `&`:
   recién creado (sin premios ni sonidos). Como el mundo solo está "nuevo" al cargar la página, "Guardar y
   salir" recarga y vuelve a los perfiles. Si se añade algo que deba recordarse, va en ambas funciones.
 - `js/menus.js` — pantalla de **perfiles** (nueva aventura, continuar, copiar, borrar) y **menú del juego por
-  páginas**: Misiones · Mochila (ataque, poder, datos de Pip, objetos) · Mapa (islas, misión seguida, dónde
-  está Pip) · Compendio · Sistema (guardar, guardar y salir, ajustes).
+  páginas**: Misiones (+ Historia) · Mochila (ataque, poder, datos de Pip, objetos) · Trajes (probador y
+  compra) · Mapa (islas, misión seguida, dónde está Pip) · Compendio · Sistema (guardar, salir, ajustes).
+- `js/cinema.js` — **escenas animadas**: estado `'cine'`, franjas, subtítulos y botón de esquina
+  "mantén para saltar" (`#cineSkip`; Esc en PC; Atrás en Android). Cada escena es una lista de planos
+  (`t`, `cam`, `say`, `on`, `tick`). **Las escenas no cambian la partida**: usan actores temporales
+  (`ctx.add`) y deshacen lo que toquen (`ctx.undo`), así se pueden saltar o repetir. Se piden con
+  `game.playStory(id)` (una sola vez; esperan en cola a que Pip pise el suelo) y se repiten desde
+  Misiones → Historia (`game.replayStory`). Disparadores: perfil nuevo → `prologo`; fragmento n →
+  `recuerdo<n>`; tercer fragmento → `porton`; entrar al santuario → `guardian`; vencer al jefe → `final`.
+- `js/content/story.js` — textos de la historia: capítulos, recuerdos de Nova y lo que cuenta la lechuza
+  según el avance (`OWL_INTRO`, `owlLines`).
+- `js/entities/outfits.js` — los **10 trajes** (colores + piezas colgadas del esqueleto de Pip) y
+  `applyOutfit(modelo, id)`. `js/wardrobe.js` — probador: dibuja a Pip con un traje en un lienzo 2D usando
+  el renderizador del juego (sin otro contexto WebGL). Para añadir un traje basta una entrada en `OUTFIT_LIST`.
 - `js/physics.js` — mundo Rapier, **grupos de colisión** (`G`), controladores de personaje, rayos.
 - `js/world/palette.js` — paletas y nombres de las 5 regiones; mezcla de cielo por posición.
 - `js/world/builder.js` — piezas de arquitectura (caja, cilindro, torre, arco, cúpula, isla, pasarela…);
@@ -123,7 +144,7 @@ guardados). Se combinan con `&`:
   hay un botoncito con la misión seguida (`#trackChip`): **no poner paneles que tapen el juego**.
 - `js/hud.js` — HUD en DOM + capa 2D (números de daño, barras/nombres de enemigos, marcador de misión),
   íconos y recarga en los botones táctiles, ventana de premio, aviso de guardado y las páginas de
-  Misiones y Compendio del menú.
+  Misiones (principales, secundarias e Historia) y Compendio del menú.
 - `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas. `js/fx.js` — partículas (un solo `Points`).
 - `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
 - `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos). `js/util.js` — utilidades.
@@ -184,9 +205,16 @@ Hecho (v0.3):
 - [x] Menú del juego por páginas: Misiones, Mochila, Mapa, Compendio y Sistema (sin "Nueva partida").
 - [x] Prueba automática de guardado en los ojos (`prueba_guardado`: crear → guardar y salir → continuar → borrar).
 
+Hecho (v0.4):
+- [x] Trajes: 10 atuendos para Pip, comprables con chispas, con probador 3D en el menú; se guardan en el perfil.
+- [x] Historia ampliada (la Penumbra, la promesa del Guardián, los recuerdos de Nova) y más charla de la lechuza.
+- [x] Escenas animadas: prólogo, 4 recuerdos, portón, Guardián y final; se saltan manteniendo el botón de
+  la esquina y se pueden volver a ver en Misiones → Historia.
+
 Pendiente / ideas:
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
-- [ ] Música adaptativa; mezcla de sonido más rica.
+- [ ] Música adaptativa; mezcla de sonido más rica (y música propia para las escenas animadas).
+- [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.
 - [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
 - [ ] Postproceso suave (bloom en estrellas/cristales) con opción para teléfonos lentos.
 - [ ] Recuperar GitHub (cuenta suspendida) o mudar el proyecto a otro alojamiento, y subir este historial.

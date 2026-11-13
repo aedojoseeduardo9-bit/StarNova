@@ -70,6 +70,15 @@
       </div>
     </div>
 
+    <!-- Escenas animadas: franjas, subtítulos y botón de esquina para saltar (mantener apretado) -->
+    <div id="cine" class="cine hidden">
+      <div class="cine-bar top"></div>
+      <div class="cine-bar bottom"></div>
+      <div id="cineTitle" class="cine-title"><div class="k"></div><div class="t"></div></div>
+      <div id="cineText" class="cine-text"><b class="who"></b><span class="line"></span></div>
+      <button id="cineSkip" class="cine-skip" aria-label="Saltar la escena"><i></i><span>Mantén para saltar<span class="pc-only"> (o Esc)</span></span></button>
+    </div>
+
     <div id="banner" class="banner"></div>
     <div id="toasts" class="toasts"></div>
     <div id="itemPop" class="item-pop hidden"><canvas width="96" height="96"></canvas><div><div class="name"></div><div class="desc"></div></div></div>
@@ -123,6 +132,7 @@
           <div id="menuTabs" class="menu-tabs">
             <button data-tab="misiones">Misiones</button>
             <button data-tab="mochila">Mochila</button>
+            <button data-tab="trajes">Trajes</button>
             <button data-tab="mapa">Mapa</button>
             <button data-tab="compendio">Compendio</button>
             <button data-tab="sistema">Sistema</button>
@@ -132,6 +142,10 @@
         <div class="menu-body">
           <div id="journalList" class="page"></div>
           <div id="bag" class="page hidden"></div>
+          <div id="outfits" class="page hidden">
+            <canvas id="fitCanvas" width="320" height="320"></canvas>
+            <div class="fit-side"><div id="fitInfo" class="fit-info"></div><div id="fitGrid" class="fit-grid"></div></div>
+          </div>
           <div id="mapPage" class="page hidden"><canvas id="mapCanvas"></canvas><div id="mapList" class="map-list"></div></div>
           <div id="codex" class="page hidden"></div>
           <div id="system" class="page hidden">

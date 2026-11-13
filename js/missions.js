@@ -7,7 +7,7 @@ export const MISSIONS = [
   { id: 'campanas', type: 'principal', region: 'coral', title: 'Las Tres Campanas', desc: 'Haz sonar las tres campanas del Jardín de Coral.', goal: 3, fragment: true },
   { id: 'luciernagas', type: 'principal', region: 'menta', title: 'Luciérnagas Perdidas', desc: 'Rescata las tres luciérnagas en lo alto de las Torres de Menta.', goal: 3, fragment: true },
   { id: 'puente', type: 'principal', region: 'lavanda', title: 'El Puente Dormido', desc: 'Despierta los dos cristales, cruza el puente y toma el fragmento del altar.', goal: 3, fragment: true },
-  { id: 'guardian', type: 'principal', region: 'nova', title: 'El Guardián de Nova', desc: 'Con 3 fragmentos se abre el santuario del sur. Vence al Guardián.', goal: 1, final: true },
+  { id: 'guardian', type: 'principal', region: 'nova', title: 'El Guardián de Nova', desc: 'Con 3 fragmentos se abre el santuario del sur. Enfrenta al Guardián y despiértalo.', goal: 1, final: true },
   // Secundarias
   { id: 'sombras', type: 'secundaria', region: 'menta', title: 'Plaga de Sombras', desc: 'Derrota 12 enemigos en las Torres de Menta. Premio: un fragmento extra de Nova.', goal: 12, fragment: true },
   { id: 'explorador', type: 'secundaria', region: null, title: 'Exploradora del Cielo', desc: 'Visita las cinco regiones del mundo. Premio: objeto raro.', goal: 5, reward: [0, 20, 60, 20, 0, 0] },
