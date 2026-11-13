@@ -15,6 +15,14 @@ export class OrbitCam {
     this.target = new THREE.Vector3();
     this.forward = new THREE.Vector3();
   }
+  /* Dónde estaría la cámara del juego ahora mismo (las escenas terminan aquí para enlazar con el juego). */
+  pose(focus) {
+    const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+    const back = new THREE.Vector3(Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp);
+    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const pivot = focus.clone().addScaledVector(right, 0.38);
+    return { p: pivot.clone().addScaledVector(back, this.cur), l: pivot.clone().add(new THREE.Vector3(0, 0.15, 0)) };
+  }
   update(dt, input, focus, t) {
     this.yaw -= input.lookDX;
     this.pitch = THREE.MathUtils.clamp(this.pitch + input.lookDY, -0.55, 1.25);

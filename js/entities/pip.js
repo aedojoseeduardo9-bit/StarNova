@@ -129,7 +129,7 @@ export function makePip() {
     parent = seg;
   }
   const mats = Object.values(M);
-  root.userData = { body, torso, head, neck, eyes, ears, scarf, tails, pin, arms, legs, tail, tailRoot, mats };
+  root.userData = { body, torso, head, neck, eyes, ears, scarf, tails, pin, arms, legs, tail, tailRoot, mats, M };
   return root;
 }
 

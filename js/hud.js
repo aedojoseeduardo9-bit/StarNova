@@ -7,6 +7,7 @@ import { CHEST_LIST, RANKS, RANK_COLORS } from './content/chests.js';
 import { ENEMY_LIST, ELITE_LIST } from './content/enemies.js';
 import { MISSIONS } from './missions.js';
 import { REGIONS } from './world/palette.js';
+import { CHAPTERS } from './content/story.js';
 
 const $ = (id) => document.getElementById(id);
 const DIFF_NAMES = ['Brisa', 'Llovizna', 'Lluvia', 'Chubasco', 'Tormenta', 'Diluvio', '¡NOVA!'];
@@ -38,6 +39,8 @@ export class HUD {
   }
 
   show(v) { $('hud').classList.toggle('hidden', !v); $('crosshair').classList.toggle('hidden', !v); }
+  /* Limpia la capa 2D (al empezar una escena animada). */
+  clear() { this.numbers.length = 0; this.ctx.setTransform(1, 0, 0, 1, 0, 0); this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height); }
 
   buildSkills() {
     const wrap = $('skills');
@@ -216,7 +219,7 @@ export class HUD {
     const g = this.game, M = g.missions;
     const list = $('journalList');
     list.innerHTML = '';
-    if (!M.tracked) {
+    if (!M.tracked && this.missionTab !== 'historia') {
       const ask = document.createElement('div');
       ask.className = 'mission-ask';
       ask.textContent = '¿Qué misión quieres hacer primero?';
@@ -225,15 +228,16 @@ export class HUD {
     const sub = document.createElement('div');
     sub.className = 'subtabs';
     this.missionTab = this.missionTab || 'principal';
-    for (const [id, label] of [['principal', 'Principales'], ['secundaria', 'Secundarias']]) {
+    for (const [id, label] of [['principal', 'Principales'], ['secundaria', 'Secundarias'], ['historia', 'Historia']]) {
       const b = document.createElement('button');
-      const open = M.list(id).filter(m => M.state[m.id].discovered && !M.state[m.id].done).length;
+      const open = id === 'historia' ? 0 : M.list(id).filter(m => M.state[m.id].discovered && !M.state[m.id].done).length;
       b.textContent = label + (open ? ` (${open})` : '');
       b.classList.toggle('on', this.missionTab === id);
       b.onclick = () => { this.missionTab = id; this.renderMissionMenu(); };
       sub.append(b);
     }
     list.append(sub);
+    if (this.missionTab === 'historia') { this.renderStory(list); return; }
     for (const m of M.list(this.missionTab)) {
       const s = M.state[m.id];
       const d = document.createElement('div');
@@ -249,6 +253,32 @@ export class HUD {
           btn.onclick = () => { M.track(M.tracked === m.id ? null : m.id); if (M.tracked) g.openJournal(false); };
           d.prepend(btn);
         }
+      }
+      list.append(d);
+    }
+  }
+
+  /* Historia: los capítulos ya vistos se pueden leer y volver a ver; los demás siguen ocultos. */
+  renderStory(list) {
+    const g = this.game;
+    const seen = CHAPTERS.filter(c => g.story.seen[c.id]).length;
+    const head = document.createElement('div');
+    head.className = 'codex-count';
+    head.textContent = `Capítulos descubiertos: ${seen} de ${CHAPTERS.length}`;
+    list.append(head);
+    for (const c of CHAPTERS) {
+      const d = document.createElement('div');
+      const ok = !!g.story.seen[c.id];
+      d.className = 'journal-m' + (ok ? '' : ' done');
+      const reg = document.createElement('div'); reg.className = 'reg'; reg.textContent = c.n;
+      const b = document.createElement('b'); b.textContent = ok ? c.title : '???';
+      const t = document.createElement('div'); t.textContent = ok ? c.sum : 'Sigue reuniendo fragmentos para descubrir este capítulo.';
+      d.append(reg, b, t);
+      if (ok) {
+        const btn = document.createElement('button');
+        btn.textContent = '▶ Ver';
+        btn.onclick = () => g.replayStory(c.id);
+        d.prepend(btn);
       }
       list.append(d);
     }

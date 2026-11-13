@@ -6,11 +6,13 @@ import { ATTACKS, POWERS } from './content/attacks.js';
 import { drawIcon, star } from './content/icons.js';
 import { MISSIONS } from './missions.js';
 import { REGIONS, REGION_IDS } from './world/palette.js';
+import { OUTFITS, OUTFIT_LIST } from './entities/outfits.js';
+import { Wardrobe } from './wardrobe.js';
 import { Audio } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-export const MENU_TABS = ['misiones', 'mochila', 'mapa', 'compendio', 'sistema'];
-const PAGES = { misiones: 'journalList', mochila: 'bag', mapa: 'mapPage', compendio: 'codex', sistema: 'system' };
+export const MENU_TABS = ['misiones', 'mochila', 'trajes', 'mapa', 'compendio', 'sistema'];
+const PAGES = { misiones: 'journalList', mochila: 'bag', trajes: 'outfits', mapa: 'mapPage', compendio: 'codex', sistema: 'system' };
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -38,6 +40,9 @@ export class Menus {
     this.confirmDel = 0;    // ranura que pide confirmación para borrarse
     this.newSlot = 0;       // ranura vacía que espera un nombre
     this.bagSel = null;
+    this.fitSel = null;     // traje que se está mirando en el probador
+    this.fitYaw = 0.5;
+    this.thumbs = [];       // miniaturas pendientes de dibujar
     this.bind();
   }
 
@@ -154,6 +159,7 @@ export class Menus {
     for (const t of MENU_TABS) $(PAGES[t]).classList.toggle('hidden', t !== tab);
     if (tab === 'misiones') g.hud.refreshMissions();
     else if (tab === 'mochila') this.renderBag();
+    else if (tab === 'trajes') { this.fitSel = g.outfits.on; this.renderOutfits(); }
     else if (tab === 'mapa') this.renderMap();
     else if (tab === 'compendio') g.hud.refreshCodex();
     else this.renderSystem();
@@ -218,6 +224,58 @@ export class Menus {
     }
     box.append(detail, grid);
     show(ids.includes(this.bagSel) ? this.bagSel : null);
+  }
+
+  /* Trajes: probador con vista previa giratoria. Se compran con chispas y se guardan en el perfil. */
+  renderOutfits() {
+    const g = this.game, F = g.outfits, sel = this.fitSel;
+    const info = $('fitInfo'), grid = $('fitGrid');
+    const def = OUTFITS[sel];
+    info.innerHTML = '';
+    const owned = !def || F.owned.includes(sel), on = F.on === (sel || null);
+    info.append(el('b', null, def ? def.name : 'Bufanda de siempre'), el('div', 'desc', def ? def.desc : 'La bufanda menta con su broche de estrella: Pip tal como es.'));
+    const row = el('div', 'fit-buy');
+    if (on) row.append(el('span', 'tag on', 'Puesto'));
+    if (owned) {
+      if (!on) row.append(btn('Poner', 'go', () => { g.wearOutfit(sel); Audio.play('item'); this.renderOutfits(); }));
+      else if (def) row.append(btn('Quitar', '', () => { g.wearOutfit(null); this.fitSel = null; Audio.play('select'); this.renderOutfits(); }));
+    } else {
+      const lack = def.price - Math.floor(g.sparks);
+      const b = btn(`Comprar · ${def.price} chispas`, 'go' + (lack > 0 ? ' off' : ''), () => {
+        if (g.buyOutfit(sel)) { Audio.play('chest'); g.vibrate(30); } else Audio.play('deny');
+        this.renderOutfits();
+      });
+      row.append(b);
+      row.append(el('span', 'tag', lack > 0 ? `Te faltan ${lack}` : `Tienes ${Math.floor(g.sparks)}`));
+    }
+    info.append(row);
+
+    grid.innerHTML = '';
+    this.thumbs = [];
+    for (const o of [null, ...OUTFIT_LIST]) {
+      const id = o ? o.id : null;
+      const has = !o || F.owned.includes(id);
+      const c = el('button', 'fit-card' + (sel === id ? ' sel' : '') + (F.on === id ? ' on' : '') + (has ? '' : ' locked'));
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      c.append(cv, el('span', 'nm', o ? o.name : 'Sin traje'));
+      if (!has) c.append(el('span', 'pr', o.price + ' ✦'));
+      c.onclick = () => { this.fitSel = id; Audio.play('select'); this.renderOutfits(); };
+      grid.append(c);
+      this.thumbs.push([cv, id]);
+    }
+  }
+  /* Se llama en cada cuadro (antes del dibujo del juego) mientras la página Trajes está abierta. */
+  wardrobeFrame(dt) {
+    if (!this.wardrobe) this.wardrobe = new Wardrobe(this.game);
+    try {
+      for (const [cv, id] of this.thumbs) this.wardrobe.draw(cv, id, 0.55);
+      this.thumbs = [];
+      const cv = $('fitCanvas');
+      const px = Math.round(Math.min(480, Math.max(160, Math.min(cv.clientHeight, cv.clientWidth) * Math.min(2, devicePixelRatio || 1))));
+      if (cv.width !== px) cv.width = cv.height = px;
+      this.fitYaw += dt * 0.9;
+      this.wardrobe.draw(cv, this.fitSel, this.fitYaw, dt);
+    } catch (e) { this.thumbs = []; }
   }
 
   /* Región conocida: ya se visitó o alguien habló de ella (hay una misión descubierta allí). */

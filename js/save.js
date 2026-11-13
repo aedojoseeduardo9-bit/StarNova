@@ -9,6 +9,7 @@ import { ATTACKS, POWERS } from './content/attacks.js';
 import { CHESTS } from './content/chests.js';
 import { REGIONS } from './world/palette.js';
 import { Chest } from './props.js';
+import { OUTFITS, applyOutfit } from './entities/outfits.js';
 
 export const SLOTS = [1, 2, 3];
 const VERSION = 1;
@@ -71,6 +72,8 @@ export function snapshot(g) {
     frags: M.fragments(), region: g.region || 'claro',
     items, attack: { id: g.arsenal.attack.id, tier: g.arsenal.attack.tier }, power: g.arsenal.power,
     missions, tracked: M.tracked, visited: [...M.visited], owl: g.owlDone ? 1 : 0,
+    outfits: { owned: [...g.outfits.owned], on: g.outfits.on },
+    story: Object.keys(g.story.seen),
     pos: pos.map(r2), cam: [r2(g.cam.yaw), r2(g.cam.pitch)],
     world: {
       bells: P.bells.map(b => (b.rung ? 1 : 0)),
@@ -108,6 +111,16 @@ export function restore(g, d) {
   g.shield = g.stats.maxShield;
   if (d.attack && ATTACKS[d.attack.id]) g.equipAttack({ id: d.attack.id, tier: int(d.attack.tier, 0, 5, 0) }, true);
   if (d.power && POWERS[d.power]) g.equipPower(d.power, true);
+
+  // trajes
+  const F = d.outfits || {};
+  g.outfits.owned = (Array.isArray(F.owned) ? F.owned : []).filter((id, i, a) => OUTFITS[id] && a.indexOf(id) === i);
+  g.outfits.on = g.outfits.owned.includes(F.on) ? F.on : null;
+  applyOutfit(g.player.model, g.outfits.on);
+
+  // escenas de la historia ya vistas
+  g.story.seen = {};
+  for (const id of Array.isArray(d.story) ? d.story : []) if (typeof id === 'string' && id.length < 24) g.story.seen[id] = 1;
 
   // misiones (sin volver a dar premios)
   for (const m of MISSIONS) {
