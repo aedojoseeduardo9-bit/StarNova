@@ -157,12 +157,16 @@ export class PipAnimator {
     this.landT = 0;
     this.hurtT = 0;
     this.scarfWave = 0;
+    this.lookUp = 0;        // 0..1: Pip mira hacia arriba (lo piden las escenas animadas)
+    this.lookK = 0;
+    this.hopT = 0;
   }
 
   flip() { this.flipT = 0.42; }
   throwAnim() { this.throwT = 0.22; this.throwSide = -this.throwSide; }
   land(strength) { this.landT = Math.min(0.22, 0.08 + strength * 0.012); }
   hurt() { this.hurtT = 0.45; }
+  hop() { this.hopT = 0.6; }           // saltito de alegría
 
   update(dt, s) {
     // s: { yaw, speed, grounded, vy, dash, spin, invulnBlink, tail }
@@ -207,6 +211,10 @@ export class PipAnimator {
       const k = Math.max(0, this.landT) * 1.8;
       sy *= 1 - k; sx *= 1 + k * 0.8; bodyY -= k * 0.1;
     }
+    if (this.hopT > 0) {
+      this.hopT -= dt;
+      bodyY += Math.sin((1 - Math.max(0, this.hopT) / 0.6) * Math.PI) * 0.16;
+    }
     u.body.position.y = 0.17 + bodyY;
     u.body.scale.set(sx, sy, sx);
     u.body.rotation.x = pitch;
@@ -232,14 +240,16 @@ export class PipAnimator {
       const swing = k < 0.35 ? -2.4 * (k / 0.35) : -2.4 + (k - 0.35) / 0.65 * 3.0;
       if (this.throwSide > 0) armR = swing; else armL = swing;
     }
+    if (this.hopT > 0) armL = armR = -2.5;      // brazos arriba
     u.arms[0].rotation.x = armL; u.arms[1].rotation.x = armR;
     u.arms[0].rotation.z = s.grounded ? 0.15 : 0.6; u.arms[1].rotation.z = -u.arms[0].rotation.z;
 
     // cabeza: compensa el galope, mira alrededor en reposo
     this.lookT -= dt;
     if (this.lookT < 0) { this.lookT = 2.5 + Math.random() * 3; this.lookYaw = run ? 0 : (Math.random() - 0.5) * 1.2; }
-    u.neck.rotation.y += ((run ? 0 : this.lookYaw) - u.neck.rotation.y) * Math.min(1, dt * 3);
-    u.neck.rotation.x = -pitch * 0.7 + (run ? 0 : Math.sin(t * 0.9) * 0.05);
+    this.lookK += (this.lookUp - this.lookK) * Math.min(1, dt * 4);
+    u.neck.rotation.y += ((run || this.lookUp > 0 ? 0 : this.lookYaw) - u.neck.rotation.y) * Math.min(1, dt * 3);
+    u.neck.rotation.x = -pitch * 0.7 + (run ? 0 : Math.sin(t * 0.9) * 0.05) - this.lookK * 0.6;
     u.head.rotation.z = Math.sin(t * 0.7) * 0.06 + (this.hurtT > 0 ? Math.sin(t * 40) * 0.15 : 0);
 
     // parpadeo (y ojos apretados al recibir daño)

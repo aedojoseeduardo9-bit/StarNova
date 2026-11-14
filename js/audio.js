@@ -115,3 +115,116 @@ A.startPad = function () {
   f.connect(g); g.connect(A.master);
   A.pad = { g, oscs };
 };
+
+/* ---------- música de las escenas animadas (sintetizada, sin archivos) ----------
+ * Cada ambiente es un compás de 8 pasos que se repite: acordes suaves de fondo, un bajo y una cajita de música.
+ * Audio.score(ambiente) empieza o cambia la música con un fundido; Audio.scoreStop() la apaga. */
+const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const SCORES = {
+  // asombro tranquilo (cuento)
+  cuento: { bpm: 66, bars: [
+    { chord: [48, 55, 64, 71], bass: 36, mel: [76, 0, 79, 0, 84, 0, 79, 0] },
+    { chord: [45, 52, 60, 67], bass: 33, mel: [76, 0, 81, 0, 84, 0, 81, 0] },
+    { chord: [41, 48, 57, 64], bass: 29, mel: [77, 0, 81, 0, 84, 0, 81, 0] },
+    { chord: [43, 50, 59, 64], bass: 31, mel: [74, 0, 79, 0, 83, 0, 79, 76] },
+  ] },
+  // las sombras suben (tensión)
+  penumbra: { bpm: 84, drone: 33, bars: [
+    { chord: [45, 52, 57, 60], bass: 33, mel: [0, 0, 76, 0, 0, 77, 0, 0], pulse: 45 },
+    { chord: [45, 52, 57, 60], bass: 33, mel: [0, 0, 76, 0, 77, 0, 76, 0], pulse: 45 },
+    { chord: [41, 48, 53, 60], bass: 29, mel: [0, 0, 77, 0, 0, 81, 0, 0], pulse: 41 },
+    { chord: [40, 47, 56, 59], bass: 28, mel: [0, 80, 0, 77, 0, 76, 0, 0], pulse: 40 },
+  ] },
+  // un recuerdo tierno
+  recuerdo: { bpm: 58, bars: [
+    { chord: [53, 57, 60, 64], bass: 41, mel: [81, 0, 0, 84, 0, 0, 77, 0] },
+    { chord: [50, 57, 60, 65], bass: 38, mel: [81, 0, 0, 77, 0, 0, 74, 0] },
+    { chord: [46, 53, 58, 62], bass: 34, mel: [82, 0, 0, 77, 0, 0, 74, 0] },
+    { chord: [48, 55, 60, 64], bass: 36, mel: [79, 0, 0, 76, 0, 0, 72, 0] },
+  ] },
+  // el Guardián: grave y triste
+  guardian: { bpm: 52, drone: 26, bars: [
+    { chord: [38, 45, 50, 53], bass: 26, mel: [62, 0, 0, 0, 69, 0, 0, 0] },
+    { chord: [34, 41, 46, 50], bass: 22, mel: [65, 0, 0, 0, 62, 0, 0, 0] },
+    { chord: [31, 43, 46, 50], bass: 19, mel: [58, 0, 0, 0, 62, 0, 0, 0] },
+    { chord: [33, 45, 49, 52], bass: 21, mel: [61, 0, 0, 0, 64, 0, 57, 0] },
+  ] },
+  // Nova vuelve al cielo
+  esperanza: { bpm: 76, bars: [
+    { chord: [48, 55, 60, 64], bass: 36, mel: [72, 76, 79, 84, 79, 76, 79, 84] },
+    { chord: [47, 55, 62, 67], bass: 35, mel: [74, 79, 83, 86, 83, 79, 83, 86] },
+    { chord: [45, 52, 60, 64], bass: 33, mel: [72, 76, 81, 84, 81, 76, 81, 84] },
+    { chord: [41, 53, 57, 60], bass: 29, mel: [72, 77, 81, 84, 81, 77, 81, 89] },
+    { chord: [48, 55, 60, 64], bass: 36, mel: [76, 79, 84, 88, 84, 79, 84, 88] },
+    { chord: [43, 55, 59, 62], bass: 31, mel: [74, 79, 83, 86, 83, 79, 86, 91] },
+  ] },
+};
+
+/* Programa un paso (corchea) del ambiente en el instante t, hacia el nodo de salida out. */
+function scoreStep(ctx, out, sc, i, t) {
+  const stepDur = 60 / sc.bpm / 2;
+  const bar = sc.bars[Math.floor(i / 8) % sc.bars.length], k = i % 8;
+  const env = (node, vol, a, hold, r) => {
+    node.gain.setValueAtTime(0.0001, t);
+    node.gain.exponentialRampToValueAtTime(vol, t + a);
+    node.gain.setValueAtTime(vol, t + a + hold);
+    node.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + r);
+  };
+  const voice = (type, freq, vol, a, hold, r, cutoff) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    env(g, vol, a, hold, r);
+    if (cutoff) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); f.connect(g); } else o.connect(g);
+    g.connect(out);
+    o.start(t); o.stop(t + a + hold + r + 0.05);
+  };
+  if (k === 0) {
+    const len = stepDur * 8;
+    for (const m of bar.chord) voice('triangle', hz(m), 0.022, 0.5, len - 0.7, 0.9, 1100);     // colchón del acorde
+    voice('sine', hz(bar.bass), 0.07, 0.04, len * 0.5, len * 0.5);                               // bajo
+    if (sc.drone) voice('sawtooth', hz(sc.drone), 0.03, 0.6, len - 0.6, 0.8, 220);               // zumbido grave
+  }
+  if (bar.pulse && k % 2 === 0) voice('triangle', hz(bar.pulse), 0.05, 0.01, 0.03, 0.22);        // latido
+  const m = bar.mel[k];
+  if (m) {                                                                                        // cajita de música
+    voice('sine', hz(m), 0.055, 0.006, 0.02, 1.5);
+    voice('sine', hz(m) * 2, 0.014, 0.006, 0.02, 0.8);
+    voice('sine', hz(m) * 3.01, 0.006, 0.006, 0.01, 0.4);
+  }
+  return stepDur;
+}
+A.SCORES = SCORES;
+A.scoreStep = scoreStep;
+
+A.scoreStop = function (fade = 1.2) {
+  const M = A.music;
+  if (!M) return;
+  A.music = null;
+  clearInterval(M.timer);
+  if (!A.ctx) return;
+  const t = A.ctx.currentTime;
+  M.g.gain.cancelScheduledValues(t);
+  M.g.gain.setValueAtTime(M.g.gain.value, t);
+  M.g.gain.linearRampToValueAtTime(0, t + fade);
+  setTimeout(() => { try { M.g.disconnect(); } catch (e) { /* ya desconectado */ } }, (fade + 2.5) * 1000);
+};
+
+A.score = function (mood) {
+  if (!A.ctx || !SCORES[mood]) return;
+  if (A.music && A.music.mood === mood) return;
+  A.scoreStop(1.4);
+  const g = A.ctx.createGain();
+  const t0 = A.ctx.currentTime + 0.12;
+  g.gain.setValueAtTime(0, A.ctx.currentTime);
+  g.gain.linearRampToValueAtTime(1, t0 + 1.2);
+  g.connect(A.bus);
+  const M = A.music = { mood, g, step: 0, next: t0, timer: 0 };
+  const sc = SCORES[mood];
+  const tick = () => {
+    if (A.music !== M) return;
+    if (M.next < A.ctx.currentTime - 0.5) M.next = A.ctx.currentTime + 0.05;       // la pestaña estuvo dormida: no amontonar notas
+    while (M.next < A.ctx.currentTime + 0.6) M.next += scoreStep(A.ctx, g, sc, M.step++, M.next);
+  };
+  tick();
+  M.timer = setInterval(tick, 200);
+};
