@@ -71,16 +71,16 @@ const SCENES = {
     const face = v(sp[0], 0.5, sp[2]);
     const o = ctx.orbit();
     return [
-      { t: 5.5, cam: { p: [v(0, 21, 30), v(0, 18.5, 39)], l: [C] }, say: 'Antes, las islas del cielo nunca conocieron la noche.' },
+      { t: 5.5, music: 'cuento', cam: { p: [v(0, 21, 30), v(0, 18.5, 39)], l: [C] }, say: 'Antes, las islas del cielo nunca conocieron la noche.' },
       { t: 5.5, cam: { p: [v(13, 17, 55), v(-11, 18.5, 53)], l: [C] }, say: 'Nova, la estrella pequeña, las cuidaba desde su santuario.' },
       { t: 4.5, cam: { p: [v(6.5, 1.0, 57), v(4.5, 1.5, 58)], l: [v(0, 2.2, 68), v(0, 4.6, 67)] }, say: 'Y a ella la cuidaba su mejor amigo: el Guardián.' },
       {
-        t: 6, cam: { p: [v(0, 8, 38), v(0, 13, 43)], l: [v(0, 6, 65), C] }, say: 'Pero debajo de las islas dormía la Penumbra: sombras con hambre de luz.',
+        t: 6, music: 'penumbra', cam: { p: [v(0, 8, 38), v(0, 13, 43)], l: [v(0, 6, 65), C] }, say: 'Pero debajo de las islas dormía la Penumbra: sombras con hambre de luz.',
         on() { shadows.forEach(m => { m.visible = true; }); Audio.play('rumble'); },
         tick(k) { ring(ease(k), 17, 9, -9, C.y - 2, 2.2); },
       },
       {
-        t: 5.5, cam: { p: [v(9, 17, 53), v(6.5, 16, 56)], l: [C] }, say: 'Una noche subieron todas a la vez. Para que no la devoraran, Nova tomó una decisión…',
+        t: 6, cam: { p: [v(9, 17, 53), v(6.5, 16, 56)], l: [C] }, say: 'Una noche subieron todas a la vez. Para que no la devoraran, Nova tomó una decisión…',
         tick(k) { ring(ease(k), 9, 3.4, C.y - 2, C.y, 3.2); shake = k * 0.35; },
       },
       {
@@ -103,8 +103,8 @@ const SCENES = {
         },
       },
       {
-        t: 5.5, cam: { p: [v(1.3, 0.75, sp[2] + 2.3), v(0.95, 0.7, sp[2] + 1.9)], l: [face, v(sp[0], 0.62, sp[2])] }, say: 'En El Claro, una ardilla diminuta lo vio todo.',
-        on() { shadows.forEach(m => { m.visible = false; }); guard.visible = false; frags.forEach((f, i) => { f.visible = i === 1; }); },
+        t: 5.5, music: 'recuerdo', cam: { p: [v(1.3, 0.75, sp[2] + 2.3), v(0.95, 0.7, sp[2] + 1.9)], l: [face, v(sp[0], 0.62, sp[2])] }, say: 'En El Claro, una ardilla diminuta lo vio todo.',
+        on() { shadows.forEach(m => { m.visible = false; }); guard.visible = false; frags.forEach((f, i) => { f.visible = i === 1; }); ctx.pip.lookUp = 1; },
         tick(k, dt, t) {
           const f = frags[1];
           f.position.lerpVectors(v(22, 26, -18), v(-4, 9, -56), k);
@@ -115,7 +115,7 @@ const SCENES = {
       },
       {
         t: 5, cam: { p: [v(0.95, 0.7, sp[2] + 1.9), o.p], l: [v(sp[0], 0.62, sp[2]), o.l] }, say: 'Se llama Pip. Y esa noche decidió devolverle la luz al cielo.',
-        on() { frags[1].visible = false; ctx.night(0); },
+        on() { frags[1].visible = false; ctx.night(0); ctx.pip.lookUp = 0; ctx.pip.hop(); },
       },
     ];
   },
@@ -150,13 +150,13 @@ const SCENES = {
     const o = ctx.orbit();
     const face = P.clone().add(v(0, 0.52, 0));
     return [
-      { t: 4.8, cam: { p: [at(2.6, 1.2, 0.7), at(2.2, -0.5, 0.8)], l: [face, P.clone().add(v(0, 0.8, 0))] }, say: 'El fragmento late como un corazón pequeño. Dentro guarda un recuerdo de Nova…', on() { Audio.play('firefly'); } },
+      { t: 5.4, music: 'recuerdo', cam: { p: [at(2.6, 1.2, 0.7), at(2.2, -0.5, 0.8)], l: [face, P.clone().add(v(0, 0.8, 0))] }, say: 'El fragmento late como un corazón pequeño. Dentro guarda un recuerdo de Nova…', on() { Audio.play('firefly'); ctx.pip.lookUp = 0.9; } },
       { t: 6, cam: { p: [path[0], path[1]], l: [path[3], path[4]], linear: true }, say: ['Nova', mem.lines[0]], on() { ctx.tint(true); Audio.play('crystal'); } },
       { t: 6.2, cam: { p: [path[1], path[2]], l: [path[4], path[5]], linear: true }, say: ['Nova', mem.lines[1]] },
       {
         t: 4.6, cam: { p: [at(2.1, 0.6, 0.7), at(1.8, 0.3, 0.68)], l: [face] }, say: `Fragmento ${n} de 4. ${mem.end}`,
         on() { ctx.tint(false); },
-        tick(k) { sink = ease(Math.min(1, k * 1.4)); if (sink >= 1 && frag.visible) { frag.visible = false; g.fx.burst(face, '#fff0b0', 30, 4, 0.18, 1); Audio.play('mission'); } },
+        tick(k) { sink = ease(Math.min(1, k * 1.4)); if (sink >= 1 && frag.visible) { frag.visible = false; g.fx.burst(face, '#fff0b0', 30, 4, 0.18, 1); Audio.play('mission'); ctx.pip.lookUp = 0; ctx.pip.hop(); } },
       },
       { t: 1.8, cam: { p: [at(1.8, 0.3, 0.68), o.p], l: [face, o.l] } },
     ];
@@ -175,7 +175,7 @@ const SCENES = {
     ctx.undo(() => G.setLights(Math.min(3, g.missions.fragments())));
     const o = ctx.orbit();
     return [
-      { t: 4.6, cam: { p: [v(3, 1.5, z - 10), v(1.2, 1.9, z - 6.5)], l: [v(0, 2.6, z)] }, say: ['Abuela Lechuza', '«Tres luces… El portón del Santuario despierta, al sur del Claro.»'] },
+      { t: 5, music: 'cuento', cam: { p: [v(3, 1.5, z - 10), v(1.2, 1.9, z - 6.5)], l: [v(0, 2.6, z)] }, say: ['Abuela Lechuza', '«Tres luces… El portón del Santuario despierta, al sur del Claro.»'] },
       {
         t: 5.2, cam: { p: [v(1.2, 1.9, z - 6.5), v(0, 1.4, z - 4.6)], l: [v(0, 2.6, z), v(0, 1.8, z + 6)] }, say: 'Hace cien años que nadie lo cruza.',
         on() { Audio.play('rumble'); },
@@ -184,7 +184,7 @@ const SCENES = {
           if (k < 0.95 && Math.random() < 0.6) g.fx.puff(v((Math.random() - 0.5) * 3, 0.1, z - 0.6), 2, '#d6d9f4');
         },
       },
-      { t: 5.2, cam: { p: [v(0, 1.4, z - 4.6), v(0, 2.8, z + 5.5)], l: [v(0, 1.8, z + 6), v(0, 3.2, 65)] }, say: ['Abuela Lechuza', '«Ve con cuidado, Pip. Lo que duerme ahí dentro fue, una vez, el mejor amigo de Nova.»'], on() { G.mesh.position.y = low; } },
+      { t: 6.6, music: 'guardian', cam: { p: [v(0, 1.4, z - 4.6), v(0, 2.8, z + 5.5)], l: [v(0, 1.8, z + 6), v(0, 3.2, 65)] }, say: ['Abuela Lechuza', '«Ve con cuidado, Pip. Lo que duerme ahí dentro fue, una vez, el mejor amigo de Nova.»'], on() { G.mesh.position.y = low; } },
       { t: 1.8, cam: { p: [o.p.clone().add(v(0, 3.5, 0)), o.p], l: [o.l] } },
     ];
   },
@@ -195,7 +195,7 @@ const SCENES = {
     const m = propGuardian(ctx, B.x, B.y, B.z, Math.PI);
     const o = ctx.orbit();
     return [
-      { t: 4.2, cam: { p: [v(4, 0.7, B.z - 10), v(2.4, 1.1, B.z - 7.5)], l: [v(0, 1.2, B.z), v(0, 2.2, B.z)] }, say: ['El Guardián', '«…¿Quién… anda… ahí?»'], on() { Audio.play('rumble'); } },
+      { t: 4.2, music: 'guardian', cam: { p: [v(4, 0.7, B.z - 10), v(2.4, 1.1, B.z - 7.5)], l: [v(0, 1.2, B.z), v(0, 2.2, B.z)] }, say: ['El Guardián', '«…¿Quién… anda… ahí?»'], on() { Audio.play('rumble'); } },
       {
         t: 5, cam: { p: [v(-4.5, 1.4, B.z - 5.5), v(-6, 4.6, B.z - 7.5)], l: [v(0, 2.2, B.z)] }, say: ['El Guardián', '«Nadie toca la estrella. Lo prometí… lo prometí…»'],
         tick(k) {
@@ -235,10 +235,10 @@ const SCENES = {
     });
     const gp = guard.position;
     return [
-      { t: 5.2, cam: { p: [v(-10, 1.8, nc[1] - 8.5), v(-8.5, 2.6, nc[1] - 7)], l: [v(gp.x, 1.8, gp.z)] }, say: 'La Penumbra sale del Guardián como humo viejo.', on() { Audio.play('rumble'); } },
+      { t: 5.2, music: 'guardian', cam: { p: [v(-10, 1.8, nc[1] - 8.5), v(-8.5, 2.6, nc[1] - 7)], l: [v(gp.x, 1.8, gp.z)] }, say: 'La Penumbra sale del Guardián como humo viejo.', on() { Audio.play('rumble'); } },
       {
-        t: 5.6, cam: { p: [v(P.x + 1.5, 0.8, P.z - 2.2), v(P.x + 2.2, 1.2, P.z - 3)], l: [v(P.x, 0.7, P.z), v(1, 1.6, nc[1] - 2)] }, say: ['Nova', '«Gracias, pequeña. Ya puedo volver a ser una sola.»'],
-        on() { smoke = false; Audio.play('firefly'); },
+        t: 5.6, music: 'esperanza', cam: { p: [v(P.x + 1.5, 0.8, P.z - 2.2), v(P.x + 2.2, 1.2, P.z - 3)], l: [v(P.x, 0.7, P.z), v(1, 1.6, nc[1] - 2)] }, say: ['Nova', '«Gracias, pequeña. Ya puedo volver a ser una sola.»'],
+        on() { smoke = false; Audio.play('firefly'); ctx.pip.lookUp = 0.5; },
         tick(k, dt, t) {
           frags.forEach((f, i) => {
             const a = t * 3 + i * Math.PI / 2, e = ease(Math.max(0, k * 1.5 - 0.5));
@@ -251,7 +251,7 @@ const SCENES = {
       },
       {
         t: 7, cam: { p: [v(7, 1.1, nc[1] - 11), v(10, 2.6, nc[1] - 16)], l: [A] }, look: () => star.position, say: 'Nova sube, despacio, hasta su lugar en el cielo.',
-        on() { frags.forEach(f => { f.visible = false; }); star.visible = true; g.fx.burst(A, '#fff2b8', 70, 9, 0.26, 1.4); g.fx.ring(A, '#ffffff', 30, 9); Audio.play('mission'); },
+        on() { frags.forEach(f => { f.visible = false; }); star.visible = true; g.fx.burst(A, '#fff2b8', 70, 9, 0.26, 1.4); g.fx.ring(A, '#ffffff', 30, 9); Audio.play('mission'); ctx.pip.lookUp = 1; ctx.pip.hop(); },
         tick(k) { grow = 0.25 + Math.min(1, k * 4) * 0.65; rise = ease(k); },
       },
       {
@@ -259,7 +259,8 @@ const SCENES = {
         tick(k) { guard.rotation.x = 0.22 * (1 - ease(k)); guard.scale.y = 0.86 + 0.14 * ease(k); },
       },
       { t: 6.2, cam: { p: [v(0, 30, -22), v(0, 38, -36)], l: [v(0, 13, 65)] }, say: 'Esa noche, por primera vez, las islas tuvieron una noche con estrellas.' },
-      { t: 6.6, cam: { p: [v(P.x - 1.3, 0.45, P.z - 1.7), v(P.x - 1.0, 0.55, P.z - 1.4)], l: [v(P.x, 0.75, P.z), v(P.x, 1.0, P.z + 0.4)] }, say: 'Pero la Penumbra no desaparece: aprende a dormir. Y mientras duerma, alguien tendrá que seguir cuidando la luz.' },
+      { t: 5, cam: { p: [v(P.x - 1.3, 0.45, P.z - 1.7), v(P.x - 1.15, 0.5, P.z - 1.55)], l: [v(P.x, 0.75, P.z), v(P.x, 0.88, P.z + 0.2)] }, say: 'Pero la Penumbra no desaparece: aprende a dormir.' },
+      { t: 5.6, cam: { p: [v(P.x - 1.15, 0.5, P.z - 1.55), v(P.x - 1.0, 0.55, P.z - 1.4)], l: [v(P.x, 0.88, P.z + 0.2), v(P.x, 1.0, P.z + 0.4)], linear: true }, say: 'Y mientras duerma, alguien tendrá que seguir cuidando la luz.' },
     ];
   },
 };
@@ -307,13 +308,15 @@ export class Cinema {
         ctx.undos.push(() => { pl.teleport(p0); pl.yaw = y0; });
       },
       orbit: () => g.cam.pose(g.player.pos.clone().add(v(0, 0.55, 0))),
+      pip: g.player.anim,                               // para que Pip actúe: pip.lookUp = 0..1, pip.hop()
     };
+    ctx.undos.push(() => { g.player.anim.lookUp = 0; });
     const chapter = CHAPTERS.find(c => c.id === id);
     let shots;
     try { shots = SCENES[id](ctx); } catch (e) { console.error(e); this.cleanup(ctx); if (then) then(false); return false; }
     this.scene = { id, shots, i: -1, t: 0, then };
     this.fov0 = g.camera.fov;
-    this.hold = 0; this.holding = false;
+    this.hold = 0; this.holding = false; this.lastT = 0;
     g.state = 'cine';
     g.hud.clear();
     if (document.exitPointerLock) document.exitPointerLock();
@@ -337,6 +340,7 @@ export class Cinema {
     S.i++; S.t = 0;
     if (S.i >= S.shots.length) { this.finish(false); return; }
     const shot = S.shots[S.i];
+    if (shot.music) Audio.score(shot.music);
     if (shot.on) shot.on();
     this.caption(shot.say);
     this.applyCam(shot, 0);
@@ -366,8 +370,11 @@ export class Cinema {
   update(dt, t) {
     const S = this.scene;
     if (!S) return;
+    // el tiempo de "mantener para saltar" se mide con el reloj real (no depende de la fluidez del teléfono)
+    const now = performance.now(), real = Math.min(0.25, (now - (this.lastT || now)) / 1000);
+    this.lastT = now;
     const holding = this.holding || this.game.input.held.pause;
-    this.hold = holding ? this.hold + dt : Math.max(0, this.hold - dt * 2);
+    this.hold = holding ? this.hold + real : Math.max(0, this.hold - real * 2);
     $('cineSkip').style.setProperty('--p', Math.min(1, this.hold / HOLD).toFixed(3));
     if (this.hold >= HOLD) { this.finish(true); return; }
     const shot = S.shots[S.i];
@@ -398,6 +405,7 @@ export class Cinema {
     this.hold = 0; this.holding = false;
     this.cleanup(this.ctx);
     this.ctx = null;
+    Audio.scoreStop();
     clearTimeout(this.titleT);
     $('cineTitle').classList.remove('show');
     $('cineText').classList.remove('show');

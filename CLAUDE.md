@@ -107,6 +107,9 @@ guardados). Se combinan con `&`:
   `game.playStory(id)` (una sola vez; esperan en cola a que Pip pise el suelo) y se repiten desde
   Misiones → Historia (`game.replayStory`). Disparadores: perfil nuevo → `prologo`; fragmento n →
   `recuerdo<n>`; tercer fragmento → `porton`; entrar al santuario → `guardian`; vencer al jefe → `final`.
+  Un plano puede llevar `music: 'cuento'|'penumbra'|'recuerdo'|'guardian'|'esperanza'` (cambia la música
+  con fundido) y hacer actuar a Pip con `ctx.pip.lookUp = 0..1` (mirar arriba) y `ctx.pip.hop()` (saltito).
+  Al escribir textos: que dé tiempo a leerlos (unos 15 caracteres por segundo como máximo).
 - `js/content/story.js` — textos de la historia: capítulos, recuerdos de Nova y lo que cuenta la lechuza
   según el avance (`OWL_INTRO`, `owlLines`).
 - `js/entities/outfits.js` — los **10 trajes** (colores + piezas colgadas del esqueleto de Pip) y
@@ -147,7 +150,9 @@ guardados). Se combinan con `&`:
   Misiones (principales, secundarias e Historia) y Compendio del menú.
 - `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas. `js/fx.js` — partículas (un solo `Points`).
 - `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
-- `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos). `js/util.js` — utilidades.
+- `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos) y la **música de las escenas**
+  (`Audio.score(ambiente)` / `Audio.scoreStop()`: compases de 8 pasos con acordes, bajo y cajita de música;
+  para añadir un ambiente basta una entrada en `SCORES`). `js/util.js` — utilidades.
 - `tools/ojos.cjs` (capturas), `tools/serve.mjs` (servidor), `tools/capturas.sh` (bajar capturas de CI).
 - `.github/workflows/ojos.yml` (capturas en cada push), `build.yml` (APK + QR), `pages.yml` (versión web).
 - `tools/compilar_apk.sh` — compila la APK en el contenedor (Gradle + SDK de Android descargados en caché).
@@ -210,10 +215,12 @@ Hecho (v0.4):
 - [x] Historia ampliada (la Penumbra, la promesa del Guardián, los recuerdos de Nova) y más charla de la lechuza.
 - [x] Escenas animadas: prólogo, 4 recuerdos, portón, Guardián y final; se saltan manteniendo el botón de
   la esquina y se pueden volver a ver en Misiones → Historia.
+- [x] Música propia en las escenas (5 ambientes), Pip actúa (mira al cielo, salta de alegría) y más tiempo
+  para leer los textos largos. Prueba automática `prueba_escenas`: cada escena deja el mundo como estaba.
 
 Pendiente / ideas:
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
-- [ ] Música adaptativa; mezcla de sonido más rica (y música propia para las escenas animadas).
+- [ ] Música adaptativa también durante el juego (hoy solo hay música en las escenas); mezcla más rica.
 - [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.
 - [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
 - [ ] Postproceso suave (bloom en estrellas/cristales) con opción para teléfonos lentos.

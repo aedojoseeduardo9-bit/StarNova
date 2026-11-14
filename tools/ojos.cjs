@@ -219,6 +219,42 @@ const SCENES = [
     report.push(`\n[prueba_guardado] crear perfil → prólogo (saltar) → traje, fragmento y recuerdo → guardar y salir → continuar → borrar → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
     await ctx.close();
   }
+  // prueba de escenas: cada escena animada (con su música) termina y deja el mundo exactamente como estaba
+  if (!FILTER || FILTER === 'escenas') {
+    const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', (e) => errs.push(e.message));
+    let fails = [];
+    try {
+      await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1&auto=1&frag=3&dios=1`);
+      await page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
+      await page.waitForTimeout(1500);
+      fails = await page.evaluate(async () => {
+        const g = window.__starnova.game;
+        (await import('/js/audio.js')).Audio.init();     // con sonido: así también se prueba la música
+        g.props.gate.snapOpen();                         // el portón ya abajo del todo (con frag=3 está abriéndose)
+        const snap = () => ({
+          objetos: g.scene.children.length, lugar: g.player.pos.toArray().map(x => x.toFixed(2)).join(','), giro: g.player.yaw.toFixed(2),
+          noche: g.sky.deepNight, estrella: g.props.nova.mesh.visible, porton: g.props.gate.mesh.position.y.toFixed(2),
+          vision: g.camera.fov, mirada: g.player.anim.lookUp, franjas: document.body.classList.contains('cine'),
+        });
+        const bad = [];
+        for (const id of ['prologo', 'recuerdo1', 'recuerdo2', 'recuerdo3', 'recuerdo4', 'porton', 'guardian', 'final']) {
+          const a = snap();
+          if (!g.cinema.play(id)) { bad.push(id + ': no empezó'); continue; }
+          g.cinema.seek(400);
+          if (g.state !== 'play' || g.cinema.playing) { bad.push(id + ': no terminó'); continue; }
+          const b = snap();
+          for (const k in a) if (a[k] !== b[k]) bad.push(`${id}: ${k} cambió de ${a[k]} a ${b[k]}`);
+        }
+        return bad;
+      });
+      for (const e of errs) fails.push('error: ' + e.slice(0, 200));
+    } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
+    report.push(`\n[prueba_escenas] las 8 escenas terminan y dejan el mundo como estaba → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
+    await ctx.close();
+  }
   report.push(`\nErrores de consola en total: ${errorsTotal}`);
   fs.writeFileSync(path.join(OUT, 'report.txt'), report.join('\n') + '\n');
   console.log(report.join('\n'));
