@@ -300,6 +300,8 @@ export class HUD {
     $('xpFill').style.width = (g.xp / g.xpNext() * 100).toFixed(1) + '%';
     const s = Math.floor(g.time);
     $('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    const ico = g.isNight ? 'day-ico moon' : 'day-ico sun';
+    if (this.dayIco !== ico) { this.dayIco = ico; $('dayIcon').className = ico; }
     const c = g.diffCoef();
     $('diffName').textContent = DIFF_NAMES[Math.min(DIFF_NAMES.length - 1, Math.floor(c - 1))];
     $('diffFill').style.width = (Math.min(1, (c - 1) / (DIFF_NAMES.length - 1)) * 100).toFixed(1) + '%';

@@ -40,6 +40,8 @@ export class Enemy {
     this.elite = o.elite ? ELITES[o.elite] : null;
     const el = this.elite;
     this.small = !!o.small;
+    this.summoned = !!o.summoned;           // invocada por otro enemigo: no da chispas (ver game.killEnemy)
+    this.zone = o.zone || null;             // región cuya ola la trajo (ver game.runDirector)
     const sizeK = (this.small ? 0.6 : 1) * (el ? 1.22 : 1);
     this.maxHp = this.hp = d.hp * game.hpScale() * (el ? el.hpMul : 1) * (this.small ? 0.45 : 1);
     this.dmgMul = game.dmgScale() * (el ? el.dmgMul : 1);
@@ -288,10 +290,12 @@ export class Enemy {
         this.timer -= dt * k;
         if (chase && this.timer <= 0 && ready) {
           this.timer = 6;
+          // como máximo 4 chispitas suyas vivas a la vez
+          this.minions = (this.minions || []).filter(m => !m.dead);
           const n = game.enemies.filter(e => !e.dead).length;
-          if (n < 24) for (let i = 0; i < 2; i++) {
+          if (n < 24 && this.minions.length < 4) for (let i = 0; i < 2; i++) {
             const a = Math.random() * Math.PI * 2;
-            game.spawnEnemy('chispita', new THREE.Vector3(this.pos.x + Math.cos(a) * 1.5, this.pos.y + 0.3, this.pos.z + Math.sin(a) * 1.5), { force: true });
+            this.minions.push(game.spawnEnemy('chispita', new THREE.Vector3(this.pos.x + Math.cos(a) * 1.5, this.pos.y + 0.3, this.pos.z + Math.sin(a) * 1.5), { force: true, summoned: true }));
           }
           Audio.play('bell', 220);
           this.model.userData.swing.rotation.z = 0.4;
@@ -528,7 +532,7 @@ export class Guardian {
           const types = enraged ? ['sombra', 'bomba', 'farol', 'chispita'] : ['sombra', 'chispita'];
           for (let i = 0; i < (enraged ? 4 : 2); i++) {
             const a = Math.random() * Math.PI * 2;
-            game.spawnEnemy(types[i % types.length], new THREE.Vector3(this.home.x + Math.cos(a) * 6, this.home.y + (types[i % types.length] === 'farol' ? 3 : 0.3), this.home.z + Math.sin(a) * 6), { force: true });
+            game.spawnEnemy(types[i % types.length], new THREE.Vector3(this.home.x + Math.cos(a) * 6, this.home.y + (types[i % types.length] === 'farol' ? 3 : 0.3), this.home.z + Math.sin(a) * 6), { force: true, summoned: true });
           }
         }
         if (this.timer <= 0) this.next();

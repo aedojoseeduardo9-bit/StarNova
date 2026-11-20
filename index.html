@@ -35,7 +35,7 @@
         <button id="trackChip" class="track-chip"></button>
       </div>
       <div class="hud-tr">
-        <div id="timer" class="timer">00:00</div>
+        <div class="time-row"><span id="dayIcon" class="day-ico sun"></span><div id="timer" class="timer">00:00</div></div>
         <div class="diff"><span id="diffName">Brisa</span><div class="diff-bar"><div id="diffFill"></div></div></div>
         <div class="hud-buttons">
           <button id="btnJournal">Menú</button>
@@ -156,6 +156,7 @@
             </div>
             <div class="settings">
               <label>Sensibilidad de cámara <input type="range" id="optSens" min="0.3" max="2.5" step="0.1"></label>
+              <label>Volumen de la música <input type="range" id="optMusic" min="0" max="1" step="0.05"></label>
               <label class="touch-only"><input type="checkbox" id="optAuto"> Disparo automático</label>
               <label class="touch-only"><input type="checkbox" id="optAssist"> La cámara acompaña al moverte</label>
               <label class="touch-only"><input type="checkbox" id="optVib"> Vibración</label>

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Physics, G, groups } from './physics.js';
 import { buildWorld } from './world/layout.js';
 import { REGIONS, regionAt } from './world/palette.js';
-import { Sky } from './sky.js';
+import { Sky, dayPhase, nightOf, duskOf, DAY_CYCLE, DAY_TIMES } from './sky.js';
 import { FX } from './fx.js';
 import { Input } from './input.js';
 import { OrbitCam } from './camera.js';
@@ -24,10 +24,14 @@ import { Profiles, SLOTS, snapshot, restore } from './save.js';
 import { Menus, MENU_TABS } from './menus.js';
 import { OUTFITS, applyOutfit } from './entities/outfits.js';
 import { Cinema, SCENE_IDS } from './cinema.js';
+import { MusicDirector } from './music.js';
 import { OWL_INTRO, owlLines } from './content/story.js';
 
 const STEP = 1 / 60;
+const WHITE = new THREE.Color('#ffffff'), SUN_DAY = new THREE.Color('#fff1df'), SUN_NIGHT = new THREE.Color('#b9c2ff');
 const AUTOSAVE = 30;      // segundos entre guardados automáticos
+const WAVE_CALM = 75;     // segundos de calma de una región tras acabar su ola de sombras
+const WAVE_WAIT = 40;     // si las últimas sombras de una ola no caen en este tiempo, la calma empieza igual
 const $ = (id) => document.getElementById(id);
 
 
@@ -56,7 +60,8 @@ export class Game {
     this.params = params;
     this.mobile = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window || !!window.StarNovaAndroid;
     this.v3 = (x, y, z) => new THREE.Vector3(x, y, z);
-    this.settings = Object.assign({ sens: 1, autofire: true, vibration: true, camAssist: true }, store.get('ajustes', {}));
+    this.settings = Object.assign({ sens: 1, autofire: true, vibration: true, camAssist: true, music: 0.8 }, store.get('ajustes', {}));
+    Audio.setMusicVolume(this.settings.music);
     this.codex = store.get('compendio', { item: [], attack: [], power: [], chest: [], enemy: [], elite: [] });
     this.slot = 0;                                        // ranura en uso (0 = partida de prueba: no se guarda)
     this.profile = { name: 'Prueba', created: Date.now() };
@@ -123,6 +128,9 @@ export class Game {
     this.debris = [];
     this.kills = 0;
     this.director = { credits: 4, t: 0 };
+    // oleadas: cada región con sombras tiene una reserva; al gastarse queda en calma (ver runDirector)
+    this.waves = {};
+    for (const z of this.spots.spawnZones) this.waves[z.region] = { state: 'ola', pool: this.waveSize(1), calm: 0, wait: 0 };
     this.aimHold = 0;
     this.region = null;
     this.state = 'title';
@@ -133,6 +141,7 @@ export class Game {
     this.hud = new HUD(this);
     this.menus = new Menus(this);
     this.cinema = new Cinema(this);
+    this.music = new MusicDirector(this);
     this.missions = new Missions(this);
     this.player = new Player(this, this.spots.spawn);
     const S = this.spots;
@@ -180,6 +189,7 @@ export class Game {
       santuario: [0, 0.4, 54], altar: [82.5, 0.4, 0], puente: [62, 0.4, 0], torre: [8, 11.4, -64], campana: [-55, 0.4, -2],
     };
     if (P.get('t')) this.time = parseFloat(P.get('t')) || 0;
+    if (DAY_TIMES[P.get('hora')] !== undefined) this.dayShift = (DAY_TIMES[P.get('hora')] - 0.05) * DAY_CYCLE - this.time;
     if (P.get('items')) for (const id of Object.keys(ITEMS)) if (ITEMS[id].rar < 4) this.addItem(id, true);
     if (P.get('arma')) { const [id, t] = P.get('arma').split(':'); if (ATTACKS[id]) this.equipAttack({ id, tier: parseInt(t || '0', 10) }, true); }
     if (P.get('poder') && POWERS[P.get('poder')]) this.equipPower(P.get('poder'), true);
@@ -249,14 +259,17 @@ export class Game {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.saveNow(true); });
     addEventListener('pagehide', () => this.saveNow(true));
     // ajustes
-    const sens = $('optSens'), auto = $('optAuto'), vib = $('optVib'), assist = $('optAssist');
+    const sens = $('optSens'), auto = $('optAuto'), vib = $('optVib'), assist = $('optAssist'), music = $('optMusic');
     sens.value = this.settings.sens; auto.checked = this.settings.autofire; vib.checked = this.settings.vibration; assist.checked = this.settings.camAssist;
+    music.value = this.settings.music;
     const save = () => {
       this.settings.sens = parseFloat(sens.value); this.settings.autofire = auto.checked;
       this.settings.vibration = vib.checked; this.settings.camAssist = assist.checked;
+      this.settings.music = parseFloat(music.value);
+      Audio.setMusicVolume(this.settings.music);
       store.set('ajustes', this.settings);
     };
-    [sens, auto, vib, assist].forEach(el => { el.oninput = save; el.onchange = save; });
+    [sens, auto, vib, assist, music].forEach(el => { el.oninput = save; el.onchange = save; });
   }
 
   toggleMute() { Audio.setMuted(!Audio.muted); $('btnMute').textContent = Audio.muted ? '♪̸' : '♪'; }
@@ -660,14 +673,15 @@ export class Game {
     this.cam.shake = Math.max(this.cam.shake, e.isBoss ? 1 : e.def.ai === 'golem' ? 0.4 : 0.06);
     if (!e.isBoss) { this.see('enemy', e.type); if (el) this.see('elite', el.id); }
     const mult = (el ? 2.5 : 1) * (e.small ? 0.5 : 1);
-    const sparks = e.def.sparks * this.stats.sparkMul * (0.8 + 0.4 * this.diffCoef()) * mult;
-    const ns = Math.min(e.isBoss ? 24 : 6, Math.max(1, Math.round(sparks / 4)));
+    // las invocadas (Campana Oscura, jefe) no dan chispas ni objetos: si no, serían una fuente infinita
+    const sparks = e.summoned ? 0 : e.def.sparks * this.stats.sparkMul * (0.8 + 0.4 * this.diffCoef()) * mult;
+    const ns = sparks > 0 ? Math.min(e.isBoss ? 24 : 6, Math.max(1, Math.round(sparks / 4))) : 0;
     for (let i = 0; i < ns; i++) this.pickups.push(new Pickup(this, 'spark', c, sparks / ns));
-    const nx = e.isBoss ? 20 : 3;
-    for (let i = 0; i < nx; i++) this.pickups.push(new Pickup(this, 'xp', c, e.def.xp * mult / nx));
-    if (Math.random() < 0.07) this.pickups.push(new Pickup(this, 'heal', c, 1));
+    const nx = e.isBoss ? 20 : e.summoned ? 1 : 3;
+    for (let i = 0; i < nx; i++) this.pickups.push(new Pickup(this, 'xp', c, e.def.xp * mult * (e.summoned ? 0.3 : 1) / nx));
+    if (!e.summoned && Math.random() < 0.07) this.pickups.push(new Pickup(this, 'heal', c, 1));
     if (this.stats.healOnKill) this.heal(this.stats.healOnKill, true);
-    if (e.def.ai === 'golem' || (el && Math.random() < 0.35) || (e.type === 'totem' && Math.random() < 0.2)) this.dropItem(c, e.def.ai === 'golem' ? [0, 30, 45, 22, 3, 0] : [50, 40, 10, 0, 0, 0]);
+    if (!e.summoned && (e.def.ai === 'golem' || (el && Math.random() < 0.35) || (e.type === 'totem' && Math.random() < 0.2))) this.dropItem(c, e.def.ai === 'golem' ? [0, 30, 45, 22, 3, 0] : [50, 40, 10, 0, 0, 0]);
     if (e.def.ai === 'splitter' && !e.small) {
       for (const s of [-1, 1]) this.spawnEnemy('gelatina', this.v3(e.pos.x + s * 0.6, e.pos.y + 0.3, e.pos.z), { small: true, force: true });
     }
@@ -914,14 +928,39 @@ export class Game {
     Audio.play('select');
   }
 
-  /* ---------- director de enemigos (dificultad que crece con el tiempo) ---------- */
+  /* ---------- director de enemigos: oleadas por región (dificultad que crece con el tiempo) ----------
+   * Cada región con sombras (Coral, Menta, Lavanda) tiene una reserva para su ola. Al gastarse ('fin'), y cuando caen
+   * sus últimas sombras, la región queda en calma WAVE_CALM segundos; después llega otra ola, más fuerte según el reloj.
+   * Así las sombras no son infinitas y no se pueden juntar chispas sin fin en un mismo sitio. */
+  waveSize(c = this.diffCoef()) { return Math.round(48 * (1 + 0.3 * (c - 1))); }
+  updateWaves(dt) {
+    for (const id in this.waves) {
+      const W = this.waves[id], here = this.region === id, name = REGIONS[id].name;
+      if (W.state === 'fin') {
+        W.wait += dt;
+        if (W.wait > WAVE_WAIT || !this.enemies.some(e => !e.dead && e.zone === id)) {
+          W.state = 'calma'; W.calm = WAVE_CALM;
+          if (here) { this.hud.toast(`${name} queda en calma… por ahora`); Audio.play('calma'); }
+        }
+      } else if (W.state === 'calma') {
+        W.calm -= dt;
+        if (W.calm <= 0) {
+          W.state = 'ola'; W.calm = 0; W.pool = this.waveSize();
+          if (here) { this.hud.toast(`Las sombras vuelven a ${name}`); Audio.play('oleada'); }
+        }
+      }
+    }
+  }
   runDirector(dt) {
     const D = this.director;
+    this.updateWaves(dt);
     D.t -= dt;
     const zone = this.spots.spawnZones.find(z => z.region === this.region);
+    const W = zone && this.waves[zone.region];
+    if (!W || W.state !== 'ola') return;
     const c = this.diffCoef();
-    D.credits += dt * (0.9 + 0.5 * c) * (zone ? 1 : 0);
-    if (D.t > 0 || !zone || this.time < 12) return;
+    D.credits = Math.min(40, D.credits + dt * (0.9 + 0.5 * c));
+    if (D.t > 0 || this.time < 12) return;
     D.t = 1.3;
     const alive = this.enemies.filter(e => !e.dead && !e.isBoss).length;
     const cap = Math.round(4 + 2 * c);
@@ -939,8 +978,11 @@ export class Game {
       const hit = this.phys.ray({ x: x2, y: pl.y + 14, z: z2 }, { x: 0, y: -1, z: 0 }, 30, groups(0xffff, G.TERRAIN));
       if (!hit || Math.abs(hit.point.y - pl.y) > 7) continue;
       const n = def.group || 1;
-      for (let i = 0; i < n; i++) this.spawnEnemy(def.id, this.v3(hit.point.x + (i ? (Math.random() - 0.5) * 2 : 0), hit.point.y + (def.flying ? 2.5 : 0.05), hit.point.z + (i ? (Math.random() - 0.5) * 2 : 0)), { elite: i === 0 ? elite : null });
-      D.credits -= def.cost * n * (elite ? 2.5 : 1);
+      for (let i = 0; i < n; i++) this.spawnEnemy(def.id, this.v3(hit.point.x + (i ? (Math.random() - 0.5) * 2 : 0), hit.point.y + (def.flying ? 2.5 : 0.05), hit.point.z + (i ? (Math.random() - 0.5) * 2 : 0)), { elite: i === 0 ? elite : null, zone: zone.region });
+      const spent = def.cost * n * (elite ? 2.5 : 1);
+      D.credits -= spent;
+      W.pool -= spent;
+      if (W.pool <= 0) { W.pool = 0; W.state = 'fin'; W.wait = 0; }        // ya no vienen más: quedan las que hay
       if (def.ai === 'golem') this.hud.toast('¡Un Gólem de Arcos se acerca!');
       else if (elite) this.hud.toast(`¡${def.name} ${ELITE_LIST.find(x => x.id === elite).name} cerca!`);
       return;
@@ -987,6 +1029,7 @@ export class Game {
     }
 
     const focus = this.player.pos.clone().add(new THREE.Vector3(0, 0.55, 0));
+    this.music.update(dt);
     if (this.state === 'cine') this.cinema.update(dt, t);
     else this.cam.update(dt, (this.state === 'play' || this.state === 'title') ? inp : { lookDX: 0, lookDY: 0, zoom: 0 }, focus, t);
     // haz arcoíris (necesita la cámara ya actualizada)
@@ -995,8 +1038,11 @@ export class Game {
     this.fx.update(dt);
     this.sky.update(dt, this.camera.position, t);
     this.scene.fog.color.copy(this.sky.fogColor);
-    this.hemi.color.copy(this.sky.u.hor.value).lerp(new THREE.Color('#ffffff'), 0.35);
-    this.sun.intensity = 2.1 * (1 - this.sky.night * 0.45);
+    this.updateDay();
+    this.hemi.color.copy(this.sky.u.hor.value).lerp(WHITE, 0.35);
+    this.sun.intensity = 2.1 * (1 - this.sky.night * 0.5);
+    this.hemi.intensity = 1.05 * (1 - this.sky.night * 0.22);
+    this.sun.color.copy(SUN_DAY).lerp(SUN_NIGHT, this.sky.night * 0.7);           // de noche, luz de luna
     this.sun.position.copy(this.player.pos).add(this.sunOffset);
     this.sun.target.position.copy(this.player.pos);
     this.player.animate(dt, t);
@@ -1004,6 +1050,20 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
     if (this.state !== 'title' && this.state !== 'cine') { this.hud.update(dt); this.hud.draw(this.camera, dt); }
     inp.consume();
+  }
+
+  /* ---------- ciclo de día y noche (ver sky.js) ---------- */
+  updateDay() {
+    const ph = dayPhase(this.time, this.dayShift || 0);
+    this.sky.cycleNight = nightOf(ph);
+    this.sky.cycleDusk = duskOf(ph);
+    const night = this.sky.cycleNight > 0.5;
+    if (this.isNight !== undefined && night !== this.isNight && this.state === 'play') {
+      this.hud.toast(night ? 'Cae la noche sobre las islas' : 'Amanece en las islas');
+      Audio.play(night ? 'anochecer' : 'amanecer');
+    }
+    if (night !== this.isNight) document.body.classList.toggle('is-night', night || this.region === 'nova');
+    this.isNight = night;
   }
 
   step(dt, first) {
@@ -1086,6 +1146,7 @@ export class Game {
     const reg = regionAt(pl.pos.x, pl.pos.z);
     if (reg && reg !== this.region) {
       this.region = reg;
+      document.body.classList.toggle('is-night', !!this.isNight || reg === 'nova');
       this.hud.banner(REGIONS[reg].name, REGIONS[reg].sub);
       if (reg !== 'claro') this.missions.discover(reg);
       this.missions.event('region', reg);
