@@ -8,6 +8,8 @@ import { MISSIONS } from './missions.js';
 import { REGIONS, REGION_IDS } from './world/palette.js';
 import { OUTFITS, OUTFIT_LIST } from './entities/outfits.js';
 import { Wardrobe } from './wardrobe.js';
+import { NPCS } from './content/npcs.js';
+import { WORLDS, WORLD_ORDER, previousWorld } from './worlds/index.js';
 import { Audio } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -22,7 +24,7 @@ const el = (tag, cls, text) => {
 };
 const btn = (text, cls, fn) => { const b = el('button', cls, text); b.onclick = fn; return b; };
 const rarColor = (r) => (RARITY[r].color === '#e9e2d8' ? '#9a8f86' : RARITY[r].color);
-const stars = (n) => { const s = el('span', 'stars'); for (let k = 0; k < 4; k++) s.append(el('i', k < n ? 'on' : '')); return s; };
+const stars = (n, max = 4) => { const s = el('span', 'stars'); for (let k = 0; k < max; k++) s.append(el('i', k < n ? 'on' : '')); return s; };
 const playTime = (secs) => {
   const s = Math.floor(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
   return h ? `${h} h ${m} min` : m ? `${m} min` : 'recién empezada';
@@ -100,7 +102,7 @@ export class Menus {
       if (d) {
         const s = Profiles.summary(d);
         const name = el('div', 'name', s.name);
-        name.append(stars(s.frags));
+        name.append(stars(s.stars, 3));
         info.append(name);
         if (this.confirmDel === n) {
           info.append(el('div', 'meta warn', '¿Borrar este perfil para siempre?'));
@@ -108,7 +110,7 @@ export class Menus {
             btn('No', '', () => { this.confirmDel = 0; this.renderProfiles(); }),
             btn('Sí, borrar', 'danger', () => { Profiles.remove(n); this.confirmDel = 0; Audio.play('deny'); this.renderProfiles('Perfil borrado'); }));
         } else {
-          info.append(el('div', 'meta', `Nivel ${s.level} · ${s.time} · ${s.region}${s.ended ? ' · Nova brilla' : ''}`));
+          info.append(el('div', 'meta', `Nivel ${s.level} · ${s.time} · ${s.world} · ${s.region}${s.ended ? ' · tres estrellas a salvo' : ''}`));
           if (this.copyFrom === n) acts.append(btn('Cancelar', '', () => { this.copyFrom = 0; this.renderProfiles(); }));
           else if (this.copyFrom) row.classList.add('dim');
           else {
@@ -239,6 +241,9 @@ export class Menus {
     if (owned) {
       if (!on) row.append(btn('Poner', 'go', () => { g.wearOutfit(sel); Audio.play('item'); this.renderOutfits(); }));
       else if (def) row.append(btn('Quitar', '', () => { g.wearOutfit(null); this.fitSel = null; Audio.play('select'); this.renderOutfits(); }));
+    } else if (def.shop) {                                        // ropa exclusiva: solo la vende un PNJ de su mundo
+      const npc = NPCS[def.shop], w = WORLDS[npc.world];
+      row.append(el('span', 'tag shop', `Solo en la tienda de ${npc.name} · ${w.galaxy} · ${def.price} chispas`));
     } else {
       const lack = def.price - Math.floor(g.sparks);
       const b = btn(`Comprar · ${def.price} chispas`, 'go' + (lack > 0 ? ' off' : ''), () => {
@@ -258,7 +263,7 @@ export class Menus {
       const c = el('button', 'fit-card' + (sel === id ? ' sel' : '') + (F.on === id ? ' on' : '') + (has ? '' : ' locked'));
       const cv = document.createElement('canvas'); cv.width = cv.height = 128;
       c.append(cv, el('span', 'nm', o ? o.name : 'Sin traje'));
-      if (!has) c.append(el('span', 'pr', o.price + ' ✦'));
+      if (!has) c.append(el('span', 'pr' + (o.shop ? ' shop' : ''), o.shop ? 'tienda' : o.price + ' ✦'));
       c.onclick = () => { this.fitSel = id; Audio.play('select'); this.renderOutfits(); };
       grid.append(c);
       this.thumbs.push([cv, id]);
@@ -278,10 +283,83 @@ export class Menus {
     } catch (e) { this.thumbs = []; }
   }
 
+  /* ---------- tienda de un PNJ ---------- */
+  renderShop(npcId) {
+    const g = this.game, npc = NPCS[npcId], F = g.outfits;
+    const list = OUTFIT_LIST.filter(o => o.shop === npcId);
+    if (!list.some(o => o.id === this.shopSel)) this.shopSel = list[0] ? list[0].id : null;
+    $('shopTitle').textContent = `Tienda de ${npc.name}`;
+    $('shopSub').textContent = `${npc.title} · ${WORLDS[npc.world].galaxy} · ropa que no se vende en ninguna otra parte`;
+    const def = OUTFITS[this.shopSel];
+    const info = $('shopInfo');
+    info.innerHTML = '';
+    if (def) {
+      info.append(el('b', null, def.name), el('div', 'desc', def.desc));
+      const row = el('div', 'fit-buy');
+      const owned = F.owned.includes(def.id), on = F.on === def.id;
+      if (on) row.append(el('span', 'tag on', 'Puesto'));
+      if (owned) { if (!on) row.append(btn('Poner', 'go', () => { g.wearOutfit(def.id); Audio.play('item'); this.renderShop(npcId); })); }
+      else {
+        const lack = def.price - Math.floor(g.sparks);
+        row.append(btn(`Comprar · ${def.price} chispas`, 'go' + (lack > 0 ? ' off' : ''), () => {
+          if (g.buyOutfit(def.id)) { Audio.play('chest'); g.vibrate(30); g.hud.toast(`${npc.name}: ¡Te queda precioso!`); } else Audio.play('deny');
+          this.renderShop(npcId);
+        }));
+        row.append(el('span', 'tag', lack > 0 ? `Te faltan ${lack}` : `Tienes ${Math.floor(g.sparks)}`));
+      }
+      info.append(row);
+    }
+    const grid = $('shopGrid');
+    grid.innerHTML = '';
+    this.shopThumbs = [];
+    for (const o of list) {
+      const has = F.owned.includes(o.id);
+      const c = el('button', 'fit-card' + (this.shopSel === o.id ? ' sel' : '') + (F.on === o.id ? ' on' : '') + (has ? '' : ' locked'));
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      c.append(cv, el('span', 'nm', o.name));
+      if (!has) c.append(el('span', 'pr', o.price + ' ✦'));
+      c.onclick = () => { this.shopSel = o.id; Audio.play('select'); this.renderShop(npcId); };
+      grid.append(c);
+      this.shopThumbs.push([cv, o.id]);
+    }
+  }
+  shopFrame(dt) {
+    if (!this.wardrobe) this.wardrobe = new Wardrobe(this.game);
+    try {
+      for (const [cv, id] of this.shopThumbs || []) this.wardrobe.draw(cv, id, 0.55);
+      this.shopThumbs = [];
+      const cv = $('shopCanvas');
+      const px = Math.round(Math.min(480, Math.max(160, Math.min(cv.clientHeight, cv.clientWidth) * Math.min(2, devicePixelRatio || 1))));
+      if (cv.width !== px) cv.width = cv.height = px;
+      this.fitYaw += dt * 0.9;
+      this.wardrobe.draw(cv, this.shopSel, this.fitYaw, dt);
+    } catch (e) { this.shopThumbs = []; }
+  }
+
+  /* ---------- mapa galáctico (desde el Cohete Avellana) ---------- */
+  renderGalaxy() {
+    const g = this.game, list = $('galaxyList');
+    list.innerHTML = '';
+    const done = new Set(doneList(g));
+    for (const id of WORLD_ORDER) {
+      const w = WORLDS[id], here = id === g.world.id, ok = g.canTravel(id), prev = previousWorld(id);
+      const card = el('div', 'gal-card' + (here ? ' here' : '') + (ok ? '' : ' locked'));
+      const cv = document.createElement('canvas'); cv.width = cv.height = 120;
+      drawPlanet(cv.getContext('2d'), w, 120, ok);
+      const info = el('div', 'info');
+      info.append(el('div', 'kick', w.galaxy), el('b', null, w.name), el('div', 'desc', ok ? w.blurb : 'Todavía no conocemos el camino.'));
+      const st = here ? 'Estás aquí' : done.has(id) ? 'Estrella rescatada ✓' : ok ? 'Disponible' : `Bloqueada: termina ${WORLDS[prev].name}`;
+      info.append(el('div', 'state', st));
+      card.append(cv, info);
+      if (!here && ok) card.append(btn('Viajar', 'go', () => { Audio.play('select'); g.travelTo(id); }));
+      list.append(card);
+    }
+  }
+
   /* Región conocida: ya se visitó o alguien habló de ella (hay una misión descubierta allí). */
   knows(id) {
     const M = this.game.missions;
-    return id === 'claro' || M.visited.has(id) || MISSIONS.some(m => m.region === id && M.state[m.id].discovered);
+    return id === this.game.world.hub || M.visited.has(id) || MISSIONS.some(m => m.region === id && M.state[m.id].discovered);
   }
 
   /* Mapa: las islas vistas desde arriba (el norte arriba), dónde está Pip y la misión seguida. */
@@ -292,40 +370,45 @@ export class Menus {
     cv.width = cv.height = Math.round(S * dpr);
     const ctx = cv.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const half = 94, ox = 7, oz = 3;
+    // encuadre: todas las regiones del mundo (y el islote del altar, si hay)
+    const W = g.world;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    const grow = (x, z, r) => { x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); z0 = Math.min(z0, z - r); z1 = Math.max(z1, z + r); };
+    for (const id of REGION_IDS) grow(REGIONS[id].center[0], REGIONS[id].center[1], REGIONS[id].r + 6);
+    if (g.spots.altar) grow(g.spots.altar.pos[0], g.spots.altar.pos[2], 9);
+    const half = Math.max(x1 - x0, z1 - z0) / 2 + 4, ox = (x0 + x1) / 2, oz = (z0 + z1) / 2;
     const K = S / (half * 2);
     const X = (x) => (x - ox + half) * K, Y = (z) => (z - oz + half) * K;
 
     // cielo
     const sky = ctx.createLinearGradient(0, 0, 0, S);
-    sky.addColorStop(0, '#e2f3ec'); sky.addColorStop(0.5, '#fdeadb'); sky.addColorStop(1, '#d9d3f1');
+    const bg = W.mapSky || ['#e2f3ec', '#fdeadb', '#d9d3f1'];
+    sky.addColorStop(0, bg[0]); sky.addColorStop(0.5, bg[1]); sky.addColorStop(1, bg[2]);
     ctx.fillStyle = sky; ctx.fillRect(0, 0, S, S);
     ctx.fillStyle = 'rgba(255,255,255,.55)';
     for (const [x, z, r] of [[-62, -52, 12], [-50, -58, 9], [58, -44, 13], [70, -50, 8], [-58, 52, 11], [52, 58, 14], [64, 52, 9]]) {
       ctx.beginPath(); ctx.arc(X(x), Y(z), r * K, 0, Math.PI * 2); ctx.fill();
     }
-    const c0 = REGIONS.claro.center;
     const line = (x1, z1, x2, z2, w, color, dash) => {
       ctx.save();
       ctx.lineCap = 'round'; ctx.lineWidth = w; ctx.strokeStyle = color; ctx.setLineDash(dash || []);
       ctx.beginPath(); ctx.moveTo(X(x1), Y(z1)); ctx.lineTo(X(x2), Y(z2)); ctx.stroke();
       ctx.restore();
     };
-    // pasarelas desde El Claro
-    for (const id of REGION_IDS) {
-      if (id === 'claro') continue;
-      const c = REGIONS[id].center;
+    // caminos entre regiones
+    for (const [ra, rb] of W.links || []) {
+      const c0 = REGIONS[ra].center, c = REGIONS[rb].center;
       line(c0[0], c0[1], c[0], c[1], Math.max(5, 4.4 * K), 'rgba(74,63,92,.28)');
-      line(c0[0], c0[1], c[0], c[1], Math.max(3, 3 * K), '#fff6ee');
+      line(c0[0], c0[1], c[0], c[1], Math.max(3, 3 * K), W.mapPath || '#fff6ee');
     }
-    // puente de tablones e islote del altar
-    const br = g.spots.plankBridge, al = g.spots.altar;
-    if (br && al && this.knows('lavanda')) {
-      const built = g.props.bridge.built;
+    // puente que se despierta e islote del altar
+    const br = g.spots.plankBridge, al = g.spots.altar, brR = REGIONS[W.bridgeRegion] || REGIONS[W.hub];
+    if (br && al && this.knows(W.bridgeRegion)) {
+      const built = g.props.bridge && g.props.bridge.built;
       line(br.from[0], br.from[2], br.to[0], br.to[2], Math.max(2.5, 2.4 * K), built ? '#c9a57c' : 'rgba(141,119,200,.75)', built ? null : [3, 5]);
       ctx.beginPath(); ctx.arc(X(al.pos[0]), Y(al.pos[2]), 5.5 * K, 0, Math.PI * 2);
-      ctx.fillStyle = REGIONS.lavanda.ground; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = REGIONS.lavanda.accent; ctx.stroke();
+      ctx.fillStyle = brR.ground; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = brR.accent; ctx.stroke();
     }
     // islas
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -356,7 +439,7 @@ export class Menus {
       ctx.font = `700 ${fs}px Quicksand, sans-serif`;
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,250,244,.9)'; ctx.fillStyle = '#4a3f5c';
       const label = known ? R.name : '???';
-      const ly = id === 'menta' ? y - r - fs * 0.8 : y + r + fs * 0.95;
+      const ly = R.center[1] < oz - 20 ? y - r - fs * 0.8 : y + r + fs * 0.95;
       ctx.strokeText(label, x, ly); ctx.fillText(label, x, ly);
     }
     // objetivos de la misión seguida
@@ -394,7 +477,7 @@ export class Menus {
       const t = el('div');
       t.append(el('b', null, known ? R.name : '???'));
       if (!known) t.append(el('div', null, 'Sin explorar'));
-      else if (id === 'claro') t.append(el('div', null, 'La hoguera cura · Abuela Lechuza'));
+      else if (id === g.world.hub) t.append(el('div', null, g.world.texts.hubNote));
       for (const m of MISSIONS) {
         if (m.region !== id || !known) continue;
         const s = M.state[m.id];
@@ -423,9 +506,41 @@ export class Menus {
     $('btnSaveQuit').classList.toggle('hidden', !has);
     const info = el('div', 'info');
     const name = el('div', 'name', has ? g.profile.name : 'Partida de prueba');
-    name.append(stars(g.missions.fragments()));
-    const region = (REGIONS[g.region] || REGIONS.claro).name;
+    name.append(stars(g.missions.fragments(), g.world.fragSlots));
+    const region = (REGIONS[g.region] || REGIONS[g.world.hub]).name + ' (' + g.world.name + ')';
     info.append(name, el('div', 'meta', `Nivel ${g.level} · ${playTime(g.time)} · ${region} · ${has ? since(g.lastSaved) : 'sin perfil: no se guarda'}`));
     box.append(el('div', 'num', has ? g.slot : '–'), info);
   }
+}
+
+/* Mundos terminados (para el mapa galáctico). */
+function doneList(g) {
+  const out = [];
+  for (const id in g.worldStates) if (g.worldStates[id] && g.worldStates[id].world && g.worldStates[id].world.boss) out.push(id);
+  if (g.bossDone) out.push(g.world.id);
+  return out;
+}
+/* Dibujito de un planeta para el mapa galáctico. */
+function drawPlanet(ctx, w, S, ok) {
+  ctx.clearRect(0, 0, S, S);
+  const c = S / 2, r = S * 0.3;
+  const sky = ctx.createRadialGradient(c, c, r * 0.3, c, c, S * 0.7);
+  sky.addColorStop(0, 'rgba(40,30,80,1)'); sky.addColorStop(1, 'rgba(20,16,44,1)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 40; i++) {
+    const x = (Math.sin(i * 91.7) * 0.5 + 0.5) * S, y = (Math.cos(i * 37.3) * 0.5 + 0.5) * S;
+    ctx.fillStyle = `rgba(255,255,255,${0.3 + (i % 5) * 0.12})`; ctx.fillRect(x, y, 1.5, 1.5);
+  }
+  const grad = ctx.createLinearGradient(c - r, c - r, c + r, c + r);
+  grad.addColorStop(0, ok ? w.color : '#8a8498'); grad.addColorStop(1, ok ? w.color2 : '#4a4458');
+  ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(c + (i - 1.5) * r * 0.5, c - r * 0.2 + i * r * 0.25, r * 0.5, r * 0.12, 0.3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  if (w.ring) {                                                       // anillo (Prismara)
+    ctx.lineWidth = 4; ctx.strokeStyle = ok ? 'rgba(255,200,240,.85)' : 'rgba(180,170,200,.5)';
+    ctx.beginPath(); ctx.ellipse(c, c, r * 1.55, r * 0.38, -0.35, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (!ok) { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `700 ${Math.round(S * 0.22)}px Quicksand, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', c, c + 2); }
 }

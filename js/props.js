@@ -28,7 +28,8 @@ export class Bell {
     game.phys.own(col, this);
     w.createImpulseJoint(R.JointData.spherical({ x: this.anchor.x, y: this.anchor.y, z: this.anchor.z }, { x: 0, y: L, z: 0 }), game.phys.fixed, this.body, true);
     this.mesh = new THREE.Group();
-    this.bellMat = new THREE.MeshLambertMaterial({ color: '#c9a26a', flatShading: true, emissive: 0x000000 });
+    this.colors = spot.colors || ['#c9a26a', '#ffd36e'];                   // [apagada, ya sonó]
+    this.bellMat = new THREE.MeshLambertMaterial({ color: this.colors[0], flatShading: true, emissive: 0x000000 });
     const bm = new THREE.Mesh(BELL_GEO, this.bellMat);
     bm.castShadow = true;
     this.mesh.add(bm);
@@ -65,7 +66,7 @@ export class Bell {
       this.push(d, 0.6);
     }
     const gold = this.rung ? 1 : 0;
-    this.bellMat.color.set(gold ? '#ffd36e' : '#c9a26a');
+    this.bellMat.color.set(gold ? this.colors[1] : this.colors[0]);
     this.bellMat.emissive.setRGB(0.5 * this.glow + 0.12 * gold, 0.38 * this.glow + 0.08 * gold, 0.1 * this.glow);
   }
 }
@@ -78,7 +79,8 @@ export class Crystal {
     const c = game.phys.world.createCollider(R.ColliderDesc.ball(0.45).setTranslation(this.p.x, this.p.y, this.p.z)
       .setCollisionGroups(groups(G.PROP, ALL)), game.phys.fixed);
     game.phys.own(c, this);
-    this.mat = new THREE.MeshLambertMaterial({ color: '#cfc3f2', flatShading: true, emissive: 0x2a2050, transparent: true, opacity: 0.92 });
+    this.colors = spot.colors || ['#cfc3f2', '#fff3c4'];                   // [dormido, despierto]
+    this.mat = new THREE.MeshLambertMaterial({ color: this.colors[0], flatShading: true, emissive: 0x2a2050, transparent: true, opacity: 0.92 });
     this.mesh = new THREE.Mesh(GEO.oct(), this.mat);
     this.mesh.scale.set(0.32, 0.6, 0.32);
     this.mesh.position.copy(this.p);
@@ -99,7 +101,7 @@ export class Crystal {
     this.mesh.rotation.y += dt * (this.active ? 2.5 : 0.6);
     this.mesh.position.y = this.p.y + Math.sin(t * 1.6 + this.index) * 0.1;
     if (this.active) {
-      this.mat.color.set('#fff3c4');
+      this.mat.color.set(this.colors[1]);
       this.mat.emissive.setRGB(0.55, 0.45, 0.25);
       if (Math.random() < 0.3) this.game.fx.sparkle(this.p, '#fff2c0', 1, 0.8);
     }
@@ -162,8 +164,10 @@ export class PlankBridge {
       if (i === 0) w.createImpulseJoint(R.JointData.revolute({ x: a.x, y: a.y - 0.09, z: a.z }, { x: -seg / 2, y: 0, z: 0 }, axis), game.phys.fixed, body, true);
       else w.createImpulseJoint(R.JointData.revolute({ x: seg / 2, y: 0, z: 0 }, { x: -seg / 2, y: 0, z: 0 }, axis), prev, body, true);
       const m = new THREE.Group();
-      m.add(part(GEO.box(), mat(i % 2 ? '#e2c29c' : '#d7b38a'), 0, 0, 0, seg * 0.92, 0.16, hw * 2));
-      for (const s of [-1, 1]) m.add(part(GEO.box(), mat('#8d79c4'), 0, 0.11, s * (hw - 0.05), seg, 0.05, 0.05));
+      const pc = this.spot.colors || ['#d7b38a', '#e2c29c', '#8d79c4'];
+      const plank = this.spot.rainbow ? '#' + new THREE.Color().setHSL(i / n, 0.75, 0.72).getHexString() : (i % 2 ? pc[1] : pc[0]);
+      m.add(part(GEO.box(), mat(plank, this.spot.rainbow ? { emissive: new THREE.Color(plank).multiplyScalar(0.25).getHex() } : {}), 0, 0, 0, seg * 0.92, 0.16, hw * 2));
+      for (const s of [-1, 1]) m.add(part(GEO.box(), mat(pc[2]), 0, 0.11, s * (hw - 0.05), seg, 0.05, 0.05));
       m.scale.setScalar(0.001);
       game.scene.add(m);
       this.planks.push({ body, mesh: m, delay: i * 0.06 });
@@ -192,8 +196,10 @@ export class Firefly {
   constructor(game, spot, index) {
     this.game = game; this.index = index; this.p = v3(spot.pos);
     this.mesh = new THREE.Group();
-    this.mesh.add(part(GEO.ico(1), mat('#f6ffb0', { emissive: 0xb0c040 }), 0, 0, 0, 0.12));
-    const halo = part(GEO.ico(1), mat('#f4ffb8', { basic: true, transparent: true, opacity: 0.22, depthWrite: false }), 0, 0, 0, 0.4);
+    this.color = spot.color || '#f6ffb0';
+    const em = new THREE.Color(this.color).multiplyScalar(0.6).getHex();
+    this.mesh.add(part(GEO.ico(1), mat(this.color, { emissive: em }), 0, 0, 0, 0.12, spot.kind === 'semilla' ? 0.17 : 0.12, 0.12));
+    const halo = part(GEO.ico(1), mat(this.color, { basic: true, transparent: true, opacity: 0.22, depthWrite: false }), 0, 0, 0, 0.4);
     halo.castShadow = false;
     this.mesh.add(halo);
     for (const s of [-1, 1]) {
@@ -208,12 +214,12 @@ export class Firefly {
     this.mesh.position.set(this.p.x + Math.sin(t * 1.3 + this.index) * 0.3, this.p.y + Math.sin(t * 2.1 + this.index) * 0.2, this.p.z + Math.cos(t * 1.1 + this.index) * 0.3);
     this.mesh.children[2].rotation.z = Math.sin(t * 30) * 0.6;
     this.mesh.children[3].rotation.z = -Math.sin(t * 30) * 0.6;
-    if (Math.random() < 0.15) this.game.fx.sparkle(this.mesh.position, '#f4ffb0', 1, 0.4);
+    if (Math.random() < 0.15) this.game.fx.sparkle(this.mesh.position, this.color, 1, 0.4);
     if (this.game.player.center.distanceTo(this.mesh.position) < 0.85) {
       this.taken = true;
       this.game.scene.remove(this.mesh);
       Audio.play('firefly');
-      this.game.fx.burst(this.mesh.position, '#f4ffb0', 24, 3, 0.16, 1);
+      this.game.fx.burst(this.mesh.position, this.color, 24, 3, 0.16, 1);
       this.game.missions.event('firefly', this);
     }
   }
@@ -332,8 +338,9 @@ export class Gate {
     this.body = game.phys.world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(p.x, p.y + spot.h / 2, p.z));
     game.phys.world.createCollider(R.ColliderDesc.cuboid(spot.w / 2, spot.h / 2, spot.d / 2).setCollisionGroups(groups(G.GATE, ALL)), this.body);
     const g = new THREE.Group();
-    g.add(part(GEO.box(), mat('#6c71b8'), 0, 0, 0, spot.w, spot.h, spot.d));
-    g.add(part(GEO.box(), mat('#8e94d6'), 0, 0, 0.02, spot.w * 0.8, spot.h * 0.86, spot.d));
+    const gc = spot.colors || ['#6c71b8', '#8e94d6'];
+    g.add(part(GEO.box(), mat(gc[0]), 0, 0, 0, spot.w, spot.h, spot.d));
+    g.add(part(GEO.box(), mat(gc[1]), 0, 0, 0.02, spot.w * 0.8, spot.h * 0.86, spot.d));
     this.sockets = [];
     for (let i = 0; i < 3; i++) {
       const s = part(GEO.oct(), new THREE.MeshLambertMaterial({ color: '#4a4f8c', flatShading: true, emissive: 0x000000 }), (i - 1) * 0.8, 0.6, -spot.d / 2 - 0.05, 0.22);
@@ -418,30 +425,37 @@ export class Lantern {
 }
 
 /* Hoguera del Claro: cura y es el punto de regreso. */
+const CAMP_LOOKS = {
+  fuego: { stone: '#e6d6cc', log: '#a97d62', flames: [['#ffb26b', 0xc05010], ['#ffd780', 0xd09020], ['#fff3c8', 0xe0c060]], light: '#ffb070', spark: '#ffcf80' },
+  savia: { stone: '#b8d8a0', log: '#7a5a3a', flames: [['#8adca0', 0x2a8a50], ['#c8f0a0', 0x5aa040], ['#f4ffe0', 0x90c070]], light: '#a8f0b0', spark: '#c8ffb8' },
+  faro: { stone: '#d8d8f0', log: '#9a9ab8', flames: [['#ff9ad8', 0xa03080], ['#9adcff', 0x2070a0], ['#ffffff', 0xb0b0e0]], light: '#d8b8ff', spark: '#ffd8ff' },
+};
 export class Campfire {
-  constructor(game, pos) {
+  constructor(game, spot) {
     this.game = game;
-    this.p = v3(pos);
+    const look = CAMP_LOOKS[(spot && spot.look) || 'fuego'];
+    this.look = look;
+    this.p = v3(Array.isArray(spot) ? spot : spot.pos);
     const g = new THREE.Group();
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
-      const s = part(GEO.ico(0), mat('#e6d6cc'), Math.cos(a) * 0.45, 0.06, Math.sin(a) * 0.45, 0.13, 0.08, 0.13);
+      const s = part(GEO.ico(0), mat(look.stone), Math.cos(a) * 0.45, 0.06, Math.sin(a) * 0.45, 0.13, 0.08, 0.13);
       g.add(s);
     }
     for (let i = 0; i < 3; i++) {
-      const log = part(GEO.cyl(6), mat('#a97d62'), 0, 0.08, 0, 0.06, 0.6, 0.06);
+      const log = part(GEO.cyl(6), mat(look.log), 0, 0.08, 0, 0.06, 0.6, 0.06);
       log.rotation.z = Math.PI / 2; log.rotation.y = (i / 3) * Math.PI;
       g.add(log);
     }
     this.flames = [];
-    for (const [c, s, e] of [['#ffb26b', 0.28, 0xc05010], ['#ffd780', 0.18, 0xd09020], ['#fff3c8', 0.09, 0xe0c060]]) {
+    for (const [[c, e], s] of look.flames.map((f, i) => [f, [0.28, 0.18, 0.09][i]])) {
       const f = part(GEO.cone(5), mat(c, { emissive: e }), 0, 0.3, 0, s, s * 2.2, s);
       f.castShadow = false;
       g.add(f); this.flames.push(f);
     }
     g.position.copy(this.p);
     game.scene.add(g);
-    this.light = new THREE.PointLight('#ffb070', 6, 9, 1.6);
+    this.light = new THREE.PointLight(look.light, 6, 9, 1.6);
     this.light.position.copy(this.p).add(new THREE.Vector3(0, 0.8, 0));
     game.scene.add(this.light);
   }
@@ -453,7 +467,7 @@ export class Campfire {
       f.rotation.y = t * (1 + i);
     });
     this.light.intensity = 5.5 + Math.sin(t * 13) * 0.6 + Math.sin(t * 7.3) * 0.4;
-    if (Math.random() < 0.3) this.game.fx.emit(this.p.x + (Math.random() - 0.5) * 0.2, this.p.y + 0.6, this.p.z + (Math.random() - 0.5) * 0.2, 0, 1.5, 0, '#ffcf80', 0.1, 1.0, 0);
+    if (Math.random() < 0.3) this.game.fx.emit(this.p.x + (Math.random() - 0.5) * 0.2, this.p.y + 0.6, this.p.z + (Math.random() - 0.5) * 0.2, 0, 1.5, 0, this.look.spark, 0.1, 1.0, 0);
   }
 }
 
@@ -482,9 +496,10 @@ export class Owl {
 
 /* La estrella Nova: dormida en el santuario hasta vencer al Guardián. */
 export class NovaStar {
-  constructor(game, pos) {
+  constructor(game, spot) {
     this.game = game;
-    this.p = v3(pos);
+    this.p = v3(Array.isArray(spot) ? spot : spot.pos);
+    this.lit0 = (spot && spot.color) || '#fff0b0';               // color encendida
     const sh = new THREE.Shape();
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
@@ -499,6 +514,14 @@ export class NovaStar {
     this.mesh.position.copy(this.p).add(new THREE.Vector3(0, 1.4, 0));
     this.mesh.castShadow = true;
     game.scene.add(this.mesh);
+    // las gemelas de Gemini: una segunda estrella que gira junto a la primera
+    if (spot && spot.twin) {
+      this.mat2 = new THREE.MeshLambertMaterial({ color: '#8e94d6', flatShading: true, emissive: 0x111122 });
+      this.mesh2 = new THREE.Mesh(geo, this.mat2);
+      this.mesh2.castShadow = true;
+      this.twin = spot.twin;
+      game.scene.add(this.mesh2);
+    }
     this.awake = 0;
     this.lit = 0;
   }
@@ -506,7 +529,7 @@ export class NovaStar {
   wake() { this.awake = 0.001; }
   update(dt, t) {
     const lit = Math.max(this.lit, this.awake > 0 ? 1 : 0);
-    this.mat.color.set(lit > 0.5 ? '#fff0b0' : '#8e94d6');
+    this.mat.color.set(lit > 0.5 ? this.lit0 : '#8e94d6');
     this.mat.emissive.setRGB(0.1 + lit * 0.7, 0.1 + lit * 0.55, 0.15 + lit * 0.2);
     this.mesh.rotation.y = t * (0.4 + Math.min(4, this.awake) * 0.3);
     if (this.awake > 0) {
@@ -516,6 +539,16 @@ export class NovaStar {
       if (Math.random() < 0.8) this.game.fx.sparkle(this.mesh.position, '#fff2b8', 2, 2.5);
     } else {
       this.mesh.position.y = this.p.y + 1.4 + Math.sin(t) * 0.15;
+    }
+    if (this.mesh2) {                                              // la gemela gira alrededor de su hermana
+      this.mat2.color.set(lit > 0.5 ? this.twin : '#8e94d6');
+      this.mat2.emissive.copy(this.mat.emissive);
+      const r = 1.6 * this.mesh.scale.x;
+      this.mesh2.position.set(this.p.x + Math.cos(t * 0.8) * r, this.mesh.position.y + Math.sin(t * 1.3) * 0.3, this.p.z + Math.sin(t * 0.8) * r);
+      this.mesh2.scale.copy(this.mesh.scale);
+      this.mesh.position.x = this.p.x - Math.cos(t * 0.8) * r;
+      this.mesh.position.z = this.p.z - Math.sin(t * 0.8) * r;
+      this.mesh2.rotation.y = -t * 0.6;
     }
   }
 }

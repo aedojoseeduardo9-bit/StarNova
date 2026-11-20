@@ -30,6 +30,12 @@ function m(color, emissive = 0x000000) {
   if (!x) { x = new THREE.MeshLambertMaterial({ color, emissive, side: THREE.DoubleSide }); mats.set(k, x); }
   return x;
 }
+function mt(color, opacity, emissive = 0x000000) {                // material transparente (cascos, burbujas)
+  const k = 't' + color + '|' + opacity + '|' + emissive;
+  let x = mats.get(k);
+  if (!x) { x = new THREE.MeshLambertMaterial({ color, emissive, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }); mats.set(k, x); }
+  return x;
+}
 function p(geo, material, x, y, z, sx, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0) {
   const o = new THREE.Mesh(geo, material);
   o.position.set(x, y, z);
@@ -47,7 +53,8 @@ const BASE = {
   scarf: '#6cc9b2', scarf2: '#4fae98', tailTip: '#ffe9d2', gold: '#ffd36e',
 };
 
-const O = (id, name, price, desc, o) => Object.assign({ id, name, price, desc, colors: null, hideScarf: false, build: null }, o);
+/* shop: id del PNJ que lo vende (ropa exclusiva de su mundo; sin shop se compra en el menú, página Trajes). */
+const O = (id, name, price, desc, o) => Object.assign({ id, name, price, desc, colors: null, hideScarf: false, build: null, shop: null }, o);
 
 export const OUTFIT_LIST = [
   O('coral', 'Bufanda Coral', 60, 'La bufanda de las campanas, con un lacito a juego.', {
@@ -149,6 +156,99 @@ export const OUTFIT_LIST = [
       add('head', p(GEO.star, glow, 0, 0.075, 0.14, 0.036, 0.036, 0.03, -0.3));
       add('torso', cape('#fff6dc', 0.16));
       add('tail7', p(GEO.star, glow, 0, 0.11, 0, 0.055, 0.055, 0.05));
+    },
+  }),
+
+  // ----- Islas del Cielo: tienda de Doña Ovillo -----
+  O('nube', 'Gorrito de Nube', 140, 'Tejido con hilo de nube: abriga y casi no pesa.', {
+    shop: 'ovillo', colors: { scarf: '#bfe0ff', scarf2: '#9fc8f0' },
+    build(add) {
+      const w = m('#ffffff', 0x303438);
+      for (const [x, y, z, r] of [[0, 0.13, 0, 0.12], [-0.09, 0.1, 0.02, 0.085], [0.09, 0.1, 0.02, 0.085], [0, 0.11, -0.08, 0.09], [0.05, 0.19, -0.02, 0.07]]) add('head', p(GEO.ball, w, x, y, z, r));
+    },
+  }),
+  O('farolillo', 'Capa Farolillo', 260, 'Una capita cálida y un farolillo que cuelga de la cola.', {
+    shop: 'ovillo',
+    build(add) {
+      add('torso', cape('#e8a25a', 0.16));
+      add('tail7', p(GEO.disc, m('#8a5a3a'), 0, 0.03, 0, 0.012, 0.08, 0.012));
+      add('tail7', p(GEO.ball, m('#ffd38a', 0xc08a20), 0, -0.04, 0, 0.05, 0.06, 0.05));
+    },
+  }),
+  O('campanera', 'Traje de Campanera', 380, 'Boina de coral y una campanita dorada: suena cuando Pip salta.', {
+    shop: 'ovillo', colors: { scarf: '#ef8f86', scarf2: '#d9706b' },
+    build(add) {
+      add('head', p(GEO.half, m('#e47c7e'), 0.02, 0.095, -0.01, 0.15, 0.07, 0.14, 0, 0, -0.12));
+      add('head', p(GEO.ball, m('#e47c7e'), 0.03, 0.16, -0.01, 0.025));
+      add('torso', p(GEO.cone, m('#ffd36e', 0x7a5410), 0, 0.085, 0.15, 0.03, 0.045, 0.03));
+      add('torso', p(GEO.ball, m('#ffd36e', 0x7a5410), 0, 0.06, 0.15, 0.012));
+    },
+  }),
+  // ----- Galaxia Gemini: tienda de Musgo -----
+  O('hoja', 'Capucha de Hoja', 220, 'Una hoja gigante de Verdalia que nunca se marchita.', {
+    shop: 'musgo', colors: { scarf: '#9fd38a', scarf2: '#7fbd6c' },
+    build(add) {
+      add('head', p(GEO.ball, m('#7fbf6a'), 0, 0.09, -0.04, 0.17, 0.08, 0.2, -0.35));
+      add('head', p(GEO.disc, m('#5a9a4a'), 0, 0.12, -0.05, 0.006, 0.3, 0.006, Math.PI / 2 - 0.35));
+      add('head', p(GEO.disc, m('#6a4a2a'), 0, 0.2, 0.12, 0.012, 0.08, 0.012, 0.6));
+    },
+  }),
+  O('seta', 'Sombrero de Seta', 320, 'Seta roja de lunares blancos. Los bichitos del bosque la saludan.', {
+    shop: 'musgo',
+    build(add) {
+      add('head', p(GEO.half, m('#e0484a'), 0, 0.1, -0.01, 0.2, 0.13, 0.2));
+      add('head', p(GEO.disc, m('#fff4e6'), 0, 0.09, -0.01, 0.12, 0.03, 0.12));
+      for (const [x, z] of [[0.08, 0.06], [-0.1, 0.02], [0.02, -0.1], [-0.04, 0.12], [0.12, -0.06]]) add('head', p(GEO.ball, m('#ffffff'), x, 0.19, z - 0.01, 0.028, 0.012, 0.028));
+    },
+  }),
+  O('mochila', 'Mochila de Bellotas', 420, 'Para guardar provisiones… y tres bellotas de la suerte.', {
+    shop: 'musgo',
+    build(add) {
+      add('torso', p(GEO.ball, m('#a8754a'), 0, 0.09, -0.15, 0.11, 0.12, 0.07));
+      add('torso', p(GEO.ball, m('#c98a4b'), 0, 0.05, -0.2, 0.08, 0.07, 0.04));
+      for (const s of [-1, 1]) add('torso', p(GEO.thin, m('#6a4a2a'), s * 0.07, 0.1, 0.0, 0.12, 0.14, 0.12, 0, Math.PI / 2, 0));
+      for (const [x, y] of [[-0.05, 0.2], [0.03, 0.22], [0.08, 0.18]]) {
+        add('torso', p(GEO.ball, m('#c98a4b'), x, y, -0.16, 0.035, 0.045, 0.035));
+        add('torso', p(GEO.half, m('#7a5232'), x, y + 0.025, -0.16, 0.038, 0.025, 0.038));
+      }
+    },
+  }),
+  O('helecho', 'Pelaje de Helecho', 600, 'Pelaje verde musgo y helechos en las orejas: invisible entre los árboles.', {
+    shop: 'musgo', colors: { fur: '#7a8a4a', fur2: '#a8b86a', furDark: '#5a6a3a', cream: '#eef0d0', tailTip: '#d8e8a8', scarf: '#e8705a', scarf2: '#c8584a' },
+    build(add) {
+      for (const s of [0, 1]) for (let i = 0; i < 3; i++) add(s ? 'ear1' : 'ear0', p(GEO.ball, m('#5a9a4a'), (i - 1) * 0.02, 0.1 + i * 0.03, 0.01, 0.015, 0.05, 0.008, 0, 0, (i - 1) * 0.5));
+      add('tail7', p(GEO.ball, m('#5a9a4a'), 0, 0.12, 0, 0.05, 0.1, 0.03));
+    },
+  }),
+  // ----- Galaxia Soledad: tienda de Lumen -----
+  O('astronauta', 'Casco de Astronauta', 500, 'Casco burbuja con antena estelar. Ideal para saltar entre anillos.', {
+    shop: 'lumen', colors: { scarf: '#e8eef8', scarf2: '#c8d0e0' },
+    build(add) {
+      add('head', p(GEO.ball, mt('#cfe8ff', 0.28, 0x204060), 0, 0.02, 0.01, 0.24, 0.23, 0.24));
+      add('head', p(GEO.thin, m('#b8c0d0'), 0, -0.13, 0.01, 0.2, 0.2, 0.25, Math.PI / 2));
+      add('head', p(GEO.disc, m('#c8d0e0'), 0.08, 0.27, -0.02, 0.006, 0.12, 0.006, 0, 0, -0.3));
+      add('head', p(GEO.star, m('#ffd36e', 0x8a6010), 0.1, 0.34, -0.02, 0.03, 0.03, 0.02));
+    },
+  }),
+  O('prisma', 'Capa Prisma', 650, 'Cada franja es un color del arcoíris roto de Sola.', {
+    shop: 'lumen',
+    build(add) {
+      const hues = ['#ff7a8a', '#ffb86a', '#ffe08a', '#8adca0', '#8ac8ff', '#b89aff'];
+      hues.forEach((c, i) => add('torso', p(GEO.poncho, m(c, 0x101010), 0, 0.19 - i * 0.028, 0, 0.2 + i * 0.008, 0.03, 0.21 + i * 0.008)));
+    },
+  }),
+  O('cometa', 'Estela de Cometa', 800, 'Una estrella en la punta de la cola que deja una estela al correr.', {
+    shop: 'lumen', colors: { scarf: '#6a8aff', scarf2: '#4a6ae0', tailTip: '#ffe9a0' },
+    build(add) {
+      add('tail7', p(GEO.star, m('#ffe08a', 0xb08a20), 0, 0.1, 0, 0.07, 0.07, 0.05));
+      add('tail7', p(GEO.ball, mt('#fff3b0', 0.35, 0xb08a20), 0, 0.1, 0, 0.12));
+      add('head', p(GEO.thin, m('#6a8aff', 0x101840), 0, 0.07, -0.005, 0.15, 0.15, 0.26, Math.PI / 2 - 0.1));
+    },
+  }),
+  O('mercurio', 'Pelaje de Mercurio', 1100, 'Pelaje plateado que brilla como el mar de Prismara.', {
+    shop: 'lumen', colors: { fur: '#b8c0d0', fur2: '#dce2ee', furDark: '#8a94a8', cream: '#f4f6fb', paw: '#8a94a8', tailTip: '#ffffff', scarf: '#ff9ad8', scarf2: '#e078c0' },
+    build(add) {
+      add('head', p(GEO.thin, m('#ff9ad8', 0x501838), 0, 0.27, -0.01, 0.09, 0.09, 0.09, Math.PI / 2 + 0.15));
     },
   }),
 ];

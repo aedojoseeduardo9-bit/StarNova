@@ -5,7 +5,7 @@
 import { Audio } from './audio.js';
 
 /* Tono (en semitonos) de cada región. */
-const KEY = { claro: 0, coral: 2, menta: -3, lavanda: 5, nova: 0 };
+const KEY = { claro: 0, coral: 2, menta: -3, lavanda: 5, nova: 0 };      // (cada mundo trae los suyos: world.music.keys)
 const CHECK = 0.4;          // segundos entre revisiones
 const CALM_AFTER = 7;       // segundos sin sombras cerca para volver a la música tranquila
 
@@ -37,9 +37,10 @@ export class MusicDirector {
     if (near >= 2 || close >= 1) this.fight = CALM_AFTER;
     else this.fight = Math.max(0, this.fight - elapsed);
     if (this.fight > 0) return ['combate', 0];
-    const key = KEY[g.region] || 0;
-    if (g.sky.night > 0.55) return ['noche', key];                   // la noche del ciclo o el Santuario
-    return ['dia', key];
+    const keys = (g.world.music && g.world.music.keys) || KEY;
+    const key = keys[g.region] || 0;
+    if (g.sky.night > 0.55) return [(g.world.music && g.world.music.night) || 'noche', key];   // la noche del ciclo o la región nocturna
+    return [(g.world.music && g.world.music.day) || 'dia', key];
   }
 
   update(dt) {
