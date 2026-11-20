@@ -286,6 +286,6 @@ export class PipAnimator {
     const flash = this.hurtT > 0 && Math.floor(this.hurtT * 20) % 2 === 0 ? 0.5 : 0;
     u.mats[0].emissive.setRGB(flash, flash * 0.2, flash * 0.2);
     u.mats[1].emissive.setRGB(flash, flash * 0.2, flash * 0.2);
-    this.m.visible = !s.invulnBlink;
+    this.m.visible = !s.invulnBlink && !this.hidden;
   }
 }

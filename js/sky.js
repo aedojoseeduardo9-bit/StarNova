@@ -105,9 +105,41 @@ export class Sky {
     this.night = 0;
     this.extraNight = 0;
     this.deepNight = 0;          // noche cerrada en todo el cielo (solo la usan las escenas animadas)
+    this.space = 0;              // cielo de espacio profundo (escenas del cohete)
     this.cycleNight = 0;         // noche del ciclo de día y noche (0..1)
     this.cycleDusk = 0;          // luz dorada del atardecer/amanecer (0..1)
     this._c = new THREE.Color();
+  }
+
+  /* Estilo del cielo de cada mundo (campo sky de js/worlds/*): far:false quita las islas lejanas, clouds:false
+   * las nubes, stars:k deja siempre estrellas (espacio) y planets:[[color, tamaño, ángulo, altura, anillo]] pone
+   * planetas enormes a lo lejos. */
+  setStyle(st = {}) {
+    const far = st.far !== false;
+    this.farTop.visible = this.farBot.visible = this.farSpire.visible = far;
+    this.clouds.visible = st.clouds !== false;
+    this.minStars = st.stars || 0;
+    this.planets = null;
+    if (st.planets) {
+      const g = this.planets = new THREE.Group();
+      for (const [color, size, ang, h, ring] of st.planets) {
+        const d = 640, x = Math.cos(ang) * d, z = Math.sin(ang) * d, y = h;
+        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 3), new THREE.MeshBasicMaterial({ color, fog: false }));
+        m.position.set(x, y, z);
+        g.add(m);
+        const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(size * 1.25, 2), new THREE.MeshBasicMaterial({ color, fog: false, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
+        glow.position.copy(m.position);
+        g.add(glow);
+        if (ring) {
+          const r = new THREE.Mesh(new THREE.RingGeometry(size * 1.5, size * 2.2, 48), new THREE.MeshBasicMaterial({ color: ring, fog: false, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+          r.position.copy(m.position);
+          r.lookAt(0, y + size * 3, 0);
+          g.add(r);
+        }
+      }
+      g.traverse(o => { o.renderOrder = -9; o.frustumCulled = false; });
+      this.scene.add(g);
+    }
   }
 
   /* Mezcla los colores del cielo según la región en la que está Pip. */
@@ -133,6 +165,11 @@ export class Sky {
       bot.lerp(this._c.set('#5b5698'), deep * 0.85);
       fog.lerp(this._c.set('#6c66a8'), deep * 0.8);
     }
+    if (this.space > 0) {                             // espacio profundo (escenas de viaje en cohete)
+      const k = this.space;
+      top.lerp(this._c.set('#05041a'), k); hor.lerp(this._c.set('#2a1a52'), k); bot.lerp(this._c.set('#0a0620'), k); fog.lerp(this._c.set('#1a1238'), k);
+      night = Math.max(night, k);
+    }
     const dusk = this.cycleDusk * (1 - this.deepNight);
     if (dusk > 0) {
       hor.lerp(this._c.set('#ffae86'), dusk * 0.5);
@@ -146,7 +183,8 @@ export class Sky {
     this.fogColor.lerp(fog, ease);
     this.night += (night - this.night) * ease;
     this.u.night.value = this.night;
-    this.starMat.opacity = Math.min(1, this.night * 1.1) * (0.75 + Math.sin(t * 2) * 0.05);
+    this.starMat.opacity = Math.max(this.minStars || 0, Math.min(1, this.night * 1.1)) * (0.75 + Math.sin(t * 2) * 0.05);
+    if (this.planets) this.planets.position.copy(focus);
     this.dome.position.copy(focus);
     this.stars.position.copy(focus);
     this.clouds.rotation.y = t * 0.004;

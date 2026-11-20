@@ -73,6 +73,11 @@ export class Missions {
       this.advance(m.id);
     }
     if (type === 'region') this.visited.add(obj);
+    // con todos los cristales despiertos aparece el puente (de tablones, de lianas o de arcoíris)
+    if (type === 'crystal' && g.props.bridge && !g.props.bridge.built && g.props.crystals.every(c => c.active)) {
+      g.props.bridge.build();
+      g.hud.toast(g.world.texts.bridge || '¡El puente despierta!');
+    }
     if (g.world.onEvent) g.world.onEvent(g, type, obj);
   }
 

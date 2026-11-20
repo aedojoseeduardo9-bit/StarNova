@@ -186,7 +186,34 @@ const SCORES = {
     { chord: [43, 55, 59, 62], bass: 31, mel: [74, 79, 83, 86, 83, 79, 86, 91] },
   ] },
 
+  // viaje en cohete: aventura espacial
+  viaje: { bpm: 96, lead: 'pulsa', bars: [
+    { chord: [48, 55, 60, 64], bass: 36, bassSteps: [0, 2, 4, 6], mel: [72, 0, 79, 0, 76, 79, 84, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [46, 53, 58, 62], bass: 34, bassSteps: [0, 2, 4, 6], mel: [74, 0, 77, 0, 82, 0, 77, 74], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [45, 52, 57, 60], bass: 33, bassSteps: [0, 2, 4, 6], mel: [76, 0, 81, 0, 84, 0, 81, 79], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [43, 50, 55, 59], bass: 31, bassSteps: [0, 2, 4, 6], mel: [79, 0, 83, 0, 86, 0, 91, 0], kick: [1, 0, 0, 1, 1, 0, 1, 0], hat: [0, 1, 1, 0, 0, 1, 1, 1] },
+  ] },
+
   // ----- durante el juego (js/music.js) -----
+  // Verdalia (Gemini): bosque alegre, como una flauta entre los árboles
+  bosque: { bpm: 84, lead: 'suave', bars: [
+    { chord: [43, 50, 55, 59], bass: 31, bassSteps: [0, 3, 4], mel: [74, 76, 79, 0, 76, 74, 71, 0] },
+    { chord: [40, 47, 52, 55], bass: 28, bassSteps: [0, 3, 4], mel: [71, 74, 76, 0, 79, 0, 76, 0] },
+    { chord: [36, 43, 48, 52], bass: 24, bassSteps: [0, 3, 4], mel: [72, 0, 76, 79, 81, 0, 79, 76] },
+    { chord: [38, 45, 50, 54], bass: 26, bassSteps: [0, 3, 4], mel: [74, 0, 78, 0, 81, 0, 0, 0] },
+    { chord: [43, 50, 55, 59], bass: 31, bassSteps: [0, 3, 4], mel: [83, 0, 81, 79, 76, 0, 79, 0] },
+    { chord: [36, 43, 48, 55], bass: 24, bassSteps: [0, 3, 4], mel: [76, 0, 74, 72, 74, 0, 76, 0] },
+    { chord: [38, 45, 50, 54], bass: 26, bassSteps: [0, 3, 4], mel: [78, 0, 76, 74, 72, 0, 71, 0] },
+    { chord: [43, 50, 55, 59], bass: 31, bassSteps: [0, 4], mel: [71, 0, 74, 0, 79, 0, 0, 0] },
+  ] },
+  // Prismara (Soledad): arpegios brillantes de cristal en el espacio
+  prisma: { bpm: 100, bars: [
+    { chord: [49, 56, 61, 65], bass: 37, mel: [73, 77, 80, 85, 80, 77, 73, 77] },
+    { chord: [46, 53, 58, 61], bass: 34, mel: [70, 73, 77, 82, 77, 73, 70, 73] },
+    { chord: [42, 49, 54, 58], bass: 30, mel: [66, 70, 73, 78, 73, 70, 78, 82] },
+    { chord: [44, 51, 56, 60], bass: 32, mel: [68, 72, 75, 80, 84, 80, 75, 72] },
+  ] },
+
   // de día: paseo luminoso entre islas (cada región la toca en su propio tono)
   dia: { bpm: 74, bars: [
     { chord: [48, 55, 60, 64], bass: 36, bassSteps: [0, 4], mel: [72, 0, 76, 79, 0, 76, 74, 0] },

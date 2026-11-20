@@ -316,6 +316,7 @@ input[type=text] { user-select: text; -webkit-user-select: text; touch-action: a
 
 /* Escenas animadas */
 .cine { position: absolute; inset: 0; z-index: 15; pointer-events: none; }
+.cine-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
 .cine-bar { position: absolute; left: 0; right: 0; height: 12vh; background: #17142a; transition: transform .45s ease; }
 .cine-bar.top { top: 0; transform: translateY(-100%); }
 .cine-bar.bottom { bottom: 0; height: 19vh; transform: translateY(100%); }

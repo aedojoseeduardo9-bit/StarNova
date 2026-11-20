@@ -9,15 +9,36 @@
 
 /* Capítulos, en el orden en que suelen verse. id = escena de js/cinema.js. */
 export const CHAPTERS = [
-  { id: 'prologo', n: 'Prólogo', title: 'La noche en que cayó Nova', sum: 'La Penumbra subió desde debajo de las islas y Nova se rompió para que no la devoraran. Pip lo vio todo desde El Claro.' },
-  { id: 'recuerdo1', n: 'Capítulo 1', title: 'Primer recuerdo: las campanas', sum: 'Las campanas le cantaban a Nova cada tarde: así sabía que las islas seguían despiertas.' },
-  { id: 'recuerdo2', n: 'Capítulo 2', title: 'Segundo recuerdo: las mensajeras', sum: 'Las luciérnagas llevaban la luz de Nova a cada rincón. Las sombras no nacieron malas: son luz que alguien olvidó.' },
-  { id: 'recuerdo3', n: 'Capítulo 3', title: 'Tercer recuerdo: la promesa', sum: 'El Guardián era el mejor amigo de Nova. Prometió cuidarla mientras ella durmiera.' },
-  { id: 'porton', n: 'Capítulo 4', title: 'El portón despierta', sum: 'Con tres fragmentos, el portón del Santuario de Nova se abre al sur del Claro.' },
-  { id: 'recuerdo4', n: 'Capítulo secreto', title: 'Cuarto recuerdo: la verdad del Guardián', sum: 'Cuando Nova se rompió, el Guardián se tragó la Penumbra para proteger las islas. Por eso ya no recuerda quién es.' },
-  { id: 'guardian', n: 'Capítulo 5', title: 'El que cuida la estrella', sum: 'El Guardián ya no reconoce a nadie: solo ve sombras. No hay que vencerlo… hay que despertarlo.' },
-  { id: 'final', n: 'Final', title: 'Una noche con estrellas', sum: 'La Penumbra salió del Guardián, Nova volvió a su lugar y las islas tuvieron, por primera vez, una noche con estrellas.' },
+  // ----- Islas del Cielo (Galaxia Nova) -----
+  { id: 'prologo', world: 'islas', n: 'Prólogo', title: 'La noche en que cayó Nova', sum: 'La Penumbra subió desde debajo de las islas y Nova se rompió para que no la devoraran. Pip lo vio todo desde El Claro.' },
+  { id: 'recuerdo1', world: 'islas', n: 'Capítulo 1', title: 'Primer recuerdo: las campanas', sum: 'Las campanas le cantaban a Nova cada tarde: así sabía que las islas seguían despiertas.' },
+  { id: 'recuerdo2', world: 'islas', n: 'Capítulo 2', title: 'Segundo recuerdo: las mensajeras', sum: 'Las luciérnagas llevaban la luz de Nova a cada rincón. Las sombras no nacieron malas: son luz que alguien olvidó.' },
+  { id: 'recuerdo3', world: 'islas', n: 'Capítulo 3', title: 'Tercer recuerdo: la promesa', sum: 'El Guardián era el mejor amigo de Nova. Prometió cuidarla mientras ella durmiera.' },
+  { id: 'porton', world: 'islas', n: 'Capítulo 4', title: 'El portón despierta', sum: 'Con tres fragmentos, el portón del Santuario de Nova se abre al sur del Claro.' },
+  { id: 'recuerdo4', world: 'islas', n: 'Capítulo secreto', title: 'Cuarto recuerdo: la verdad del Guardián', sum: 'Cuando Nova se rompió, el Guardián se tragó la Penumbra para proteger las islas. Por eso ya no recuerda quién es.' },
+  { id: 'guardian', world: 'islas', n: 'Capítulo 5', title: 'El que cuida la estrella', sum: 'El Guardián ya no reconoce a nadie: solo ve sombras. No hay que vencerlo… hay que despertarlo.' },
+  { id: 'final', world: 'islas', n: 'Capítulo 6', title: 'Una noche con estrellas', sum: 'La Penumbra salió del Guardián, Nova volvió a su lugar y las islas tuvieron, por primera vez, una noche con estrellas.' },
+  { id: 'cohete', world: 'islas', n: 'Capítulo 7', title: 'El Cohete Avellana', sum: 'Nova cuenta que sus hermanas de otras galaxias también perdieron su luz. Brío destapa el cohete que armó con pedacitos de estrella.' },
+  // ----- Viaje a la Galaxia Gemini -----
+  { id: 'viaje_gemini', world: 'viaje', n: 'Viaje 1', title: 'Rumbo a Gemini', sum: 'El Cohete Avellana despega. Nova explica que en Gemini brillaban dos gemelas, Alba y Ocaso, y que la Penumbra las separó.' },
+  { id: 'llegada_gemini', world: 'gemini', n: 'Gemini · Capítulo 1', title: 'Planeta Verdalia', sum: 'Pip aterriza en un planeta verde y vivo. El Abuelo Sauce le cuenta que el bosque se apaga un poco cada noche.' },
+  { id: 'gemini_recuerdo1', world: 'gemini', n: 'Gemini · Capítulo 2', title: 'Recuerdo de Alba: las flores', sum: 'Alba despertaba las flores cada mañana; Ocaso las arropaba cada tarde. Nunca una sin la otra.' },
+  { id: 'gemini_recuerdo2', world: 'gemini', n: 'Gemini · Capítulo 3', title: 'Recuerdo de Ocaso: el lago', sum: 'Ocaso se miraba en el Lago Espejo y solo veía la sombra de su hermana. Ahí empezó a escuchar a la Penumbra.' },
+  { id: 'gemini_recuerdo3', world: 'gemini', n: 'Gemini · Capítulo 4', title: 'Recuerdo de las dos: la cadena', sum: 'La Penumbra ató a los dos tótems que las cuidaban con una cadena de sombra. Así nacieron los Gemelos de Raíz.' },
+  { id: 'gemini_puerta', world: 'gemini', n: 'Gemini · Capítulo 5', title: 'La Puerta de Raíces', sum: 'Con tres fragmentos, las raíces se apartan y se abre el camino al Claro de los Gemelos.' },
+  { id: 'gemini_jefe', world: 'gemini', n: 'Gemini · Capítulo 6', title: 'Los Gemelos de Raíz', sum: 'Dos tótems del bosque, atados por la Penumbra, giran sin poder soltarse. Hay que romper la cadena.' },
+  { id: 'gemini_final', world: 'gemini', n: 'Gemini · Capítulo 7', title: 'Alba y Ocaso', sum: 'La cadena se rompe. Alba y Ocaso suben juntas al cielo y le dan a Pip el camino hacia la Galaxia Soledad.' },
+  // ----- Viaje a la Galaxia Soledad -----
+  { id: 'viaje_soledad', world: 'viaje', n: 'Viaje 2', title: 'Rumbo a Soledad', sum: 'Las gemelas alumbran la ruta. En el borde del universo vive Sola, una estrella que pinta arcoíris para que alguien la encuentre.' },
+  { id: 'llegada_soledad', world: 'soledad', n: 'Soledad · Capítulo 1', title: 'Planeta Prismara', sum: 'Un planeta de arcoíris y suelos de mercurio que cantan al pisarlos. Eco, un espíritu que solo sabía repetir, recibe a Pip.' },
+  { id: 'soledad_recuerdo1', world: 'soledad', n: 'Soledad · Capítulo 2', title: 'Recuerdo de Sola: el primer arcoíris', sum: 'Sola pintó su primer arcoíris para que alguien, desde muy lejos, supiera que aquí había una amiga.' },
+  { id: 'soledad_recuerdo2', world: 'soledad', n: 'Soledad · Capítulo 3', title: 'Recuerdo de Sola: la espera', sum: 'Pasaron mil años. Sola pintaba y esperaba. La Penumbra le susurró: «nadie vendrá».' },
+  { id: 'soledad_recuerdo3', world: 'soledad', n: 'Soledad · Capítulo 4', title: 'Recuerdo de Sola: el arcoíris roto', sum: 'Sola lloró y el arcoíris se rompió en notas de color. Su tristeza tomó forma de polilla.' },
+  { id: 'soledad_puerta', world: 'soledad', n: 'Soledad · Capítulo 5', title: 'La Puerta Eclipse', sum: 'Los faros y las campanas devuelven el color. La Puerta Eclipse se abre hacia el Trono de la Soledad.' },
+  { id: 'soledad_jefe', world: 'soledad', n: 'Soledad · Capítulo 6', title: 'La Polilla de la Soledad', sum: 'Nacida de la tristeza de Sola, la Polilla aparta a todo el que se acerca. Esta vez alguien no se va a ir.' },
+  { id: 'soledad_final', world: 'soledad', n: 'Epílogo', title: 'Cuatro estrellas, tres galaxias', sum: 'Sola ya no está sola. Nova, Alba, Ocaso y Sola brillan juntas y la Penumbra vuelve a dormir. Fin del gran viaje.' },
 ];
+
 
 /* Recuerdos que guarda cada fragmento (según cuántos lleva Pip). place = dónde ocurre la visión. */
 export const MEMORIES = [
@@ -73,3 +94,31 @@ export function owlLines(frags, gateOpen, bossDone) {
     'Y no gastes todas las chispas en cofres… hay trajes muy bonitos esperando en el menú.',
   ];
 }
+
+/* ----- Recuerdos de las otras galaxias (los fragmentos de cada mundo) ----- */
+export const MEMORIES_GEMINI = [
+  null,
+  { who: 'Alba', lines: ['«Cada mañana yo despertaba las flores, y cada tarde mi hermana Ocaso las arropaba.»', '«Nunca una sin la otra. Así crecía Verdalia: con luz y con sombra.»'], end: 'Quedan más recuerdos entre los árboles.' },
+  { who: 'Ocaso', lines: ['«Me miraba en el Lago Espejo y solo veía la sombra de mi hermana.»', '«Una voz me dijo que yo no era nadie sin ella. Y le creí.»'], end: 'Ocaso no era mala. Solo estaba triste.' },
+  { who: 'Alba y Ocaso', lines: ['«La Penumbra ató a nuestros dos guardianes con una cadena de sombra.»', '«Desde entonces giran sin poder soltarse. Libéralos, Pip… y nos liberarás a nosotras.»'], end: 'Tres fragmentos: la Puerta de Raíces te reconoce.' },
+];
+export const MEMORIES_SOLEDAD = [
+  null,
+  { who: 'Sola', lines: ['«Pinté mi primer arcoíris para que alguien, desde muy lejos, supiera que aquí había una amiga.»', '«Lo hice tan grande que daba la vuelta al planeta.»'], end: 'Quedan más colores por juntar.' },
+  { who: 'Sola', lines: ['«Pasaron mil años. Yo pintaba, y esperaba, y pintaba.»', '«La Penumbra me susurró: “nadie vendrá nunca”.»'], end: 'Sola esperó más que nadie en el universo.' },
+  { who: 'Sola', lines: ['«Lloré tanto que mi arcoíris se rompió en notas de color.»', '«Y mi tristeza se volvió una polilla que aparta a todo el que se acerca. Por favor… no te vayas.»'], end: 'Tres fragmentos: la Puerta Eclipse te espera.' },
+];
+
+/* Lo que dicen las estrellas por la radio del cohete durante cada viaje. */
+export const TRAVEL_LINES = {
+  gemini: [
+    ['Nova', '«Pip, ¿me oyes? La Galaxia Gemini está a tres saltos de luz.»'],
+    ['Nova', '«Allí brillaban dos gemelas, Alba y Ocaso. La Penumbra llegó hasta ellas y las separó.»'],
+    ['', 'Pip va a rescatar los otros cristales de estrella, uno por uno. Su bellota está lista.'],
+  ],
+  soledad: [
+    ['Alba y Ocaso', '«¡Te alumbramos el camino, Pip! La Galaxia Soledad está en el borde de todo.»'],
+    ['Nova', '«Allí vive Sola. Pinta arcoíris para que alguien la encuentre… pero nadie llegó nunca.»'],
+    ['', 'Hasta hoy. El último cristal de estrella espera al final del viaje.'],
+  ],
+};

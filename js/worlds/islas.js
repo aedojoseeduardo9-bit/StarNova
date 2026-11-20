@@ -65,6 +65,7 @@ export default {
   scenes: { memory: 'recuerdo', gate: 'porton', boss: 'guardian', final: 'final', rocket: 'cohete' },
   texts: {
     gateOpen: 'El portón del Santuario de Nova se abrió (al sur)',
+    bridge: '¡El Puente de Lavanda despierta!',
     hubNote: 'La hoguera cura · Abuela Lechuza',
     endKicker: 'fin del primer viaje', endTitle: 'Nova brilla de nuevo',
     endText: 'Las islas vuelven a brillar. Pero las sombras no descansan… y un Cofre Nova te espera en el santuario.',

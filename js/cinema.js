@@ -10,6 +10,7 @@ import { REGIONS } from './world/palette.js';
 import { makeSombra, makeGuardian, GEO, part } from './entities/models.js';
 import { CHAPTERS, MEMORIES } from './content/story.js';
 import { Audio } from './audio.js';
+import { WORLD_SCENES } from './cinema2.js';
 
 const $ = (id) => document.getElementById(id);
 const HOLD = 0.9;                                   // segundos apretando para saltar
@@ -171,20 +172,27 @@ const SCENES = {
     const top = G.base.y + s.h / 2, low = top - s.h - 0.3;
     G.mesh.position.y = top;                                           // baja ante la cámara…
     ctx.undo(() => { if (G.open) G.snapOpen(); else G.mesh.position.y = top + G.y; });   // …y queda como deba quedar
-    G.setLights(3);
-    ctx.undo(() => G.setLights(Math.min(3, g.missions.fragments())));
+    const need = g.world.gateNeed;
+    G.setLights(need);
+    ctx.undo(() => G.setLights(Math.min(need, g.missions.fragments())));
     const o = ctx.orbit();
+    const L = g.world.gateLines || [
+      ['Abuela Lechuza', '«Tres luces… El portón del Santuario despierta, al sur del Claro.»'],
+      'Hace cien años que nadie lo cruza.',
+      ['Abuela Lechuza', '«Ve con cuidado, Pip. Lo que duerme ahí dentro fue, una vez, el mejor amigo de Nova.»'],
+    ];
+    const by = G.base.y;
     return [
-      { t: 5, music: 'cuento', cam: { p: [v(3, 1.5, z - 10), v(1.2, 1.9, z - 6.5)], l: [v(0, 2.6, z)] }, say: ['Abuela Lechuza', '«Tres luces… El portón del Santuario despierta, al sur del Claro.»'] },
+      { t: 5, music: 'cuento', cam: { p: [v(3, by + 1.5, z - 10), v(1.2, by + 1.9, z - 6.5)], l: [v(0, by + 2.6, z)] }, say: L[0] },
       {
-        t: 5.2, cam: { p: [v(1.2, 1.9, z - 6.5), v(0, 1.4, z - 4.6)], l: [v(0, 2.6, z), v(0, 1.8, z + 6)] }, say: 'Hace cien años que nadie lo cruza.',
+        t: 5.2, cam: { p: [v(1.2, by + 1.9, z - 6.5), v(0, by + 1.4, z - 4.6)], l: [v(0, by + 2.6, z), v(0, by + 1.8, z + 6)] }, say: L[1],
         on() { Audio.play('rumble'); },
         tick(k) {
           G.mesh.position.y = top + (low - top) * ease(k);
-          if (k < 0.95 && Math.random() < 0.6) g.fx.puff(v((Math.random() - 0.5) * 3, 0.1, z - 0.6), 2, '#d6d9f4');
+          if (k < 0.95 && Math.random() < 0.6) g.fx.puff(v((Math.random() - 0.5) * 3, by + 0.1, z - 0.6), 2, '#d6d9f4');
         },
       },
-      { t: 6.6, music: 'guardian', cam: { p: [v(0, 1.4, z - 4.6), v(0, 2.8, z + 5.5)], l: [v(0, 1.8, z + 6), v(0, 3.2, 65)] }, say: ['Abuela Lechuza', '«Ve con cuidado, Pip. Lo que duerme ahí dentro fue, una vez, el mejor amigo de Nova.»'], on() { G.mesh.position.y = low; } },
+      { t: 6.6, music: 'guardian', cam: { p: [v(0, by + 1.4, z - 4.6), v(0, by + 2.8, z + 5.5)], l: [v(0, by + 1.8, z + 6), v(0, by + 3.2, z + 17)] }, say: L[2], on() { G.mesh.position.y = low; } },
       { t: 1.8, cam: { p: [o.p.clone().add(v(0, 3.5, 0)), o.p], l: [o.l] } },
     ];
   },
@@ -265,7 +273,10 @@ const SCENES = {
   },
 };
 
-export const SCENE_IDS = CHAPTERS.map(c => c.id);
+Object.assign(SCENES, WORLD_SCENES);
+SCENES.gemini_puerta = (ctx) => SCENES.porton(ctx);
+SCENES.soledad_puerta = (ctx) => SCENES.porton(ctx);
+export const SCENE_IDS = [...CHAPTERS.map(c => c.id), 'aterrizaje'];
 
 export class Cinema {
   constructor(game) {
@@ -285,7 +296,7 @@ export class Cinema {
   get playing() { return !!this.scene; }
 
   /* Empieza una escena. then(saltada) se llama al terminar (o enseguida si no se pudo empezar). */
-  play(id, then) {
+  play(id, then, arg) {
     const g = this.game;
     if (!SCENES[id] || this.scene) { if (then) then(false); return false; }
     const always = [];
@@ -308,12 +319,26 @@ export class Cinema {
         ctx.undos.push(() => { pl.teleport(p0); pl.yaw = y0; });
       },
       orbit: () => g.cam.pose(g.player.pos.clone().add(v(0, 0.55, 0))),
+      flash: (color, dur = 0.6) => this.flashScreen(color, dur),
+      shake: (k) => { this.shakeK = Math.max(this.shakeK || 0, k); },
+      /* Bruma más lejana (para planos muy abiertos) y cielo de espacio profundo (0..1). */
+      fogFar: (far) => {
+        if (!ctx.fogSet) { ctx.fogSet = true; const f0 = g.scene.fog.far; ctx.undos.push(() => { g.scene.fog.far = f0; }); }
+        g.scene.fog.far = far;
+      },
+      space: (k) => {
+        if (!ctx.spaceSet) { ctx.spaceSet = true; ctx.undos.push(() => { g.sky.space = 0; }); }
+        g.sky.space = k;
+      },
+      hidePip: () => { g.player.anim.hidden = true; },
+      showPip: () => { g.player.anim.hidden = false; },
       pip: g.player.anim,                               // para que Pip actúe: pip.lookUp = 0..1, pip.hop()
     };
-    ctx.undos.push(() => { g.player.anim.lookUp = 0; });
+    ctx.undos.push(() => { g.player.anim.lookUp = 0; g.player.anim.hidden = false; });
     const chapter = CHAPTERS.find(c => c.id === id);
     let shots;
-    try { shots = SCENES[id](ctx); } catch (e) { console.error(e); this.cleanup(ctx); if (then) then(false); return false; }
+    try { shots = SCENES[id](ctx, arg); } catch (e) { console.error(e); shots = null; }
+    if (!shots) { this.cleanup(ctx); this.ctx = null; if (then) then(false); return false; }
     this.scene = { id, shots, i: -1, t: 0, then };
     this.fov0 = g.camera.fov;
     this.hold = 0; this.holding = false; this.lastT = 0;
@@ -362,14 +387,29 @@ export class Cinema {
     this.p.lerpVectors(c.p[0], c.p[1] || c.p[0], e);
     if (shot.look) this.l.copy(shot.look()); else this.l.lerpVectors(c.l[0], c.l[1] || c.l[0], e);
     cam.position.copy(this.p);
+    if (this.shakeK > 0) {                                           // temblor (despegues, aterrizajes, golpes)
+      const s = this.shakeK;
+      cam.position.x += (Math.random() - 0.5) * s; cam.position.y += (Math.random() - 0.5) * s; cam.position.z += (Math.random() - 0.5) * s;
+    }
     cam.lookAt(this.l);
     const f = c.fov ? c.fov[0] + (c.fov[1] - c.fov[0]) * e : this.fov0;
     if (Math.abs(cam.fov - f) > 0.01) { cam.fov = f; cam.updateProjectionMatrix(); }
   }
 
+  /* Destello de pantalla completa (para saltos al hiperespacio, golpes de luz…). */
+  flashScreen(color, dur) {
+    const f = $('cineFlash');
+    f.style.transition = 'none';
+    f.style.background = color;
+    f.style.opacity = '1';
+    void f.offsetWidth;
+    f.style.transition = `opacity ${dur}s ease-out`;
+    f.style.opacity = '0';
+  }
   update(dt, t) {
     const S = this.scene;
     if (!S) return;
+    if (this.shakeK > 0) this.shakeK = Math.max(0, this.shakeK - dt * 0.8);
     // el tiempo de "mantener para saltar" se mide con el reloj real (no depende de la fluidez del teléfono)
     const now = performance.now(), real = Math.min(0.25, (now - (this.lastT || now)) / 1000);
     this.lastT = now;
@@ -402,7 +442,8 @@ export class Cinema {
     const S = this.scene, g = this.game;
     if (!S) return;
     this.scene = null;
-    this.hold = 0; this.holding = false;
+    this.hold = 0; this.holding = false; this.shakeK = 0;
+    $('cineFlash').style.opacity = '0';
     this.cleanup(this.ctx);
     this.ctx = null;
     Audio.scoreStop();

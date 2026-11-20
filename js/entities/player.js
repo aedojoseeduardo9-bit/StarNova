@@ -55,9 +55,30 @@ export class Player {
     this.body.setNextKinematicTranslation({ x: this.pos.x, y: this.pos.y + CENTER, z: this.pos.z });
   }
 
+  /* Impulsor Cometa (Prismara): Pip vuela en arco hasta el destino (sin físicas mientras vuela). */
+  launch(to, height = 6, dur = 1.4) {
+    this.flight = { a: this.pos.clone(), b: new THREE.Vector3(to[0] ?? to.x, to[1] ?? to.y, to[2] ?? to.z), h: height, t: 0, dur };
+    this.vel.set(0, 0, 0);
+    this.anim.flip();
+  }
+  updateFlight(dt) {
+    const f = this.flight;
+    f.t += dt;
+    const k = Math.min(1, f.t / f.dur);
+    this.pos.lerpVectors(f.a, f.b, k);
+    this.pos.y += f.h * 4 * k * (1 - k);
+    this.yaw = Math.atan2(f.b.x - f.a.x, f.b.z - f.a.z);
+    this.spin += dt * 12;
+    if (Math.random() < 0.7) this.game.fx.sparkle(this.center, '#' + new THREE.Color().setHSL((f.t * 0.8) % 1, 0.85, 0.75).getHexString(), 1, 0.3);
+    if (f.t > 0.5 && f.t < 0.6) this.anim.flip();
+    this.body.setNextKinematicTranslation({ x: this.pos.x, y: this.pos.y + CENTER, z: this.pos.z });
+    if (k >= 1) { this.flight = null; this.vel.set(0, -1, 0); this.lastSafe.copy(this.pos); this.game.fx.ring(this.pos.clone(), '#ffffff', 14, 4); }
+  }
+
   update(dt, input, cam) {
     const game = this.game;
     const st = game.stats;
+    if (this.flight) { this.updateFlight(dt); return; }
     const fwd = new THREE.Vector3(-Math.sin(cam.yaw), 0, -Math.cos(cam.yaw));
     const right = new THREE.Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw));
     const wish = new THREE.Vector3().addScaledVector(right, input.mx).addScaledVector(fwd, input.my);
@@ -98,7 +119,8 @@ export class Player {
         game.vibrate(10);
       }
     }
-    if (!input.held.jump && this.vel.y > 2.5) this.vel.y += GRAVITY * 0.9 * dt; // salto variable
+    this.boost = Math.max(0, (this.boost || 0) - dt);                                 // rebote de gelatina: no se corta
+    if (!input.held.jump && this.vel.y > 2.5 && !this.boost) this.vel.y += GRAVITY * 0.9 * dt; // salto variable
     this.vel.y += GRAVITY * dt * (this.vel.y < 0 ? 1.18 : 1);
     if (this.vel.y < -24) this.vel.y = -24;
     // planeo (Alas de Cometa): mantener saltar mientras cae

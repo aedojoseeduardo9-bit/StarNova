@@ -41,6 +41,18 @@ Con GitHub disponible:
 - **Día y noche** con **música que cambia** según la hora y lo que pasa (día, noche, combate, peligro, jefe).
 - **Sombras en oleadas** (el dueño pidió que no fueran ilimitadas: daban chispas sin fin para los cofres):
   cada región trae una ola, luego queda en calma un rato. Las invocadas no dan chispas.
+- **Viaje por galaxias** (v0.6): el juego se divide en **3 mundos**. Al terminar uno, Pip sube al **Cohete Avellana**
+  (lo armó Brío, el topo) y en el **mapa galáctico** elige a dónde viajar (una galaxia se abre al terminar la anterior):
+  1. **Islas del Cielo** (Galaxia Nova) — el mundo original; jefe: El Guardián.
+  2. **Planeta Verdalia** (Galaxia Gemini) — bosque vivo en un terreno continuo: praderas, Bosque Susurro, Lago Espejo
+     con cascada y nenúfares, Río Cantarín y un altar en un barranco. Estrellas gemelas **Alba y Ocaso**;
+     jefe: **Los Gemelos de Raíz** (dos tótems atados por una cadena de Penumbra).
+  3. **Planeta Prismara** (Galaxia Soledad) — islas en el espacio con planetas en el cielo, **suelo de metal líquido
+     arcoíris que hace ondas al pisarlo**, Impulsores Cometa (vuelo en arco entre planetoides) y gelatinas trampolín
+     (inspiración de plataformas tipo "galaxia", todo original). Estrella **Sola**; jefe: **La Polilla de la Soledad**.
+  Cada mundo tiene sus PNJ, su tienda con **ropa exclusiva** (3–4 trajes que solo vende ese PNJ), sus misiones,
+  enemigos, música y escenas (viaje, llegada, recuerdos, puerta, jefe y final). Lista de PNJ e historia completa en
+  `docs/StarNova_Historia_y_Datos.docx`.
 
 ## Tecnología (y por qué)
 - **Three.js 0.180** (render 3D) + **Rapier 3D 0.21** (físicas, el mismo motor que usa Bevy). Ambos están
@@ -88,16 +100,39 @@ guardados). Se combinan con `&`:
 - `cine=prologo|recuerdo1|recuerdo2|recuerdo3|recuerdo4|porton|guardian|final` (pone esa escena animada;
   con `cinet=12` la adelanta a ese segundo, para capturas). Las partidas de prueba (`auto=1`) no ponen
   escenas solas; con un perfil sí (`perfil=1&cine=0` las apaga).
+- `mundo=islas|gemini|soledad` (carga ese mundo; sin perfil) · `llegada=1` (aterriza en cohete con su escena) ·
+  `vencido=1` (jefe del mundo ya vencido: cohete listo) · `tienda=ovillo|musgo|lumen` (abre esa tienda) · `galaxia=1`
+  (abre el mapa galáctico). Lugares de `ir=` en Gemini: `pradera|bosque|lago|cascada|meseta|rio|puente|altar|raices|santuario|cohete|campana`;
+  en Soledad: `muelle|mercurio|anillos|planetoide|impulsor|aurora|puente|altar|trono|santuario|cohete`.
+  Escenas nuevas para `cine=`: `cohete`, `viaje_gemini`, `viaje_soledad`, `llegada_gemini`, `llegada_soledad`, `aterrizaje`,
+  `gemini_recuerdo1..3`, `gemini_puerta`, `gemini_jefe`, `gemini_final` y lo mismo con `soledad_`.
 - `ojos=1` lo pone `tools/ojos.cjs` (conserva el búfer de dibujo para las capturas).
 - En la consola del navegador: `window.__starnova.game` da acceso a todo el estado.
 
 ## Mapa del código
 - `index.html` — interfaz (HUD, pantallas, controles táctiles) e `importmap`. `css/style.css` — estilos.
-- `js/main.js` — arranque: inicia Rapier (WASM) y crea `Game`.
+- `js/main.js` — arranque: elige el mundo (URL `mundo=`, viaje en `sessionStorage['starnova.viaje']` o el último
+  mundo jugado), inicia Rapier (WASM) y crea `Game`.
+- `js/worlds/` — **los mundos**: `index.js` (registro `WORLDS`, orden `WORLD_ORDER`, `setWorld`), `islas.js`, `gemini.js`,
+  `soledad.js`. Cada mundo define regiones (cielo/colores), `build(game)` → puntos del mapa (`spots`: cofres, campanas,
+  cristales, luciérnagas/semillas/notas, puente, portón, arena, PNJ, cohete, `extras` animados, `inWater`), misiones
+  (`on: { evento: true | fn }`), guía, jefe, filtro de enemigos (`enemies`), música, cielo (`sky`), escenas, textos y
+  lugares para `ir=`. **Se carga UN mundo por página**: viajar guarda y recarga la página en el destino.
+- `js/world/special.js` — piezas de los planetas nuevos: `buildTerrain` (terreno con colinas + colisionador de triángulos),
+  `Water` (lago o río que sigue una curva), `Waterfall`, `LiquidFloor` (metal líquido con ondas), `Launcher`
+  (Impulsor Cometa: se usa con el botón de acción) y `Bouncer` (gelatina trampolín).
+- `js/content/npcs.js` — los **PNJ** de cada mundo (nombre, especie, diálogo según el avance, tienda).
+  `js/entities/npcs.js` — sus modelos, la clase `NPC` y el **Cohete Avellana** (`Rocket`, con lona hasta vencer al Guardián).
+- `js/entities/bosses.js` — los **3 jefes** como datos para la clase `Boss` (fases `ring`, `slam-up`, `hover`, `summon`,
+  `spin` de los gemelos, `blink` de la polilla).
+- `js/cinema2.js` — escenas del gran viaje: cohete, viajes por el espacio (`ctx.space`), llegadas, recuerdos, jefes y finales
+  de Gemini y Soledad.
 - `js/game.js` — **núcleo**: ciclo fijo de 60 pasos/s, habilidades, daño/críticos/efectos de objetos,
   director de enemigos (dificultad por tiempo), interacción (cofres, lechuza), misiones, jefe, atajos,
   perfiles (`playSlot`, `saveNow`, `saveSoon`, `saveAndQuit`) y el menú (`openMenu(página)`, estado `'menu'`).
-- `js/save.js` — **perfiles de guardado**: 3 ranuras en `localStorage` (`starnova.perfil.1..3`).
+- `js/save.js` — **perfiles de guardado** (versión 2): 3 ranuras en `localStorage` (`starnova.perfil.1..3`). Lo de Pip
+  (nivel, objetos, chispas, trajes, escenas vistas, reloj) es común; cada mundo guarda su estado en `worlds[id]`
+  (misiones, campanas, cofres, oleadas, jefe…) y `world` dice en qué mundo está. Los perfiles v1 se migran solos.
   `snapshot(juego)` fotografía la partida y `restore(juego, datos)` la aplica **en silencio** sobre el mundo
   recién creado (sin premios ni sonidos). Como el mundo solo está "nuevo" al cargar la página, "Guardar y
   salir" recarga y vuelve a los perfiles. Si se añade algo que deba recordarse, va en ambas funciones.
@@ -242,6 +277,17 @@ Hecho (v0.5):
   Prueba automática `prueba_musica`.
 
 Pendiente / ideas:
+Hecho (v0.6):
+- [x] Viaje por galaxias: Cohete Avellana, mapa galáctico (galaxias bloqueadas hasta terminar la anterior) y escenas de
+  despegue, viaje por el espacio y llegada; el perfil recuerda en qué mundo está.
+- [x] Planeta Verdalia (Gemini): terreno con colinas, bosque, lago con cascada, río, nenúfares; 4 misiones principales
+  y 4 secundarias; 8 enemigos del bosque; jefe Los Gemelos de Raíz.
+- [x] Planeta Prismara (Soledad): islas en el espacio, metal líquido con ondas, impulsores y gelatinas trampolín,
+  polvo de estrella; 4 + 4 misiones; 8 enemigos; jefe La Polilla de la Soledad.
+- [x] 8 PNJ (Brío, Doña Ovillo, Abuelo Sauce, Musgo, Tilo, Eco, Lumen, Capitana Vela) y 3 tiendas con 11 trajes exclusivos.
+- [x] Pruebas automáticas `prueba_escenas` (27 escenas en 3 mundos) y `prueba_viaje` (Islas → cohete → Gemini → guardar).
+- [x] Documento Word con la historia, los PNJ y los datos técnicos: `docs/StarNova_Historia_y_Datos.docx`.
+
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
 - [ ] Mezcla de sonido más rica (instrumentos con más matices); que la noche cambie algo del juego (criaturas nocturnas).
 - [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.

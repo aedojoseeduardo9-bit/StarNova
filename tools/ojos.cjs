@@ -71,6 +71,30 @@ const SCENES = [
   { name: '46_atardecer_menta', q: 'auto=1&ir=menta&hora=tarde&cam=0.2,0.35,7', wait: 3500, mobile: true },
   { name: '47_noche_claro_pc', q: 'auto=1&ir=claro&hora=noche&cam=2.6,0.25,5', wait: 3500 },
   { name: '24_poder', q: 'auto=1&ir=coral&poder=agujero&enemigos=6&tipo=sombra&dios=1&cam=1.6,0.4,7', wait: 1500, keys: [['KeyR', 600]] },
+  // ----- Galaxia Gemini · Planeta Verdalia -----
+  { name: '50_gemini_pradera', q: 'auto=1&mundo=gemini&cam=0.6,0.3,7', wait: 4000 },
+  { name: '51_gemini_bosque', q: 'auto=1&mundo=gemini&ir=bosque&cam=1.7,0.22,7', wait: 4000 },
+  { name: '52_gemini_cascada', q: 'auto=1&mundo=gemini&ir=cascada&cam=0,0.12,6', wait: 4000, mobile: true },
+  { name: '53_gemini_rio', q: 'auto=1&mundo=gemini&ir=puente&puente=1&cam=-1.3,0.35,7', wait: 4500 },
+  { name: '54_gemini_raices', q: 'auto=1&mundo=gemini&ir=raices&cam=3.14,0.3,7', wait: 4000 },
+  { name: '55_gemini_jefe', q: 'auto=1&mundo=gemini&jefe=1&dios=1&cam=3.14,0.45,5', wait: 6500 },
+  { name: '56_gemini_combate', q: 'auto=1&mundo=gemini&ir=bosque&enemigos=8&dios=1&cam=1.6,0.4,8', wait: 2500, mobile: true },
+  { name: '57_gemini_tienda', q: 'auto=1&mundo=gemini&tienda=musgo', wait: 2500, mobile: true },
+  { name: '58_gemini_noche', q: 'auto=1&mundo=gemini&ir=lago&hora=noche&cam=0,0.25,8', wait: 3500 },
+  { name: '59_gemini_mapa', q: 'auto=1&mundo=gemini&frag=1&menu=mapa', wait: 1800, mobile: true },
+  { name: '59b_cine_llegada_gemini', q: 'auto=1&mundo=gemini&cine=llegada_gemini&cinet=12', wait: 1500 },
+  { name: '59c_cine_gemelos_final', q: 'auto=1&mundo=gemini&jefe=1&cine=gemini_final&cinet=19', wait: 1500, mobile: true },
+  // ----- Galaxia Soledad · Planeta Prismara -----
+  { name: '60_soledad_muelle', q: 'auto=1&mundo=soledad&cam=0.4,0.3,7', wait: 4000 },
+  { name: '61_soledad_mercurio', q: 'auto=1&mundo=soledad&ir=mercurio&cam=1.4,0.3,7', wait: 1000, keys: [['Space', 2500]] },
+  { name: '62_soledad_anillos', q: 'auto=1&mundo=soledad&ir=anillos&cam=0.3,0.3,9', wait: 4000, mobile: true },
+  { name: '63_soledad_impulsor', q: 'auto=1&mundo=soledad&ir=impulsor&cam=3.14,0.3,6', wait: 650, keys: [['KeyE', 2000]] },
+  { name: '64_soledad_aurora', q: 'auto=1&mundo=soledad&ir=puente&puente=1&cam=-1.4,0.3,8', wait: 4500 },
+  { name: '65_soledad_jefe', q: 'auto=1&mundo=soledad&jefe=1&dios=1&cam=3.14,0.45,6', wait: 6500 },
+  { name: '66_soledad_combate', q: 'auto=1&mundo=soledad&ir=mercurio&enemigos=8&dios=1&cam=1.6,0.4,8', wait: 2500, mobile: true },
+  { name: '67_soledad_tienda', q: 'auto=1&mundo=soledad&tienda=lumen', wait: 2500 },
+  { name: '67b_cine_soledad_final', q: 'auto=1&mundo=soledad&jefe=1&cine=soledad_final&cinet=27', wait: 1500 },
+  { name: '67c_cine_cohete', q: 'auto=1&vencido=1&cine=cohete&cinet=14', wait: 1500, mobile: true },
 ];
 
 (async () => {
@@ -223,40 +247,131 @@ const SCENES = [
     report.push(`\n[prueba_guardado] crear perfil → prólogo (saltar) → traje, fragmento y recuerdo → guardar y salir → continuar → borrar → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
     await ctx.close();
   }
-  // prueba de escenas: cada escena animada (con su música) termina y deja el mundo exactamente como estaba
+  // prueba de escenas: cada escena animada (con su música) termina y deja el mundo exactamente como estaba (en los 3 mundos)
   if (!FILTER || FILTER === 'escenas') {
+    const RUNS = [
+      { q: 'auto=1&frag=3&dios=1', ids: ['prologo', 'recuerdo1', 'recuerdo2', 'recuerdo3', 'recuerdo4', 'porton', 'guardian', 'final', 'cohete', 'viaje_gemini'] },
+      { q: 'auto=1&mundo=gemini&frag=3&dios=1', ids: ['llegada_gemini', 'aterrizaje', 'gemini_recuerdo1', 'gemini_recuerdo2', 'gemini_recuerdo3', 'gemini_puerta', 'gemini_jefe', 'gemini_final', 'viaje_soledad'] },
+      { q: 'auto=1&mundo=soledad&frag=3&dios=1', ids: ['llegada_soledad', 'aterrizaje', 'soledad_recuerdo1', 'soledad_recuerdo2', 'soledad_recuerdo3', 'soledad_puerta', 'soledad_jefe', 'soledad_final'] },
+    ];
+    let fails = [], total = 0;
+    for (const run of RUNS) {
+      const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
+      const page = await ctx.newPage();
+      const errs = [];
+      page.on('pageerror', (e) => errs.push(e.message));
+      total += run.ids.length;
+      try {
+        await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1&${run.q}`);
+        await page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
+        await page.waitForTimeout(1500);
+        const bad = await page.evaluate(async (ids) => {
+          const g = window.__starnova.game;
+          (await import('/js/audio.js')).Audio.init();     // con sonido: así también se prueba la música
+          g.props.gate.snapOpen();                         // el portón ya abajo del todo (con frag=3 está abriéndose)
+          const snap = () => ({
+            objetos: g.scene.children.length, lugar: g.player.pos.toArray().map(x => x.toFixed(2)).join(','), giro: g.player.yaw.toFixed(2),
+            noche: g.sky.deepNight, estrella: g.props.nova.mesh.visible, porton: g.props.gate.mesh.position.y.toFixed(2),
+            vision: g.camera.fov, mirada: g.player.anim.lookUp, franjas: document.body.classList.contains('cine'),
+            pip: g.player.model.visible, cohete: g.props.rocket ? g.props.rocket.mesh.position.y.toFixed(2) : '-',
+          });
+          const bad = [];
+          for (const id of ids) {
+            const a = snap();
+            if (!g.cinema.play(id)) { bad.push(id + ': no empezó'); continue; }
+            g.cinema.seek(400);
+            if (g.state !== 'play' || g.cinema.playing) { bad.push(id + ': no terminó'); continue; }
+            const b = snap();
+            for (const k in a) if (a[k] !== b[k]) bad.push(`${id}: ${k} cambió de ${a[k]} a ${b[k]}`);
+          }
+          return bad;
+        }, run.ids);
+        fails.push(...bad);
+        for (const e of errs) fails.push('error: ' + e.slice(0, 200));
+      } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
+      await ctx.close();
+    }
+    report.push(`\n[prueba_escenas] las ${total} escenas de los 3 mundos terminan y dejan el mundo como estaba → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
+  }
+  // prueba de viaje: Islas (Guardián vencido) → cohete → mapa galáctico → viaje → Gemini → guardar y salir → continuar
+  if (!FILTER || FILTER === 'viaje') {
     const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
     const page = await ctx.newPage();
     const errs = [];
     page.on('pageerror', (e) => errs.push(e.message));
-    let fails = [];
+    const fails = [];
+    const check = (ok, what) => { if (!ok) fails.push(what); };
+    const ready = () => page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
+    const scene = () => page.evaluate(() => { const g = window.__starnova.game; return g.state === 'cine' && g.cinema.scene ? g.cinema.scene.id : g.state; });
     try {
-      await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1&auto=1&frag=3&dios=1`);
-      await page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
-      await page.waitForTimeout(1500);
-      fails = await page.evaluate(async () => {
+      await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1`);
+      await ready();
+      await page.click('#btnStart');
+      await page.click('.slot[data-slot="1"] .go');
+      await page.fill('#nameInput', 'Avellana');
+      await page.click('#btnNameOk');
+      await page.waitForTimeout(900);
+      await page.evaluate(() => window.__starnova.game.cinema.seek(400));      // salta el prólogo
+      const a = await page.evaluate(() => {
         const g = window.__starnova.game;
-        (await import('/js/audio.js')).Audio.init();     // con sonido: así también se prueba la música
-        g.props.gate.snapOpen();                         // el portón ya abajo del todo (con frag=3 está abriéndose)
-        const snap = () => ({
-          objetos: g.scene.children.length, lugar: g.player.pos.toArray().map(x => x.toFixed(2)).join(','), giro: g.player.yaw.toFixed(2),
-          noche: g.sky.deepNight, estrella: g.props.nova.mesh.visible, porton: g.props.gate.mesh.position.y.toFixed(2),
-          vision: g.camera.fov, mirada: g.player.anim.lookUp, franjas: document.body.classList.contains('cine'),
-        });
-        const bad = [];
-        for (const id of ['prologo', 'recuerdo1', 'recuerdo2', 'recuerdo3', 'recuerdo4', 'porton', 'guardian', 'final']) {
-          const a = snap();
-          if (!g.cinema.play(id)) { bad.push(id + ': no empezó'); continue; }
-          g.cinema.seek(400);
-          if (g.state !== 'play' || g.cinema.playing) { bad.push(id + ': no terminó'); continue; }
-          const b = snap();
-          for (const k in a) if (a[k] !== b[k]) bad.push(`${id}: ${k} cambió de ${a[k]} a ${b[k]}`);
-        }
-        return bad;
+        const before = { rocket: g.props.rocket.ready, gemini: g.canTravel('gemini') };
+        g.addItem('bellota', true); g.sparks = 500;
+        g.markBossDone(true);                                                  // Islas terminadas: el cohete queda listo
+        const r = g.props.rocket;
+        g.player.teleport([r.p.x + 1.6, r.p.y + 0.4, r.p.z + 1.6]);
+        return { world: g.world.id, slot: g.slot, before, ready: r.ready, gemini: g.canTravel('gemini'), soledad: g.canTravel('soledad') };
       });
-      for (const e of errs) fails.push('error: ' + e.slice(0, 200));
+      check(a.world === 'islas' && a.slot === 1, 'no empezó el perfil en las Islas');
+      check(!a.before.rocket && !a.before.gemini, 'el cohete ya estaba listo antes de vencer al Guardián');
+      check(a.ready && a.gemini && !a.soledad, `disponibilidad de viajes incorrecta (${JSON.stringify(a)})`);
+      await page.waitForTimeout(400);
+      const it = await page.evaluate(() => { const g = window.__starnova.game; const it = g.nearestInteractable(); if (it) g.interact(it); return { it: it && it.type, state: g.state }; });
+      check(it.it === 'rocket' && it.state === 'galaxia', 'acercarse al cohete no abre el mapa galáctico (' + JSON.stringify(it) + ')');
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: path.join(OUT, '68_mapa_galactico.png') });
+      await page.evaluate(() => window.__starnova.game.travelTo('gemini'));
+      await page.waitForTimeout(800);
+      check(await scene() === 'viaje_gemini', 'no empezó la escena del viaje');
+      await page.evaluate(() => window.__starnova.game.cinema.seek(19));
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: path.join(OUT, '69_viaje_espacio.png') });
+      await Promise.all([page.waitForNavigation({ timeout: 30000 }), page.evaluate(() => window.__starnova.game.cinema.seek(400))]);
+      await ready();
+      await page.waitForTimeout(1200);
+      const b = await page.evaluate(() => { const g = window.__starnova.game; return { world: g.world.id, slot: g.slot, scene: g.state === 'cine' && g.cinema.scene ? g.cinema.scene.id : g.state, bellota: g.items.bellota, sparks: Math.floor(g.sparks) }; });
+      check(b.world === 'gemini' && b.slot === 1, `no llegó a Gemini con el perfil (${b.world}, ranura ${b.slot})`);
+      check(b.scene === 'llegada_gemini', 'no se vio la escena de llegada (' + b.scene + ')');
+      check(b.bellota === 1 && b.sparks >= 500, `los objetos o chispas no viajaron con Pip (${b.bellota}, ${b.sparks})`);
+      await page.evaluate(() => window.__starnova.game.cinema.seek(4));
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: path.join(OUT, '70_llegada_gemini.png') });
+      await page.evaluate(() => window.__starnova.game.cinema.seek(400));
+      await page.waitForTimeout(400);
+      const c = await page.evaluate(() => {
+        const g = window.__starnova.game, P = g.props;
+        const sauce = P.npcs.find(n => n.id === 'sauce');
+        g.player.teleport([sauce.p.x + 1.2, sauce.p.y + 0.4, sauce.p.z + 1.2]);
+        const it = g.nearestInteractable();
+        if (it) g.interact(it);
+        for (let i = 0; i < 8 && g.state === 'dialog'; i++) g.advanceDialog();
+        return { state: g.state, it: it && it.obj && it.obj.id, found: Object.values(g.missions.state).filter(s => s.discovered).length };
+      });
+      check(c.it === 'sauce', 'no se pudo hablar con el Abuelo Sauce');
+      check(c.found >= 4, 'hablar con el guía no descubrió las misiones de Gemini (' + c.found + ')');
+      await page.waitForTimeout(600);
+      await Promise.all([page.waitForNavigation(), page.evaluate(() => { const g = window.__starnova.game; if (g.state === 'menu') g.closeMenu(); g.saveAndQuit(); })]);
+      await ready();
+      const d = await page.evaluate(() => ({ texto: document.querySelector('.slot[data-slot="1"]').innerText, estrellas: document.querySelectorAll('.slot[data-slot="1"] .stars .on').length }));
+      check(/Verdalia/.test(d.texto) && d.estrellas === 1, 'la ranura no muestra Verdalia y 1 mundo terminado (' + d.texto.replace(/\s+/g, ' ') + ')');
+      await page.click('.slot[data-slot="1"] .go');
+      await page.waitForTimeout(1500);
+      const e = await page.evaluate(() => { const g = window.__starnova.game; return { world: g.world.id, state: g.state, islas: g.canTravel('islas'), soledad: g.canTravel('soledad') }; });
+      check(e.world === 'gemini' && e.state === 'play', 'continuar no volvió a Gemini');
+      check(e.islas && !e.soledad, 'desde Gemini: las Islas deberían estar abiertas y Soledad cerrada');
+      await page.evaluate(() => localStorage.removeItem('starnova.perfil.1'));
+      for (const x of errs) fails.push('error: ' + x.slice(0, 200));
     } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
-    report.push(`\n[prueba_escenas] las 8 escenas terminan y dejan el mundo como estaba → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
+    report.push(`\n[prueba_viaje] Islas → cohete → mapa galáctico → viaje → llegada a Gemini → hablar con el guía → guardar → continuar → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
     await ctx.close();
   }
   // prueba de música y oleadas: qué canción toca en cada situación y que las sombras no sean infinitas

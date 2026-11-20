@@ -8,6 +8,7 @@ import { ENEMY_LIST, ELITE_LIST } from './content/enemies.js';
 import { MISSIONS } from './missions.js';
 import { REGIONS } from './world/palette.js';
 import { CHAPTERS } from './content/story.js';
+import { WORLDS } from './worlds/index.js';
 
 const $ = (id) => document.getElementById(id);
 const DIFF_NAMES = ['Brisa', 'Llovizna', 'Lluvia', 'Chubasco', 'Tormenta', 'Diluvio', '¡NOVA!'];
@@ -270,14 +271,18 @@ export class HUD {
       const d = document.createElement('div');
       const ok = !!g.story.seen[c.id];
       d.className = 'journal-m' + (ok ? '' : ' done');
-      const reg = document.createElement('div'); reg.className = 'reg'; reg.textContent = c.n;
+      const where = c.world === 'viaje' ? 'Viaje en cohete' : (WORLDS[c.world] || {}).galaxy || '';
+      const reg = document.createElement('div'); reg.className = 'reg'; reg.textContent = c.n + ' · ' + where;
       const b = document.createElement('b'); b.textContent = ok ? c.title : '???';
       const t = document.createElement('div'); t.textContent = ok ? c.sum : 'Sigue reuniendo fragmentos para descubrir este capítulo.';
       d.append(reg, b, t);
       if (ok) {
         const btn = document.createElement('button');
-        btn.textContent = '▶ Ver';
-        btn.onclick = () => g.replayStory(c.id);
+        const here = c.world === 'viaje' || c.world === g.world.id;
+        btn.textContent = here ? '▶ Ver' : 'En su galaxia';
+        btn.disabled = !here;
+        btn.title = here ? '' : 'Esta escena se puede volver a ver estando en ' + where;
+        btn.onclick = () => { if (here) g.replayStory(c.id); };
         d.prepend(btn);
       }
       list.append(d);
@@ -318,6 +323,8 @@ export class HUD {
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) $('banner').classList.remove('show'); }
     if (g.boss && !g.boss.dead) {
       $('bossbar').classList.remove('hidden');
+      const nm = g.world.texts.bossName;
+      if (this.bossName !== nm) { this.bossName = nm; $('bossbar').querySelector('.name').textContent = nm; }
       $('bossFill').style.width = (Math.max(0, g.boss.hp / g.boss.maxHp) * 100).toFixed(1) + '%';
     } else $('bossbar').classList.add('hidden');
   }

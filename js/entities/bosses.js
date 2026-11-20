@@ -120,7 +120,7 @@ export const BOSSES = {
     name: 'La Polilla de la Soledad', hp: 3900, dmg: 26, xp: 520, sparks: 260, colors: ['#e8e4ff', '#ff9aa8', '#9adcff'],
     r: 1.7, hh: 2.6, box: [1.4, 2.0, 1.4], hoverY: 6, model: makePolilla,
     order: ['ring', 'blink', 'slam-up', 'summon', 'blink', 'ring'],
-    summon: [['ecopolilla', 'prismita'], ['ecopolilla', 'prismita', 'cometa', 'gota']],
+    summon: [['ecopolilla', 'prismita'], ['ecopolilla', 'prismita', 'cometita', 'gota']],
     orb: { color: '#ffb8f0', emissive: 0x8a3070, rainbow: true },
     animate(u, t, enraged) {
       const f = enraged ? 16 : 10;

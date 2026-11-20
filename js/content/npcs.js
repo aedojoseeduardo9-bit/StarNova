@@ -60,6 +60,7 @@ export const NPCS = {
     ] : [
       '¿Ves la cascada del norte? Mi mamá dice que detrás del agua hay una Semilla de Luz. ¡Yo no me atrevo a ir!',
       'Cuidado con el lago: el agua es muy honda. Salta por las hojas de nenúfar, que aguantan muy bien.',
+      'Y si quieres subir a lo alto de la cascada, no trepes la pared: da la vuelta por la loma del este.',
       'Y si ves sombras en el bosque, no te quedes quieta: llegan en olas y luego descansan un rato.',
     ],
   },
@@ -78,7 +79,7 @@ export const NPCS = {
       'Esto es Prismara, en la Galaxia Soledad. Aquí vive Sola, una estrella que pintaba arcoíris para que alguien la encontrara.',
       'Nadie vino. La Penumbra le dijo que nadie vendría nunca. Sola lloró tanto que su arcoíris se rompió en notas de color.',
       'Junta las Notas de Color en el Mar de Mercurio, haz sonar las Campanas de Cristal en los Anillos Prisma y enciende los Faros del Jardín Aurora.',
-      'Para saltar entre los anillos usa los Impulsores Cometa: párate en la estrella y salta. ¡Es como volar!',
+      'Para saltar entre los anillos usa los Impulsores Cometa: párate en la estrella y pulsa Impulsar. ¡Es como volar!',
     ],
   },
   lumen: {

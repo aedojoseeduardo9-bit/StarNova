@@ -112,6 +112,7 @@ export class Game {
     this.phys = new Physics();
     this.fx = new FX(scene);
     this.sky = new Sky(scene);
+    this.sky.setStyle(this.world.sky);
     this.input = new Input(canvas, this);
     if (this.mobile) this.input.enableTouchUI();
     this.cam = new OrbitCam(this.camera, this.phys);
@@ -175,7 +176,7 @@ export class Game {
       this.pickups.push(this.altarFragment);
     }
     // polvo de estrella (Prismara): chispas sueltas que no vuelven a aparecer
-    this.stardust = (S.stardust || []).map(p => { const k = new Pickup(this, 'spark', this.v3(...p), 4, { floating: true }); this.pickups.push(k); return k; });
+    this.stardust = (S.stardust || []).map(p => { const k = new Pickup(this, 'spark', this.v3(...p), 4, { floating: true, life: 1e9, color: '#ffe8a0', halo: '#fff4c8' }); k.dust = true; this.pickups.push(k); return k; });
     this.owlLine = 0;
     this.see('attack', 'bellota');
     this.see('power', 'lluvia');
@@ -230,7 +231,7 @@ export class Game {
     if (P.get('enemigos')) {
       const n = parseInt(P.get('enemigos'), 10);
       const forced = P.get('tipo') ? P.get('tipo').split(',') : null;
-      const pool = forced || ENEMY_LIST.map(e => e.id);
+      const pool = forced || ENEMY_LIST.filter(e => this.world.enemies(e)).map(e => e.id);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
         const p = this.player.pos;
@@ -251,6 +252,8 @@ export class Game {
       if (P.get('cinet')) this.cinema.seek(parseFloat(P.get('cinet')) || 0);
     }
     if (P.get('final')) setTimeout(() => this.showEnding(), 300);
+    if (P.get('tienda') && NPCS[P.get('tienda')] && this.state === 'play') this.openShop(P.get('tienda'));
+    if (P.get('galaxia') && this.state === 'play') this.openGalaxy();
     if (P.get('hud') === '0') { this.hud.show(false); this.hideHud = true; }
   }
 
@@ -547,7 +550,7 @@ export class Game {
     if (d.rule === 'shadow') {
       for (let i = 0; i < 2; i++) {
         const a = Math.random() * Math.PI * 2;
-        const pool = ENEMY_LIST.filter(e => !e.flying && e.minDiff <= Math.max(1.6, this.diffCoef()) && e.ai !== 'golem');
+        const pool = ENEMY_LIST.filter(e => this.world.enemies(e) && !e.flying && e.minDiff <= Math.max(1.6, this.diffCoef()) && e.ai !== 'golem');
         const type = pool[Math.floor(Math.random() * pool.length)].id;
         this.spawnEnemy(type, this.v3(chest.p.x + Math.cos(a) * 4, chest.p.y + 0.3, chest.p.z + Math.sin(a) * 4), { elite: ELITE_LIST[Math.floor(Math.random() * ELITE_LIST.length)].id });
       }
@@ -570,7 +573,7 @@ export class Game {
     }
   }
   collect(p) {
-    if (p.type === 'spark') { this.sparks += p.value; Audio.play('coin'); }
+    if (p.type === 'spark') { this.sparks += p.value; Audio.play('coin'); if (p.dust) { this.missions.event('stardust'); this.fx.sparkle(p.p, '#fff4c8', 6, 0.6); } }
     else if (p.type === 'xp') { this.addXp(p.value); Audio.play('xp'); }
     else if (p.type === 'heal') { this.heal(this.stats.maxHp * 0.15); Audio.play('coin'); this.fx.burst(this.player.center, '#ff9fb2', 12, 2); }
     else if (p.type === 'item') this.addItem(p.value);
@@ -933,7 +936,9 @@ export class Game {
     this.input.enabled = true;
     this.saveSoon();
     const next = WORLD_ORDER[WORLD_ORDER.indexOf(this.world.id) + 1];
-    if (this.world.scenes.rocket) this.playStory(this.world.scenes.rocket, () => this.hud.toast(next ? 'El Cohete Avellana te espera: súbete para viajar a otra galaxia' : ''));
+    const tip = () => this.hud.toast(next ? 'El Cohete Avellana te espera: súbete para viajar a otra galaxia' : 'Puedes volver a cualquier galaxia en el Cohete Avellana');
+    if (this.world.scenes.rocket) this.playStory(this.world.scenes.rocket, tip);
+    else setTimeout(tip, 800);
   }
 
   /* ---------- interacción: cofres, PNJ, lechuza y cohete ---------- */
@@ -951,12 +956,14 @@ export class Game {
     }
     if (P.owl && Math.hypot(P.owl.p.x - p.x, P.owl.p.z - p.z) < 2.3) best = { type: 'owl' };
     if (P.rocket && P.rocket.ready && Math.hypot(P.rocket.p.x - p.x, P.rocket.p.z - p.z) < 3.2) best = { type: 'rocket' };
+    for (const x of P.extras) if (x.canUse && x.canUse(p)) best = { type: 'extra', obj: x };   // impulsores
     return best;
   }
   interactLabel(it) {
     if (it.type === 'chest') return ['Abrir: ' + it.obj.label(), 'Abrir'];
     if (it.type === 'owl') return ['Hablar con la Abuela Lechuza', 'Hablar'];
     if (it.type === 'rocket') return ['Subir al Cohete Avellana', 'Subir'];
+    if (it.type === 'extra') return [it.obj.label, it.obj.btn || 'Usar'];
     const d = it.obj.def;
     return [d.shop ? `Tienda de ${d.name}` : `Hablar con ${d.name}`, d.shop ? 'Tienda' : 'Hablar'];
   }
@@ -999,7 +1006,7 @@ export class Game {
       });
     } else if (it.type === 'rocket') {
       this.openGalaxy();
-    }
+    } else if (it.type === 'extra') it.obj.use();
   }
   /* Diálogo genérico: quién habla, sus frases y qué pasa al terminar. */
   openDialog(who, lines, after) {
@@ -1136,7 +1143,7 @@ export class Game {
     const alive = this.enemies.filter(e => !e.dead && !e.isBoss).length;
     const cap = Math.round(4 + 2 * c);
     if (alive >= cap) return;
-    const able = ENEMY_LIST.filter(e => e.minDiff <= c && e.cost * (e.group || 1) * 0.6 <= D.credits);
+    const able = ENEMY_LIST.filter(e => this.world.enemies(e) && e.minDiff <= c && e.cost * (e.group || 1) * 0.6 <= D.credits);
     if (!able.length) return;
     const def = able[pickWeighted(able.map(e => e.weight))];
     const eliteChance = c < 1.8 ? 0 : Math.min(0.35, (c - 1.8) * 0.12);
@@ -1154,7 +1161,7 @@ export class Game {
       D.credits -= spent;
       W.pool -= spent;
       if (W.pool <= 0) { W.pool = 0; W.state = 'fin'; W.wait = 0; }        // ya no vienen más: quedan las que hay
-      if (def.ai === 'golem') this.hud.toast('¡Un Gólem de Arcos se acerca!');
+      if (def.ai === 'golem') this.hud.toast(`¡${def.name} se acerca!`);
       else if (elite) this.hud.toast(`¡${def.name} ${ELITE_LIST.find(x => x.id === elite).name} cerca!`);
       return;
     }
@@ -1236,10 +1243,10 @@ export class Game {
     this.sky.cycleDusk = duskOf(ph);
     const night = this.sky.cycleNight > 0.5;
     if (this.isNight !== undefined && night !== this.isNight && this.state === 'play') {
-      this.hud.toast(night ? 'Cae la noche sobre las islas' : 'Amanece en las islas');
+      this.hud.toast(night ? (this.world.texts.nightFall || 'Cae la noche sobre las islas') : (this.world.texts.dawn || 'Amanece en las islas'));
       Audio.play(night ? 'anochecer' : 'amanecer');
     }
-    if (night !== this.isNight) document.body.classList.toggle('is-night', night || this.region === 'nova');
+    if (night !== this.isNight) document.body.classList.toggle('is-night', night || !!(REGIONS[this.region] && REGIONS[this.region].night > 0.5));
     this.isNight = night;
   }
 
@@ -1328,9 +1335,9 @@ export class Game {
     const reg = regionAt(pl.pos.x, pl.pos.z);
     if (reg && reg !== this.region) {
       this.region = reg;
-      document.body.classList.toggle('is-night', !!this.isNight || reg === 'nova');
+      document.body.classList.toggle('is-night', !!this.isNight || REGIONS[reg].night > 0.5);
       this.hud.banner(REGIONS[reg].name, REGIONS[reg].sub);
-      if (reg !== 'claro') this.missions.discover(reg);
+      if (reg !== this.world.hub) this.missions.discover(reg);
       this.missions.event('region', reg);
     }
     // jefe
