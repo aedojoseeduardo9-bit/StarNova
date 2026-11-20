@@ -2,6 +2,23 @@
 import * as THREE from 'three';
 import { REGIONS, REGION_IDS, regionWeights } from './world/palette.js';
 
+/* ---------- ciclo de día y noche ----------
+ * Un día dura DAY_CYCLE segundos de juego (el reloj solo avanza jugando, así que se guarda solo con la partida).
+ * Fase 0..1: día hasta 0.55, atardecer, noche de 0.63 a 0.92 y amanecer. La partida empieza por la mañana. */
+export const DAY_CYCLE = 480;
+const smooth01 = (k) => { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); };
+export function dayPhase(time, shift = 0) { return (((time + shift) / DAY_CYCLE + 0.05) % 1 + 1) % 1; }
+export function nightOf(ph) {
+  if (ph < 0.55) return 0;
+  if (ph < 0.63) return smooth01((ph - 0.55) / 0.08);
+  if (ph < 0.92) return 1;
+  return 1 - smooth01((ph - 0.92) / 0.08);
+}
+/* Luz dorada del atardecer y del amanecer (0..1). */
+export function duskOf(ph) { return Math.max(0, 1 - Math.abs(ph - 0.585) / 0.06, 1 - Math.abs(ph - 0.955) / 0.06); }
+/* Fase en la que empieza cada momento del día (para el atajo de URL hora=…). */
+export const DAY_TIMES = { dia: 0.25, tarde: 0.585, noche: 0.77, amanecer: 0.955 };
+
 export class Sky {
   constructor(scene) {
     this.scene = scene;
@@ -88,6 +105,8 @@ export class Sky {
     this.night = 0;
     this.extraNight = 0;
     this.deepNight = 0;          // noche cerrada en todo el cielo (solo la usan las escenas animadas)
+    this.cycleNight = 0;         // noche del ciclo de día y noche (0..1)
+    this.cycleDusk = 0;          // luz dorada del atardecer/amanecer (0..1)
     this._c = new THREE.Color();
   }
 
@@ -104,13 +123,21 @@ export class Sky {
       fog.add(this._c.set(r.fog).multiplyScalar(k));
       night += (r.night || 0) * k;
     }
-    night = Math.max(night, this.extraNight, this.deepNight);
+    const cn = this.cycleNight * 0.9;                 // la noche del ciclo deja un poquito del color de cada isla
+    night = Math.max(night, this.extraNight, this.deepNight, cn);
     const nightTop = this._c.set('#1d2154');
-    top.lerp(nightTop, Math.max(this.extraNight, this.deepNight) * 0.8);
-    if (this.deepNight > 0) {
-      hor.lerp(this._c.set('#8b80c6'), this.deepNight * 0.85);
-      bot.lerp(this._c.set('#5b5698'), this.deepNight * 0.85);
-      fog.lerp(this._c.set('#6c66a8'), this.deepNight * 0.8);
+    top.lerp(nightTop, Math.max(this.extraNight, this.deepNight, cn) * 0.8);
+    const deep = Math.max(this.deepNight, cn);
+    if (deep > 0) {
+      hor.lerp(this._c.set('#8b80c6'), deep * 0.85);
+      bot.lerp(this._c.set('#5b5698'), deep * 0.85);
+      fog.lerp(this._c.set('#6c66a8'), deep * 0.8);
+    }
+    const dusk = this.cycleDusk * (1 - this.deepNight);
+    if (dusk > 0) {
+      hor.lerp(this._c.set('#ffae86'), dusk * 0.5);
+      top.lerp(this._c.set('#e88c9c'), dusk * 0.3);
+      fog.lerp(this._c.set('#f5b39c'), dusk * 0.35);
     }
     const ease = 1 - Math.exp(-dt * 2);
     this.u.top.value.lerp(top, ease);

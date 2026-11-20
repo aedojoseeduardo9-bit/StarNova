@@ -38,6 +38,9 @@ Con GitHub disponible:
   recuerda quién es. Cada fragmento guarda un recuerdo de Nova; Pip los reúne, despierta al Guardián y
   devuelve a Nova al cielo. Se cuenta con **escenas animadas** hechas con el propio mundo del juego.
 - **Trajes**: 10 atuendos para Pip que se compran con chispas en el menú (página Trajes).
+- **Día y noche** con **música que cambia** según la hora y lo que pasa (día, noche, combate, peligro, jefe).
+- **Sombras en oleadas** (el dueño pidió que no fueran ilimitadas: daban chispas sin fin para los cofres):
+  cada región trae una ola, luego queda en calma un rato. Las invocadas no dan chispas.
 
 ## Tecnología (y por qué)
 - **Three.js 0.180** (render 3D) + **Rapier 3D 0.21** (físicas, el mismo motor que usa Bevy). Ambos están
@@ -81,6 +84,7 @@ guardados). Se combinan con `&`:
   (pantalla de perfiles) · `perfil=2` (entra con la ranura 2, sin `auto`; `nombre=Nuez` si hay que crearla).
   `tools/ojos.cjs` puede sembrar perfiles de ejemplo con `store:` en la escena.
 - `traje=maga` (pone ese traje; ids en `js/entities/outfits.js`).
+- `hora=dia|tarde|noche|amanecer` (mueve el ciclo de día y noche sin cambiar la dificultad).
 - `cine=prologo|recuerdo1|recuerdo2|recuerdo3|recuerdo4|porton|guardian|final` (pone esa escena animada;
   con `cinet=12` la adelanta a ese segundo, para capturas). Las partidas de prueba (`auto=1`) no ponen
   escenas solas; con un perfil sí (`perfil=1&cine=0` las apaga).
@@ -110,6 +114,9 @@ guardados). Se combinan con `&`:
   Un plano puede llevar `music: 'cuento'|'penumbra'|'recuerdo'|'guardian'|'esperanza'` (cambia la música
   con fundido) y hacer actuar a Pip con `ctx.pip.lookUp = 0..1` (mirar arriba) y `ctx.pip.hop()` (saltito).
   Al escribir textos: que dé tiempo a leerlos (unos 15 caracteres por segundo como máximo).
+- `js/music.js` — **director de música** del juego (`MusicDirector.choose()`): prioridad jefe › peligro (élite o
+  Gólem cerca) › combate (sombras cerca; se mantiene 7 s) › noche › día (cada región en su tono). No toca nada
+  durante las escenas (tienen su música). Con el menú abierto baja el volumen (`Audio.duck`).
 - `js/content/story.js` — textos de la historia: capítulos, recuerdos de Nova y lo que cuenta la lechuza
   según el avance (`OWL_INTRO`, `owlLines`).
 - `js/entities/outfits.js` — los **10 trajes** (colores + piezas colgadas del esqueleto de Pip) y
@@ -148,11 +155,15 @@ guardados). Se combinan con `&`:
 - `js/hud.js` — HUD en DOM + capa 2D (números de daño, barras/nombres de enemigos, marcador de misión),
   íconos y recarga en los botones táctiles, ventana de premio, aviso de guardado y las páginas de
   Misiones (principales, secundarias e Historia) y Compendio del menú.
-- `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas. `js/fx.js` — partículas (un solo `Points`).
+- `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas y el **ciclo de día y noche** (`DAY_CYCLE` = 480 s de
+  juego; `dayPhase`, `nightOf`, `duskOf`). El ciclo sale del reloj de la partida, así que se guarda solo; de noche
+  el HUD usa textos claros (`body.is-night`). `js/fx.js` — partículas (un solo `Points`).
 - `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
-- `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos) y la **música de las escenas**
-  (`Audio.score(ambiente)` / `Audio.scoreStop()`: compases de 8 pasos con acordes, bajo y cajita de música;
-  para añadir un ambiente basta una entrada en `SCORES`). `js/util.js` — utilidades.
+- `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos) y la **música** (`Audio.score(canción, tono)` /
+  `Audio.scoreStop()`): canciones en `SCORES` hechas de compases de 8 pasos (acorde, bajo, melodía con tres
+  timbres —cajita, cuerda pulsada, suave— y percusión suave opcional). La música va por su propio volumen
+  (`Audio.setMusicVolume`, ajuste "Volumen de la música"); se silencia al salir de la app. Las notas empiezan con
+  volumen 0 (si no, el ruido de la percusión "se cuela" y suena un chasquido). `js/util.js` — utilidades.
 - `tools/ojos.cjs` (capturas), `tools/serve.mjs` (servidor), `tools/capturas.sh` (bajar capturas de CI).
 - `.github/workflows/ojos.yml` (capturas en cada push), `build.yml` (APK + QR), `pages.yml` (versión web).
 - `tools/compilar_apk.sh` — compila la APK en el contenedor (Gradle + SDK de Android descargados en caché).
@@ -176,6 +187,11 @@ guardados). Se combinan con `&`:
   clases CSS `pc-only` / `touch-only`. El cuerpo lleva `is-touch` en teléfonos y en la app de Android.
 - Ajustes guardados en `localStorage` (`starnova.ajustes`): sensibilidad, disparo automático (táctil),
   cámara que acompaña, vibración. El compendio se guarda en `starnova.compendio`.
+- **Sombras en oleadas** (`game.runDirector` / `updateWaves`): cada región con sombras tiene una reserva
+  (`waveSize`, crece con la dificultad). Al gastarse ('fin') y caer sus últimas sombras, la región queda en calma
+  `WAVE_CALM` (75 s) y luego vuelve una ola. El estado se guarda en el perfil y se ve en la página Mapa. Los
+  enemigos **invocados** (`summoned`: chispitas de la Campana Oscura, refuerzos del jefe) no dan chispas ni
+  objetos y la Campana tiene como máximo 4 vivas: **no crear fuentes infinitas de chispas**.
 - **Menú como en una aventura clásica** (el dueño lo pidió): título → **perfiles** → juego. Una partida nueva
   solo nace al elegir una ranura vacía; **el menú del juego no tiene "Nueva partida"**. Se guarda solo (cada
   30 s, al abrir el menú, al cumplir misiones, recoger objetos, subir de nivel y al salir de la app).
@@ -218,9 +234,16 @@ Hecho (v0.4):
 - [x] Música propia en las escenas (5 ambientes), Pip actúa (mira al cielo, salta de alegría) y más tiempo
   para leer los textos largos. Prueba automática `prueba_escenas`: cada escena deja el mundo como estaba.
 
+Hecho (v0.5):
+- [x] Ciclo de día y noche (8 min de juego) con atardecer y amanecer, luz de luna e iconito sol/luna.
+- [x] Música durante el juego: día (tono por región), noche, combate, peligro y jefe; avisos de anochecer,
+  amanecer, oleada y calma; volumen de música en Ajustes.
+- [x] Sombras en oleadas con calma (antes ~312 chispas/min farmeando quieto, ahora ~108) e invocadas sin chispas.
+  Prueba automática `prueba_musica`.
+
 Pendiente / ideas:
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
-- [ ] Música adaptativa también durante el juego (hoy solo hay música en las escenas); mezcla más rica.
+- [ ] Mezcla de sonido más rica (instrumentos con más matices); que la noche cambie algo del juego (criaturas nocturnas).
 - [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.
 - [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
 - [ ] Postproceso suave (bloom en estrellas/cristales) con opción para teléfonos lentos.

@@ -18,6 +18,7 @@ const DEMO = {
     items: { bellota: 2, cascabel: 1, pluma: 1, miel: 2, te: 1, piedra: 1 }, attack: { id: 'rayo', tier: 3 }, power: 'agujero',
     missions: M_DEMO, tracked: 'puente', visited: ['claro', 'coral', 'menta'], owl: 1, pos: [-46, 0.4, 1], cam: [1.9, 0.3],
     outfits: { owned: ['coral', 'flores', 'maga'], on: 'maga' }, story: ['prologo', 'recuerdo1', 'recuerdo2'],
+    waves: { coral: ['calma', 0, 42], menta: ['ola', 40, 0], lavanda: ['ola', 48, 0] },
     world: { bells: [1, 1, 1], crystals: [1, 0], fireflies: [1, 1, 1], chests: [], extra: [], altar: 0, gate: 0, boss: 0 },
   },
   'perfil.3': { v: 1, name: 'Luna', created: 1, saved: Date.now(), time: 5400, level: 14, frags: 4, region: 'nova', world: { boss: 1 } },
@@ -66,6 +67,9 @@ const SCENES = [
   { name: '42_cine_recuerdo', q: 'auto=1&ir=menta&cine=recuerdo2&cinet=9', wait: 1500, mobile: true },
   { name: '43_cine_guardian', q: 'auto=1&ir=santuario&cine=guardian&cinet=6', wait: 1500, mobile: true },
   { name: '44_cine_final', q: 'auto=1&ir=santuario&cine=final&cinet=14', wait: 1500 },
+  { name: '45_noche_coral', q: 'auto=1&ir=coral&hora=noche&cam=1.9,0.3,6', wait: 3500, mobile: true },
+  { name: '46_atardecer_menta', q: 'auto=1&ir=menta&hora=tarde&cam=0.2,0.35,7', wait: 3500, mobile: true },
+  { name: '47_noche_claro_pc', q: 'auto=1&ir=claro&hora=noche&cam=2.6,0.25,5', wait: 3500 },
   { name: '24_poder', q: 'auto=1&ir=coral&poder=agujero&enemigos=6&tipo=sombra&dios=1&cam=1.6,0.4,7', wait: 1500, keys: [['KeyR', 600]] },
 ];
 
@@ -253,6 +257,78 @@ const SCENES = [
       for (const e of errs) fails.push('error: ' + e.slice(0, 200));
     } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
     report.push(`\n[prueba_escenas] las 8 escenas terminan y dejan el mundo como estaba → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
+    await ctx.close();
+  }
+  // prueba de música y oleadas: qué canción toca en cada situación y que las sombras no sean infinitas
+  if (!FILTER || FILTER === 'musica') {
+    const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', (e) => errs.push(e.message));
+    let fails = [];
+    try {
+      await page.goto(`http://127.0.0.1:${port}/index.html?ojos=1&auto=1&ir=coral&dios=1`);
+      await page.waitForFunction(() => window.__starnova && window.__starnova.ready, null, { timeout: 60000 });
+      await page.waitForTimeout(1500);
+      fails = await page.evaluate(async () => {
+        const g = window.__starnova.game, M = g.music, bad = [];
+        const { Audio } = await import('/js/audio.js');
+        Audio.init();
+        const ok = (c, what) => { if (!c) bad.push(what); };
+        const clear = () => { for (const e of g.enemies) e.dead = true; g.enemies = []; };
+        clear();
+        // --- música ---
+        g.region = 'claro'; g.sky.night = 0; M.fight = 0;
+        ok(M.choose().join() === 'dia,0', 'de día en El Claro no toca "dia" (' + M.choose() + ')');
+        g.region = 'coral';
+        ok(M.choose().join() === 'dia,2', 'el Jardín de Coral no toca en su tono');
+        g.sky.night = 1;
+        ok(M.choose()[0] === 'noche', 'de noche no toca "noche"');
+        const p = g.player.pos;
+        g.spawnEnemy('sombra', g.v3(p.x + 3, p.y + 0.3, p.z), { force: true });
+        ok(M.choose()[0] === 'combate', 'con una sombra encima no toca "combate"');
+        clear();
+        ok(M.choose(3)[0] === 'combate', 'el combate se corta de golpe al acabar');
+        ok(M.choose(10)[0] === 'noche', 'tras el combate no vuelve la música tranquila');
+        g.spawnEnemy('sombra', g.v3(p.x + 12, p.y + 0.3, p.z), { force: true, elite: 'veloz' });
+        ok(M.choose()[0] === 'peligro', 'con un élite cerca no toca "peligro"');
+        clear(); M.fight = 0;
+        g.boss = { dead: false };
+        ok(M.choose()[0] === 'jefe', 'con el jefe no toca "jefe"');
+        g.boss = null;
+        M.t = 0; M.update(1);
+        ok(Audio.music && Audio.music.mood === 'noche', 'la canción elegida no empezó a sonar');
+        g.state = 'menu'; M.t = 0; M.update(1);
+        ok(Audio.duckK < 1, 'con el menú abierto la música no baja');
+        g.state = 'play'; M.t = 0; M.update(1);
+        // --- oleadas ---
+        const W = g.waves.coral;
+        g.region = 'coral'; g.time = 30;
+        let spawned = 0, guard = 0;
+        while (W.state === 'ola' && guard++ < 400) {
+          const n = g.enemies.length; g.runDirector(0.5); spawned += g.enemies.length - n;
+          for (const e of g.enemies) if (!e.dead) g.killEnemy(e);
+          g.enemies = g.enemies.filter(e => !e.dead);
+        }
+        g.runDirector(0.1);
+        ok(W.state === 'calma', 'la ola no terminó en calma (' + W.state + ')');
+        ok(spawned >= 3 && spawned <= 14, 'una ola trajo ' + spawned + ' sombras');
+        const before = g.enemies.length;
+        for (let i = 0; i < 100; i++) g.runDirector(0.5);                  // 50 s de calma
+        ok(g.enemies.length === before, 'aparecieron sombras durante la calma');
+        for (let i = 0; i < 80; i++) g.runDirector(0.5);                   // termina la calma
+        ok(W.state === 'ola' && W.pool > 0, 'después de la calma no volvió una ola');
+        // --- invocadas: no dan chispas ---
+        clear();
+        const pk = g.pickups.length;
+        const s2 = g.spawnEnemy('chispita', g.v3(p.x + 2, p.y + 0.3, p.z), { force: true, summoned: true });
+        g.killEnemy(s2);
+        ok(!g.pickups.slice(pk).some(x => x.type === 'spark'), 'una chispita invocada soltó chispas');
+        return bad;
+      });
+      for (const e of errs) fails.push('error: ' + e.slice(0, 200));
+    } catch (e) { fails.push('excepción: ' + String(e.message || e).split('\n')[0].slice(0, 300)); }
+    report.push(`\n[prueba_musica] canción de día, noche, combate, peligro y jefe · oleadas con calma · invocadas sin chispas → ${fails.length ? 'FALLO: ' + fails.join(' · ') : 'OK'}`);
     await ctx.close();
   }
   report.push(`\nErrores de consola en total: ${errorsTotal}`);

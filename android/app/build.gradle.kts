@@ -16,7 +16,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = buildMinutes
-        versionName = "0.4.$runNumber"
+        versionName = "0.5.$runNumber"
         buildConfigField("int", "BUILD", runNumber.toString())
     }
 

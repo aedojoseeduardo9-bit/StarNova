@@ -14,7 +14,8 @@ import { OUTFITS, applyOutfit } from './entities/outfits.js';
 export const SLOTS = [1, 2, 3];
 const VERSION = 1;
 const key = (n) => 'perfil.' + n;
-const BOSS_DOOR = [0, 0.4, 44];            // fuera del santuario (si se guardó en plena pelea con el jefe)
+const BOSS_DOOR = [0, 0.4, 44];
+const WAVE_CALM_SAVE = 60;                // calma con la que vuelve una región que estaba terminando su ola            // fuera del santuario (si se guardó en plena pelea con el jefe)
 
 const num = (v, d) => (Number.isFinite(v) ? v : d);
 const int = (v, a, b, d) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d);
@@ -74,6 +75,7 @@ export function snapshot(g) {
     missions, tracked: M.tracked, visited: [...M.visited], owl: g.owlDone ? 1 : 0,
     outfits: { owned: [...g.outfits.owned], on: g.outfits.on },
     story: Object.keys(g.story.seen),
+    waves: Object.fromEntries(Object.entries(g.waves).map(([id, W]) => [id, [W.state, Math.round(W.pool), Math.round(W.calm)]])),
     pos: pos.map(r2), cam: [r2(g.cam.yaw), r2(g.cam.pitch)],
     world: {
       bells: P.bells.map(b => (b.rung ? 1 : 0)),
@@ -117,6 +119,17 @@ export function restore(g, d) {
   g.outfits.owned = (Array.isArray(F.owned) ? F.owned : []).filter((id, i, a) => OUTFITS[id] && a.indexOf(id) === i);
   g.outfits.on = g.outfits.owned.includes(F.on) ? F.on : null;
   applyOutfit(g.player.model, g.outfits.on);
+
+  // oleadas de sombras (si no, "guardar y salir" rellenaría todas las regiones)
+  for (const id in g.waves) {
+    const w = d.waves && d.waves[id];
+    if (!Array.isArray(w) || !['ola', 'fin', 'calma'].includes(w[0])) continue;
+    const W = g.waves[id];
+    W.state = w[0] === 'fin' ? 'calma' : w[0];                  // al cargar no queda ninguna sombra viva
+    W.pool = Math.max(0, num(w[1], W.pool));
+    W.calm = W.state === 'calma' ? Math.max(1, num(w[2], WAVE_CALM_SAVE)) : 0;
+    if (W.state === 'ola' && W.pool <= 0) { W.state = 'calma'; W.calm = WAVE_CALM_SAVE; }
+  }
 
   // escenas de la historia ya vistas
   g.story.seen = {};

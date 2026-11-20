@@ -1,7 +1,7 @@
 /* Star Nova — sonido sintetizado con WebAudio (sin archivos externos) */
 import { randi, store } from './util.js';
 
-export const Audio = { ctx: null, master: null, muted: store.get('muted', false), pad: null };
+export const Audio = { ctx: null, master: null, muted: store.get('muted', false), pad: null, musicVol: 0.8, duckK: 1 };
 const A = Audio;
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
 
@@ -21,7 +21,23 @@ A.init = function () {
   A.bus.connect(A.master);
   A.bus.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(A.master);
   A.master.connect(A.ctx.destination);
+  // la música (canciones y colchón de fondo) va por su propio volumen
+  A.musicBus = A.ctx.createGain();
+  A.musicBus.gain.value = A.musicVol * A.duckK;
+  A.musicBus.connect(A.bus);
   A.startPad();
+  // al salir de la app o cambiar de pestaña, silencio (y nada de notas amontonadas al volver)
+  document.addEventListener('visibilitychange', () => {
+    if (!A.ctx) return;
+    if (document.hidden) A.ctx.suspend(); else A.ctx.resume();
+  });
+};
+
+/* Volumen de la música (0..1, ajuste del jugador) y "agacharla" un rato (por ejemplo, con el menú abierto). */
+A.setMusicVolume = function (v) { A.musicVol = Math.max(0, Math.min(1, v)); A.applyMusicGain(); };
+A.duck = function (k) { if (A.duckK === k) return; A.duckK = k; A.applyMusicGain(); };
+A.applyMusicGain = function () {
+  if (A.musicBus) A.musicBus.gain.setTargetAtTime(A.musicVol * A.duckK, A.ctx.currentTime, 0.25);
 };
 
 A.setMuted = function (m) {
@@ -35,6 +51,7 @@ function tone(freq, dur, type, vol, when, slide) {
   const t = A.ctx.currentTime + (when || 0);
   const o = A.ctx.createOscillator();
   const g = A.ctx.createGain();
+  g.gain.value = 0;
   o.type = type || 'sine';
   o.frequency.setValueAtTime(freq, t);
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
@@ -60,6 +77,7 @@ function noise(dur, vol, freq, when) {
   s.start(t);
 }
 const note = (i, base) => (base || 440) * Math.pow(2, PENTA[i % PENTA.length] / 12);
+const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
 A.play = function (name, arg) {
   if (!A.ctx || A.muted) return;
@@ -85,6 +103,11 @@ A.play = function (name, arg) {
     case 'boss': tone(98, 1.5, 'sawtooth', 0.08); tone(147, 1.5, 'sawtooth', 0.05, 0.1); break;
     case 'select': tone(660, 0.08, 'sine', 0.06); break;
     case 'deny': tone(200, 0.12, 'square', 0.04); break;
+    // eventos del mundo
+    case 'anochecer': [79, 76, 72, 67, 64].forEach((m, i) => tone(hz(m), 1.1, 'sine', 0.08, i * 0.22)); break;
+    case 'amanecer': [60, 64, 67, 72, 76, 79].forEach((m, i) => tone(hz(m), 1.0, 'triangle', 0.075, i * 0.16)); break;
+    case 'oleada': [57, 58, 57].forEach((m, i) => tone(hz(m), 0.7, 'sawtooth', 0.07, i * 0.35)); tone(hz(33), 1.4, 'sine', 0.12, 0.2); noise(1.4, 0.25, 160, 0.2); break;
+    case 'calma': [60, 67, 72, 76].forEach((m, i) => tone(hz(m), 1.8, 'sine', 0.075, i * 0.12)); break;
     default: break;
   }
 };
@@ -112,15 +135,19 @@ A.startPad = function () {
     o.start(); lfo.start();
     return o;
   });
-  f.connect(g); g.connect(A.master);
+  f.connect(g); g.connect(A.musicBus);
   A.pad = { g, oscs };
 };
 
-/* ---------- música de las escenas animadas (sintetizada, sin archivos) ----------
- * Cada ambiente es un compás de 8 pasos que se repite: acordes suaves de fondo, un bajo y una cajita de música.
- * Audio.score(ambiente) empieza o cambia la música con un fundido; Audio.scoreStop() la apaga. */
-const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+/* ---------- música (sintetizada, sin archivos) ----------
+ * Cada canción es una lista de compases de 8 pasos (corcheas): acorde de fondo, bajo, melodía y, si la tiene,
+ * percusión suave. Audio.score(canción, tono) la empieza o cambia con fundido; Audio.scoreStop() la apaga.
+ * La usan las escenas animadas (js/cinema.js) y, durante el juego, js/music.js (día, noche, combate…).
+ * Campos de una canción: bpm · lead ('caja' cajita de música | 'pulsa' cuerda pulsada | 'suave') ·
+ * drone (nota grave fija) · bars: [{ chord, bass, bassSteps?, mel, pulse?, kick?, hat?, snare? }]
+ * (kick/hat/snare: 8 ceros y unos). Las notas son números MIDI (60 = do central; 0 = silencio). */
 const SCORES = {
+  // ----- escenas animadas -----
   // asombro tranquilo (cuento)
   cuento: { bpm: 66, bars: [
     { chord: [48, 55, 64, 71], bass: 36, mel: [76, 0, 79, 0, 84, 0, 79, 0] },
@@ -158,13 +185,73 @@ const SCORES = {
     { chord: [48, 55, 60, 64], bass: 36, mel: [76, 79, 84, 88, 84, 79, 84, 88] },
     { chord: [43, 55, 59, 62], bass: 31, mel: [74, 79, 83, 86, 83, 79, 86, 91] },
   ] },
+
+  // ----- durante el juego (js/music.js) -----
+  // de día: paseo luminoso entre islas (cada región la toca en su propio tono)
+  dia: { bpm: 74, bars: [
+    { chord: [48, 55, 60, 64], bass: 36, bassSteps: [0, 4], mel: [72, 0, 76, 79, 0, 76, 74, 0] },
+    { chord: [45, 52, 57, 60], bass: 33, bassSteps: [0, 4], mel: [72, 0, 69, 72, 76, 0, 74, 0] },
+    { chord: [41, 48, 57, 64], bass: 29, bassSteps: [0, 4], mel: [69, 0, 72, 77, 76, 0, 72, 0] },
+    { chord: [43, 50, 55, 59], bass: 31, bassSteps: [0, 4], mel: [74, 0, 71, 74, 79, 0, 0, 0] },
+    { chord: [48, 55, 60, 64], bass: 36, bassSteps: [0, 4], mel: [79, 0, 76, 72, 74, 0, 76, 0] },
+    { chord: [40, 47, 55, 59], bass: 28, bassSteps: [0, 4], mel: [71, 0, 74, 76, 79, 0, 76, 0] },
+    { chord: [41, 48, 53, 57], bass: 29, bassSteps: [0, 4], mel: [77, 0, 76, 74, 72, 0, 69, 0] },
+    { chord: [43, 50, 55, 60], bass: 31, bassSteps: [0, 4], mel: [74, 0, 72, 0, 0, 0, 0, 0] },
+  ] },
+  // de noche: nana lenta, notas largas
+  noche: { bpm: 56, lead: 'suave', bars: [
+    { chord: [45, 52, 59, 60], bass: 33, mel: [76, 0, 0, 0, 72, 0, 0, 0] },
+    { chord: [41, 48, 52, 57], bass: 29, mel: [74, 0, 0, 0, 69, 0, 0, 72] },
+    { chord: [48, 52, 55, 59], bass: 36, mel: [71, 0, 0, 0, 67, 0, 0, 0] },
+    { chord: [43, 47, 52, 55], bass: 31, mel: [69, 0, 71, 0, 72, 0, 0, 0] },
+    { chord: [45, 52, 59, 60], bass: 33, mel: [79, 0, 0, 76, 0, 0, 72, 0] },
+    { chord: [41, 48, 52, 57], bass: 29, mel: [77, 0, 0, 74, 0, 0, 69, 0] },
+    { chord: [40, 47, 52, 55], bass: 28, mel: [71, 0, 0, 0, 72, 0, 74, 0] },
+    { chord: [45, 52, 57, 60], bass: 33, mel: [69, 0, 0, 0, 0, 0, 0, 0] },
+  ] },
+  // combate: sombras cerca
+  combate: { bpm: 112, lead: 'pulsa', bars: [
+    { chord: [50, 57, 62, 65], bass: 38, bassSteps: [0, 3, 4, 6], mel: [74, 0, 77, 0, 76, 74, 72, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [46, 53, 58, 62], bass: 34, bassSteps: [0, 3, 4, 6], mel: [74, 0, 70, 0, 72, 0, 74, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [48, 55, 60, 64], bass: 36, bassSteps: [0, 3, 4, 6], mel: [76, 0, 72, 0, 79, 0, 77, 76], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [45, 52, 57, 61], bass: 33, bassSteps: [0, 3, 4, 6], mel: [73, 0, 76, 0, 81, 0, 79, 0], kick: [1, 0, 0, 1, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 1, 1], snare: [0, 0, 1, 0, 0, 0, 1, 1] },
+  ] },
+  // peligro: élite o Gólem de Arcos cerca
+  peligro: { bpm: 100, lead: 'pulsa', drone: 28, bars: [
+    { chord: [40, 47, 52, 55], bass: 28, bassSteps: [0, 2, 4, 6], mel: [0, 0, 76, 0, 77, 0, 76, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0], pulse: 52 },
+    { chord: [41, 48, 53, 57], bass: 29, bassSteps: [0, 2, 4, 6], mel: [0, 0, 77, 0, 76, 0, 74, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0], pulse: 53 },
+    { chord: [40, 47, 52, 55], bass: 28, bassSteps: [0, 2, 4, 6], mel: [0, 0, 71, 0, 72, 0, 71, 0], kick: [1, 0, 0, 0, 1, 0, 1, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0], pulse: 52 },
+    { chord: [38, 45, 50, 54], bass: 26, bassSteps: [0, 2, 4, 6], mel: [69, 0, 71, 0, 72, 0, 74, 0], kick: [1, 0, 0, 0, 1, 0, 1, 1], hat: [0, 0, 1, 0, 0, 1, 1, 1], pulse: 50 },
+  ] },
+  // jefe: el Guardián pelea
+  jefe: { bpm: 126, lead: 'pulsa', drone: 24, bars: [
+    { chord: [48, 55, 60, 63], bass: 36, bassSteps: [0, 1, 2, 3, 4, 5, 6, 7], mel: [72, 0, 75, 0, 79, 0, 75, 72], kick: [1, 0, 0, 1, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [44, 51, 56, 60], bass: 32, bassSteps: [0, 1, 2, 3, 4, 5, 6, 7], mel: [72, 0, 75, 0, 80, 0, 79, 77], kick: [1, 0, 0, 1, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [51, 58, 63, 67], bass: 39, bassSteps: [0, 1, 2, 3, 4, 5, 6, 7], mel: [79, 0, 82, 0, 79, 0, 75, 0], kick: [1, 0, 0, 1, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { chord: [43, 50, 55, 59], bass: 31, bassSteps: [0, 1, 2, 3, 4, 5, 6, 7], mel: [74, 0, 79, 0, 83, 0, 86, 0], kick: [1, 0, 1, 1, 1, 0, 1, 1], hat: [1, 1, 1, 1, 1, 1, 1, 1], snare: [0, 0, 1, 0, 0, 0, 1, 1] },
+  ] },
 };
 
-/* Programa un paso (corchea) del ambiente en el instante t, hacia el nodo de salida out. */
-function scoreStep(ctx, out, sc, i, t) {
+/* Ruido blanco (un segundo) para la percusión: uno por contexto de audio, se reutiliza siempre. */
+const NOISE = new WeakMap();
+function noiseBuf(ctx) {
+  let b = NOISE.get(ctx);
+  if (!b) {
+    b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    NOISE.set(ctx, b);
+  }
+  return b;
+}
+
+/* Programa un paso (corchea) de la canción en el instante t, hacia el nodo out. key = semitonos. Devuelve la duración del paso. */
+function scoreStep(ctx, out, sc, i, t, key = 0) {
   const stepDur = 60 / sc.bpm / 2;
   const bar = sc.bars[Math.floor(i / 8) % sc.bars.length], k = i % 8;
+  const note = (m) => hz(m + key);
   const env = (node, vol, a, hold, r) => {
+    node.gain.value = 0;                     // en silencio hasta su momento (si no, el ruido "se cuela" una muestra antes: chasquido)
     node.gain.setValueAtTime(0.0001, t);
     node.gain.exponentialRampToValueAtTime(vol, t + a);
     node.gain.setValueAtTime(vol, t + a + hold);
@@ -178,18 +265,44 @@ function scoreStep(ctx, out, sc, i, t) {
     g.connect(out);
     o.start(t); o.stop(t + a + hold + r + 0.05);
   };
+  const hit = (freq, vol, len, type, q) => {                       // golpe de ruido filtrado (platillo, caja)
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf(ctx);
+    f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
+    env(g, vol, 0.002, 0.005, len);
+    s.connect(f); f.connect(g); g.connect(out);
+    s.start(t, Math.random() * 0.5); s.stop(t + len + 0.05);
+  };
+  const len = stepDur * 8;
   if (k === 0) {
-    const len = stepDur * 8;
-    for (const m of bar.chord) voice('triangle', hz(m), 0.022, 0.5, len - 0.7, 0.9, 1100);     // colchón del acorde
-    voice('sine', hz(bar.bass), 0.07, 0.04, len * 0.5, len * 0.5);                               // bajo
-    if (sc.drone) voice('sawtooth', hz(sc.drone), 0.03, 0.6, len - 0.6, 0.8, 220);               // zumbido grave
+    for (const m of bar.chord) voice('triangle', note(m), 0.022, 0.5, len - 0.7, 0.9, 1100);    // colchón del acorde
+    if (!bar.bassSteps) voice('sine', note(bar.bass), 0.07, 0.04, len * 0.5, len * 0.5);         // bajo largo
+    if (sc.drone) voice('sawtooth', note(sc.drone), 0.03, 0.6, len - 0.6, 0.8, 220);             // zumbido grave
   }
-  if (bar.pulse && k % 2 === 0) voice('triangle', hz(bar.pulse), 0.05, 0.01, 0.03, 0.22);        // latido
+  if (bar.bassSteps && bar.bassSteps.includes(k)) voice('triangle', note(bar.bass), 0.075, 0.01, stepDur * 0.55, stepDur * 0.4, 600);
+  if (bar.pulse && k % 2 === 0) voice('triangle', note(bar.pulse), 0.05, 0.01, 0.03, 0.22);       // latido
+  if (bar.kick && bar.kick[k]) {                                                                   // bombo
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    env(g, 0.075, 0.003, 0.02, 0.16);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
+  }
+  if (bar.hat && bar.hat[k]) hit(7500, 0.018, 0.05, 'highpass');                                  // platillo
+  if (bar.snare && bar.snare[k]) { hit(1900, 0.05, 0.14, 'bandpass', 0.9); voice('triangle', 185, 0.03, 0.002, 0.01, 0.08); }
   const m = bar.mel[k];
-  if (m) {                                                                                        // cajita de música
-    voice('sine', hz(m), 0.055, 0.006, 0.02, 1.5);
-    voice('sine', hz(m) * 2, 0.014, 0.006, 0.02, 0.8);
-    voice('sine', hz(m) * 3.01, 0.006, 0.006, 0.01, 0.4);
+  if (m) {
+    const lead = sc.lead || 'caja';
+    if (lead === 'pulsa') {                                                                        // cuerda pulsada
+      voice('triangle', note(m), 0.05, 0.004, 0.02, stepDur * 1.6, 2600);
+      voice('sine', note(m) * 2, 0.012, 0.004, 0.01, stepDur);
+    } else if (lead === 'suave') {                                                                 // nota larga y suave
+      voice('sine', note(m), 0.05, 0.08, stepDur * 1.5, 1.8);
+      voice('sine', note(m) * 2, 0.008, 0.08, stepDur, 1.0);
+    } else {                                                                                       // cajita de música
+      voice('sine', note(m), 0.055, 0.006, 0.02, 1.5);
+      voice('sine', note(m) * 2, 0.014, 0.006, 0.02, 0.8);
+      voice('sine', note(m) * 3.01, 0.006, 0.006, 0.01, 0.4);
+    }
   }
   return stepDur;
 }
@@ -206,24 +319,27 @@ A.scoreStop = function (fade = 1.2) {
   M.g.gain.cancelScheduledValues(t);
   M.g.gain.setValueAtTime(M.g.gain.value, t);
   M.g.gain.linearRampToValueAtTime(0, t + fade);
+  if (A.pad) A.pad.g.gain.setTargetAtTime(0.035, t + fade, 1.5);                     // vuelve el colchón de fondo
   setTimeout(() => { try { M.g.disconnect(); } catch (e) { /* ya desconectado */ } }, (fade + 2.5) * 1000);
 };
 
-A.score = function (mood) {
+/* Empieza (o cambia con fundido a) una canción. key: semitonos para tocarla en otro tono. */
+A.score = function (mood, key = 0) {
   if (!A.ctx || !SCORES[mood]) return;
-  if (A.music && A.music.mood === mood) return;
+  if (A.music && A.music.mood === mood && A.music.key === key) return;
   A.scoreStop(1.4);
+  if (A.pad) A.pad.g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.6);                 // el colchón se aparta
   const g = A.ctx.createGain();
   const t0 = A.ctx.currentTime + 0.12;
   g.gain.setValueAtTime(0, A.ctx.currentTime);
   g.gain.linearRampToValueAtTime(1, t0 + 1.2);
-  g.connect(A.bus);
-  const M = A.music = { mood, g, step: 0, next: t0, timer: 0 };
+  g.connect(A.musicBus);
+  const M = A.music = { mood, key, g, step: 0, next: t0, timer: 0 };
   const sc = SCORES[mood];
   const tick = () => {
     if (A.music !== M) return;
     if (M.next < A.ctx.currentTime - 0.5) M.next = A.ctx.currentTime + 0.05;       // la pestaña estuvo dormida: no amontonar notas
-    while (M.next < A.ctx.currentTime + 0.6) M.next += scoreStep(A.ctx, g, sc, M.step++, M.next);
+    while (M.next < A.ctx.currentTime + 0.6) M.next += scoreStep(A.ctx, g, sc, M.step++, M.next, key);
   };
   tick();
   M.timer = setInterval(tick, 200);

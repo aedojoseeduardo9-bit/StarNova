@@ -401,6 +401,13 @@ export class Menus {
         if (!s.discovered) continue;
         t.append(el('div', s.done ? 'ok' : '', s.done ? '✓ ' + m.title : m.title + (m.goal > 1 ? ` ${s.progress}/${m.goal}` : '')));
       }
+      // oleadas de sombras de la región
+      const W = g.waves[id];
+      if (W && known) {
+        const txt = W.state === 'calma' ? `En calma · las sombras vuelven en ${Math.max(1, Math.ceil(W.calm))} s`
+          : W.state === 'fin' ? 'Quedan las últimas sombras de la ola' : 'Sombras activas';
+        t.append(el('div', 'wave ' + W.state, txt));
+      }
       row.append(dot, t);
       if (g.region === id) row.append(el('span', 'here-tag', 'Estás aquí'));
       list.append(row);
