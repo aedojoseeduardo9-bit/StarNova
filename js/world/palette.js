@@ -32,7 +32,15 @@ export const REGIONS = {
   },
 };
 
-export const REGION_IDS = Object.keys(REGIONS);
+export let REGION_IDS = Object.keys(REGIONS);
+/* Las regiones de las Islas del Cielo (el mundo 1). Cada mundo trae las suyas: ver js/worlds/. */
+export const ISLAS_REGIONS = Object.fromEntries(Object.entries(REGIONS).map(([k, v]) => [k, Object.assign({}, v)]));
+/* Cambia las regiones activas (se llama una vez al arrancar, antes de crear el juego). */
+export function setRegions(defs) {
+  for (const k of Object.keys(REGIONS)) delete REGIONS[k];
+  Object.assign(REGIONS, defs);
+  REGION_IDS = Object.keys(REGIONS);
+}
 
 /* Pesos de mezcla de cada región según la posición (para cielo y niebla). */
 export function regionWeights(x, z) {
@@ -49,7 +57,7 @@ export function regionWeights(x, z) {
 }
 
 export function regionAt(x, z) {
-  let best = 'claro', bd = Infinity;
+  let best = REGION_IDS[0], bd = Infinity;
   for (const id of REGION_IDS) {
     const r = REGIONS[id];
     const d = Math.hypot(x - r.center[0], z - r.center[1]) / r.r;

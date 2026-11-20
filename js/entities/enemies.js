@@ -2,7 +2,6 @@
  * y élites. Se mueven con cuerpos cinemáticos y el controlador de personaje de Rapier. */
 import * as THREE from 'three';
 import { R, G, groups, GRAVITY } from '../physics.js';
-import { makeGuardian } from './models.js';
 import { makeEnemyModel } from './enemyModels.js';
 import { ENEMIES, ELITES } from '../content/enemies.js';
 import { EnemyOrb, Debris } from '../combat.js';
@@ -441,29 +440,41 @@ export class Enemy {
   }
 }
 
-/* El Guardián de Nova: jefe final con fases. */
-export class Guardian {
-  constructor(game, pos) {
+/* Jefe final de cada mundo (ver js/entities/bosses.js): fases en bucle (ring, slam-up, hover, summon, spin, blink).
+ * Los "gemelos" son dos cuerpos que giran uno alrededor del otro en un solo cuerpo cinemático con dos colisionadores. */
+export class Boss {
+  constructor(game, pos, cfg) {
     this.game = game;
+    this.cfg = cfg;
     this.kind = 'enemy';
-    this.type = 'guardian';
+    this.type = 'boss';
     this.isBoss = true;
-    this.def = { name: 'El Guardián de Nova', ai: 'boss', dmg: 22, xp: 300, sparks: 160, colors: ['#3e4288', '#5a5fae', '#8e94d6'] };
-    this.maxHp = this.hp = 2600 * game.hpScale();
+    this.def = { name: cfg.name, ai: 'boss', dmg: cfg.dmg, xp: cfg.xp, sparks: cfg.sparks, colors: cfg.colors };
+    this.maxHp = this.hp = cfg.hp * game.hpScale();
     this.dmgMul = game.dmgScale();
     this.armor = 0;
-    this.r = 1.9;
-    this.hh = 1.7;
+    this.r = cfg.r;
+    this.hh = cfg.hh;
     this.home = new THREE.Vector3(pos.x, pos.y, pos.z);
     this.pos = new THREE.Vector3(pos.x, pos.y + 8, pos.z);
+    this.orbitR = cfg.orbit || 0;
     this.body = game.phys.world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(this.pos.x, this.pos.y + this.hh, this.pos.z));
-    this.collider = game.phys.world.createCollider(R.ColliderDesc.cuboid(1.5, 1.6, 1.5).setCollisionGroups(groups(G.ENEMY, G.PROJ)), this.body);
-    game.phys.own(this.collider, this);
-    this.model = makeGuardian();
+    const [bx, by, bz] = cfg.box;
+    if (cfg.twin) {
+      this.colliders = [-1, 1].map(s => game.phys.world.createCollider(R.ColliderDesc.cuboid(bx, by, bz).setTranslation(s * this.orbitR, 0, 0).setCollisionGroups(groups(G.ENEMY, G.PROJ)), this.body));
+    } else {
+      this.colliders = [game.phys.world.createCollider(R.ColliderDesc.cuboid(bx, by, bz).setCollisionGroups(groups(G.ENEMY, G.PROJ)), this.body)];
+    }
+    for (const c of this.colliders) game.phys.own(c, this);
+    this.collider = this.colliders[0];
+    this.model = cfg.model();
     game.scene.add(this.model);
     this.phase = 'intro';
     this.timer = 2.5;
     this.yaw = 0;
+    this.spin = 0;          // giro de los gemelos
+    this.spinK = 0;
+    this.fade = 1;          // 0..1 (la polilla se desvanece al teletransportarse)
     this.flash = 0;
     this.burnT = this.poisonT = this.bleedT = this.slowT = this.stunT = 0;
     this.burnDps = this.poisonDps = this.bleedDps = 0;
@@ -472,9 +483,23 @@ export class Guardian {
     this.cycle = 0;
     Audio.play('boss');
   }
-  center() { return new THREE.Vector3(this.pos.x, this.pos.y + this.hh, this.pos.z); }
+  /* Puntos donde están sus cuerpos (uno, o los dos gemelos). */
+  parts() {
+    const c = new THREE.Vector3(this.pos.x, this.pos.y + this.hh, this.pos.z);
+    if (!this.cfg.twin) return [c];
+    const a = this.spin;
+    const off = new THREE.Vector3(Math.cos(a) * this.orbitR, 0, -Math.sin(a) * this.orbitR);
+    return [c.clone().add(off), c.clone().sub(off)];
+  }
+  /* Centro para apuntar: el cuerpo más cercano a Pip. */
+  center() {
+    const ps = this.parts();
+    if (ps.length === 1) return ps[0];
+    const pl = this.game.player.center;
+    return ps[0].distanceTo(pl) < ps[1].distanceTo(pl) ? ps[0] : ps[1];
+  }
   update(dt, t) {
-    const game = this.game, pl = game.player;
+    const game = this.game, pl = game.player, cfg = this.cfg;
     this.flash = Math.max(0, this.flash - dt);
     this.stunT = Math.min(this.stunT, 0.3);
     const k = Math.max(0.4, tickStatus(game, this, dt));
@@ -482,7 +507,8 @@ export class Guardian {
     const enraged = this.hp < this.maxHp * 0.4;
     const spd = (enraged ? 1.35 : 1) * k;
     this.timer -= dt * spd;
-    const hover = new THREE.Vector3(pl.pos.x * 0.5 + this.home.x * 0.5, this.home.y + 5.5, pl.pos.z * 0.5 + this.home.z * 0.5);
+    const hover = new THREE.Vector3(pl.pos.x * 0.5 + this.home.x * 0.5, this.home.y + cfg.hoverY, pl.pos.z * 0.5 + this.home.z * 0.5);
+    let spinTarget = 0.9, orbitTarget = cfg.orbit || 0;
     switch (this.phase) {
       case 'intro': case 'hover':
         this.pos.lerp(hover, 1 - Math.exp(-dt * 1.4));
@@ -494,13 +520,16 @@ export class Guardian {
         if (this.ringT <= 0 && this.shots > 0) {
           this.ringT = 0.55; this.shots--;
           const n = enraged ? 18 : 14;
-          const from = this.center();
-          const toP = pl.center.clone().sub(from);
-          const tilt = Math.atan2(toP.y, Math.hypot(toP.x, toP.z));
-          for (let i = 0; i < n; i++) {
-            const a = (i / n) * Math.PI * 2 + this.shots * 0.2;
-            const dir = new THREE.Vector3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt)).normalize();
-            game.addProjectile(new EnemyOrb(game, from.clone().addScaledVector(dir, 2), dir, this.def.dmg * this.dmgMul * 0.6, { speed: 6.5, r: 0.22, color: '#ffe08a', emissive: 0x9a7010, life: 6 }));
+          for (const from of this.parts()) {
+            const toP = pl.center.clone().sub(from);
+            const tilt = Math.atan2(toP.y, Math.hypot(toP.x, toP.z));
+            const per = cfg.twin ? Math.ceil(n / 2) : n;
+            for (let i = 0; i < per; i++) {
+              const a = (i / per) * Math.PI * 2 + this.shots * 0.2;
+              const dir = new THREE.Vector3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt)).normalize();
+              const col = cfg.orb.rainbow ? '#' + new THREE.Color().setHSL(i / per, 0.85, 0.7).getHexString() : cfg.orb.color;
+              game.addProjectile(new EnemyOrb(game, from.clone().addScaledVector(dir, 1.6), dir, this.def.dmg * this.dmgMul * 0.6, { speed: 6.5, r: 0.22, color: col, emissive: cfg.orb.emissive, life: 6 }));
+            }
           }
           Audio.play('special');
         }
@@ -518,51 +547,75 @@ export class Guardian {
         this.pos.y += this.vy * dt;
         if (this.pos.y <= this.home.y) {
           this.pos.y = this.home.y;
-          game.slam(this.pos.clone(), 5.5, this.def.dmg * this.dmgMul * 1.2, true);
+          for (const p of this.parts()) game.slam(p.clone().setY(this.home.y), 5.5, this.def.dmg * this.dmgMul * 1.2, true);
           this.phase = 'recover'; this.timer = 1.4;
         }
         break;
       case 'recover':
         if (this.timer <= 0) this.next();
         break;
+      case 'spin':                                       // los gemelos se separan y giran barriendo el suelo
+        this.pos.lerp(new THREE.Vector3(this.home.x, this.home.y + 0.2, this.home.z), 1 - Math.exp(-dt * 2));
+        spinTarget = enraged ? 4.2 : 3.2; orbitTarget = 7;
+        if (Math.random() < 0.4) for (const p of this.parts()) game.fx.puff(p.clone().setY(this.home.y + 0.1), 1, '#c8e0a8');
+        if (this.timer <= 0) this.next();
+        break;
+      case 'blink':                                      // la polilla se desvanece y reaparece en otro lado
+        this.fade = Math.max(0, this.fade - dt * 2.5);
+        if (this.fade <= 0 && !this.blinked) {
+          this.blinked = true;
+          const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 5;
+          this.pos.set(this.home.x + Math.cos(a) * r, this.home.y + cfg.hoverY * 0.6, this.home.z + Math.sin(a) * r);
+          game.fx.burst(this.center(), '#ffffff', 24, 4);
+          Audio.play('crystal');
+        }
+        if (this.blinked && this.timer <= 0.6) this.fade = Math.min(1, this.fade + dt * 3);
+        if (this.timer <= 0) { this.fade = 1; this.next(); }
+        break;
       case 'summon':
         this.pos.lerp(hover, 1 - Math.exp(-dt * 1.5));
         if (!this.summoned) {
           this.summoned = true;
-          const types = enraged ? ['sombra', 'bomba', 'farol', 'chispita'] : ['sombra', 'chispita'];
+          const types = cfg.summon[enraged ? 1 : 0];
           for (let i = 0; i < (enraged ? 4 : 2); i++) {
-            const a = Math.random() * Math.PI * 2;
-            game.spawnEnemy(types[i % types.length], new THREE.Vector3(this.home.x + Math.cos(a) * 6, this.home.y + (types[i % types.length] === 'farol' ? 3 : 0.3), this.home.z + Math.sin(a) * 6), { force: true, summoned: true });
+            const a = Math.random() * Math.PI * 2, ty = types[i % types.length];
+            const fly = ENEMIES[ty] && ENEMIES[ty].flying;
+            game.spawnEnemy(ty, new THREE.Vector3(this.home.x + Math.cos(a) * 6, this.home.y + (fly ? 3 : 0.3), this.home.z + Math.sin(a) * 6), { force: true, summoned: true });
           }
         }
         if (this.timer <= 0) this.next();
         break;
     }
+    // giro y separación de los gemelos
+    this.spinK += (spinTarget - this.spinK) * Math.min(1, dt * 2);
+    this.spin += this.spinK * dt;
+    this.orbitR += (orbitTarget - this.orbitR) * Math.min(1, dt * 2);
+    if (cfg.twin) this.colliders.forEach((c, i) => c.setTranslationWrtParent({ x: (i ? 1 : -1) * this.orbitR, y: 0, z: 0 }));
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cfg.twin ? this.spin : 0);
     this.body.setNextKinematicTranslation({ x: this.pos.x, y: this.pos.y + this.hh, z: this.pos.z });
-    if (pl.center.distanceTo(this.center()) < 2.2) game.hurtPlayer(this.def.dmg * this.dmgMul, this.center());
+    this.body.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
+    if (this.fade > 0.5) for (const p of this.parts()) if (pl.center.distanceTo(p) < this.r + 0.8) { game.hurtPlayer(this.def.dmg * this.dmgMul, p); break; }
     const yaw = Math.atan2(pl.pos.x - this.pos.x, pl.pos.z - this.pos.z);
     this.yaw += (yaw - this.yaw) * Math.min(1, dt * 2);
     const u = this.model.userData;
     this.model.position.copy(this.pos);
-    this.model.rotation.y = this.yaw;
-    u.halo.rotation.z = t * 0.8;
-    u.core.rotation.y = t * 3;
-    u.orbiters.forEach((o, i) => {
-      const a = t * (enraged ? 2.4 : 1.4) + (i / 4) * Math.PI * 2;
-      o.position.set(Math.cos(a) * 2.8, 1.8 + Math.sin(t * 2 + i) * 0.5, Math.sin(a) * 2.8);
-      o.rotation.set(t, t * 1.3, 0);
-    });
-    u.inner.visible = !(this.flash > 0 && Math.floor(t * 30) % 2 === 0);
+    this.model.rotation.y = cfg.twin ? this.spin : this.yaw;
+    this.model.scale.setScalar(0.2 + 0.8 * this.fade);
+    cfg.animate(u, t, enraged, this);
+    u.inner.visible = this.fade > 0.05 && !(this.flash > 0 && Math.floor(t * 30) % 2 === 0);
   }
   next() {
-    const order = ['ring', 'slam-up', 'hover', 'summon', 'ring', 'slam-up'];
+    const order = this.cfg.order;
     this.phase = order[this.cycle % order.length];
     this.cycle++;
     this.summoned = false;
+    this.blinked = false;
     if (this.phase === 'ring') { this.timer = 3.2; this.shots = 3; this.ringT = 0.3; }
     else if (this.phase === 'slam-up') this.timer = 1.6;
     else if (this.phase === 'hover') this.timer = 2.0;
     else if (this.phase === 'summon') this.timer = 2.0;
+    else if (this.phase === 'spin') this.timer = 4.0;
+    else if (this.phase === 'blink') this.timer = 1.6;
   }
   destroy() { this.game.phys.removeBody(this.body); this.game.scene.remove(this.model); }
 }

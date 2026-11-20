@@ -1,20 +1,11 @@
-/* Star Nova — misiones del mundo abierto. Principales (la historia de Nova) y secundarias (premios extra).
- * El jugador elige en el menú cuál seguir; nada se elige solo. */
-import { REGIONS, REGION_IDS } from './world/palette.js';
-
-export const MISSIONS = [
-  // Principales
-  { id: 'campanas', type: 'principal', region: 'coral', title: 'Las Tres Campanas', desc: 'Haz sonar las tres campanas del Jardín de Coral.', goal: 3, fragment: true },
-  { id: 'luciernagas', type: 'principal', region: 'menta', title: 'Luciérnagas Perdidas', desc: 'Rescata las tres luciérnagas en lo alto de las Torres de Menta.', goal: 3, fragment: true },
-  { id: 'puente', type: 'principal', region: 'lavanda', title: 'El Puente Dormido', desc: 'Despierta los dos cristales, cruza el puente y toma el fragmento del altar.', goal: 3, fragment: true },
-  { id: 'guardian', type: 'principal', region: 'nova', title: 'El Guardián de Nova', desc: 'Con 3 fragmentos se abre el santuario del sur. Enfrenta al Guardián y despiértalo.', goal: 1, final: true },
-  // Secundarias
-  { id: 'sombras', type: 'secundaria', region: 'menta', title: 'Plaga de Sombras', desc: 'Derrota 12 enemigos en las Torres de Menta. Premio: un fragmento extra de Nova.', goal: 12, fragment: true },
-  { id: 'explorador', type: 'secundaria', region: null, title: 'Exploradora del Cielo', desc: 'Visita las cinco regiones del mundo. Premio: objeto raro.', goal: 5, reward: [0, 20, 60, 20, 0, 0] },
-  { id: 'cofres', type: 'secundaria', region: null, title: 'Coleccionista', desc: 'Abre 5 cofres de cualquier tipo. Premio: objeto épico.', goal: 5, reward: [0, 0, 30, 60, 10, 0] },
-  { id: 'elites', type: 'secundaria', region: null, title: 'Cazadora de Élites', desc: 'Derrota 3 enemigos élite. Premio: objeto épico o legendario.', goal: 3, reward: [0, 0, 0, 65, 35, 0] },
-  { id: 'golem', type: 'secundaria', region: null, title: 'El Gólem Dormido', desc: 'Derrota a un Gólem de Arcos (aparecen cuando el reloj avanza). Premio: objeto legendario.', goal: 1, reward: [0, 0, 0, 20, 75, 5] },
-];
+/* Star Nova — misiones del mundo abierto. Cada mundo trae las suyas (ver js/worlds/): principales (la historia)
+ * y secundarias (premios extra). El jugador elige en el menú cuál seguir; nada se elige solo.
+ * Una misión: { id, type: 'principal'|'secundaria', region (null = todo el mundo), title, desc, goal,
+ *   fragment?: da un fragmento · final?: la del jefe · reward?: pesos de rareza del premio,
+ *   on: { evento: true | (obj, game, estado) => bool } — qué eventos la hacen avanzar,
+ *   visit?: avanza una sola vez por región visitada · targets?: (game) => [Vector3] para el marcador } */
+export const MISSIONS = [];
+export function setMissions(list) { MISSIONS.length = 0; MISSIONS.push(...list); }
 
 export class Missions {
   constructor(game) {
@@ -49,7 +40,7 @@ export class Missions {
 
   advance(id, n = 1) {
     const s = this.state[id], m = this.def(id);
-    if (s.done) return;
+    if (!s || s.done) return;
     s.discovered = true;
     s.progress = Math.min(m.goal, s.progress + n);
     if (s.progress >= m.goal) this.complete(id);
@@ -59,60 +50,36 @@ export class Missions {
 
   complete(id) {
     const s = this.state[id], m = this.def(id);
-    if (s.done) return;
+    if (!s || s.done) return;
     s.done = true;
     s.progress = m.goal;
     this.game.onMissionComplete(m);
     if (this.tracked === id) {
       this.tracked = null;
-      setTimeout(() => this.game.hud.toast(this.game.k('Elige tu próxima misión en el menú (Tab)', 'Elige tu próxima misión en el menú Misiones')), 2200);
+      setTimeout(() => this.game.hud.toast(this.game.k('Elige tu próxima misión en el menú (Tab)', 'Elige tu próxima misión en el menú')), 2200);
     }
     this.game.hud.refreshMissions();
   }
 
+  /* Algo pasó en el mundo: 'bell', 'firefly', 'crystal', 'altar', 'boss', 'chest', 'kill', 'region'… */
   event(type, obj) {
     const g = this.game;
-    if (type === 'bell') this.advance('campanas');
-    else if (type === 'firefly') this.advance('luciernagas');
-    else if (type === 'kill') {
-      if (obj.region === 'menta' && this.state.sombras.discovered) this.advance('sombras');
-      if (obj.elite) this.advance('elites');
-      if (obj.type === 'golem') this.advance('golem');
-    } else if (type === 'crystal') {
-      this.advance('puente');
-      if (g.props.crystals.every(c => c.active)) {
-        g.props.bridge.build();
-        g.hud.toast('¡El Puente de Lavanda despierta!');
-      }
-    } else if (type === 'altar') this.advance('puente');
-    else if (type === 'boss') this.complete('guardian');
-    else if (type === 'chest') this.advance('cofres');
-    else if (type === 'region') {
-      if (!this.visited.has(obj)) { this.visited.add(obj); this.advance('explorador'); }
+    for (const m of MISSIONS) {
+      const s = this.state[m.id];
+      if (s.done || !m.on || !(type in m.on)) continue;
+      const rule = m.on[type];
+      if (rule !== true && !rule(obj, g, s)) continue;
+      if (m.visit && this.visited.has(obj)) continue;
+      this.advance(m.id);
     }
+    if (type === 'region') this.visited.add(obj);
+    if (g.world.onEvent) g.world.onEvent(g, type, obj);
   }
 
-  /* Posiciones objetivo de la misión seguida (para el marcador en pantalla). */
+  /* Posiciones objetivo de la misión seguida (para el marcador en pantalla y el mapa). */
   targets(id = this.tracked) {
-    const g = this.game, P = g.props;
-    const s = this.state[id];
-    if (!id || !s || s.done) return [];
-    const near = (list) => list.filter(Boolean);
-    switch (id) {
-      case 'campanas': return P.bells.filter(b => !b.rung).map(b => b.anchor.clone().setY(b.anchor.y - 0.8));
-      case 'luciernagas': return P.fireflies.filter(f => !f.taken).map(f => f.p);
-      case 'sombras': return [g.v3(REGIONS.menta.center[0], 0.5, REGIONS.menta.center[1])];
-      case 'puente': {
-        const c = P.crystals.filter(x => !x.active).map(x => x.p);
-        if (c.length) return c;
-        return g.altarFragment && !g.altarFragment.dead ? [g.altarFragment.p] : [];
-      }
-      case 'guardian': return [g.v3(REGIONS.nova.center[0], 1, REGIONS.nova.center[1])];
-      case 'explorador': return REGION_IDS.filter(r => !this.visited.has(r)).map(r => g.v3(REGIONS[r].center[0], 0.5, REGIONS[r].center[1]));
-      case 'cofres': return near(P.chests.filter(c => !c.opened).map(c => c.p));
-      case 'elites': return g.enemies.filter(e => e.elite && !e.dead).map(e => e.pos);
-      case 'golem': return g.enemies.filter(e => e.type === 'golem' && !e.dead).map(e => e.pos);
-      default: return [];
-    }
+    const s = this.state[id], m = this.def(id);
+    if (!id || !s || s.done || !m || !m.targets) return [];
+    return m.targets(this.game).filter(Boolean);
   }
 }

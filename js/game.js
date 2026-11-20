@@ -1,14 +1,17 @@
 /* Star Nova — núcleo del juego: ciclo, reglas, cofres, director de enemigos, misiones y ajustes. */
 import * as THREE from 'three';
 import { Physics, G, groups } from './physics.js';
-import { buildWorld } from './world/layout.js';
 import { REGIONS, regionAt } from './world/palette.js';
 import { Sky, dayPhase, nightOf, duskOf, DAY_CYCLE, DAY_TIMES } from './sky.js';
 import { FX } from './fx.js';
 import { Input } from './input.js';
 import { OrbitCam } from './camera.js';
 import { Player } from './entities/player.js';
-import { Enemy, Guardian, shatter } from './entities/enemies.js';
+import { Enemy, Boss, shatter } from './entities/enemies.js';
+import { BOSSES } from './entities/bosses.js';
+import { NPC, Rocket } from './entities/npcs.js';
+import { NPCS } from './content/npcs.js';
+import { WORLD, WORLDS, WORLD_ORDER, previousWorld } from './worlds/index.js';
 import { Pickup } from './combat.js';
 import { Bell, Crystal, Crate, PlankBridge, Firefly, Chest, Gate, Lantern, Campfire, Owl, NovaStar } from './props.js';
 import { ITEMS, rollItem, computeStats, pickWeighted, RARITY } from './content/items.js';
@@ -16,11 +19,11 @@ import { ATTACKS, POWERS, rollAttack, rollPower } from './content/attacks.js';
 import { CHESTS, CHEST_LIST } from './content/chests.js';
 import { ENEMIES, ENEMY_LIST, ELITE_LIST } from './content/enemies.js';
 import { Arsenal } from './arsenal.js';
-import { Missions } from './missions.js';
+import { Missions, MISSIONS } from './missions.js';
 import { HUD } from './hud.js';
 import { Audio } from './audio.js';
 import { store } from './util.js';
-import { Profiles, SLOTS, snapshot, restore } from './save.js';
+import { Profiles, SLOTS, snapshot, restore, doneWorlds } from './save.js';
 import { Menus, MENU_TABS } from './menus.js';
 import { OUTFITS, applyOutfit } from './entities/outfits.js';
 import { Cinema, SCENE_IDS } from './cinema.js';
@@ -63,6 +66,9 @@ export class Game {
     this.settings = Object.assign({ sens: 1, autofire: true, vibration: true, camAssist: true, music: 0.8 }, store.get('ajustes', {}));
     Audio.setMusicVolume(this.settings.music);
     this.codex = store.get('compendio', { item: [], attack: [], power: [], chest: [], enemy: [], elite: [] });
+    this.world = WORLD;                                   // el mundo cargado (ver js/worlds/)
+    this.worldStates = {};                                // lo guardado de los otros mundos (se conserva al guardar)
+    this.talked = {};                                     // PNJ con los que ya se habló en este mundo
     this.slot = 0;                                        // ranura en uso (0 = partida de prueba: no se guarda)
     this.profile = { name: 'Prueba', created: Date.now() };
     this.saveT = 0;
@@ -109,7 +115,7 @@ export class Game {
     this.input = new Input(canvas, this);
     if (this.mobile) this.input.enableTouchUI();
     this.cam = new OrbitCam(this.camera, this.phys);
-    this.spots = buildWorld(this);
+    this.spots = this.world.build(this);
 
     this.items = {};
     this.level = 1;
@@ -145,22 +151,31 @@ export class Game {
     this.missions = new Missions(this);
     this.player = new Player(this, this.spots.spawn);
     const S = this.spots;
+    // objetos del mundo: cada mundo trae los suyos (los que no tenga quedan vacíos o en null)
     this.props = {
-      bells: S.bells.map((s, i) => new Bell(this, s, i)),
-      crystals: S.crystals.map((s, i) => new Crystal(this, s, i)),
-      fireflies: S.fireflies.map((s, i) => new Firefly(this, s, i)),
-      crates: S.crates.map((p) => new Crate(this, p)),
-      chests: S.chests.map((s) => new Chest(this, s)),
-      lanterns: S.lanterns.map((s) => new Lantern(this, s)),
-      bridge: new PlankBridge(this, S.plankBridge),
-      gate: new Gate(this, S.gate),
-      campfire: new Campfire(this, S.campfire),
-      owl: new Owl(this, S.owl),
-      nova: new NovaStar(this, S.novaStar),
+      bells: (S.bells || []).map((s, i) => new Bell(this, s, i)),
+      crystals: (S.crystals || []).map((s, i) => new Crystal(this, s, i)),
+      fireflies: (S.fireflies || []).map((s, i) => new Firefly(this, s, i)),
+      crates: (S.crates || []).map((p) => new Crate(this, p)),
+      chests: (S.chests || []).map((s) => new Chest(this, s)),
+      lanterns: (S.lanterns || []).map((s) => new Lantern(this, s)),
+      bridge: S.plankBridge ? new PlankBridge(this, S.plankBridge) : null,
+      gate: S.gate ? new Gate(this, S.gate) : null,
+      campfire: S.campfire ? new Campfire(this, S.campfire) : null,
+      owl: S.owl ? new Owl(this, S.owl) : null,
+      nova: S.novaStar ? new NovaStar(this, S.novaStar) : null,
+      npcs: (S.npcs || []).map((s) => new NPC(this, s)),
+      rocket: S.rocket ? new Rocket(this, S.rocket) : null,
+      extras: S.extras || [],                       // agua, impulsores, suelos de mercurio… (tienen update)
     };
     this.props.chests.forEach(c => this.see('chest', c.def.id));
-    this.altarFragment = new Pickup(this, 'fragment', this.v3(...S.altar.pos), 0, { floating: true });
-    this.pickups.push(this.altarFragment);
+    this.altarFragment = null;
+    if (S.altar) {
+      this.altarFragment = new Pickup(this, 'fragment', this.v3(...S.altar.pos), 0, { floating: true });
+      this.pickups.push(this.altarFragment);
+    }
+    // polvo de estrella (Prismara): chispas sueltas que no vuelven a aparecer
+    this.stardust = (S.stardust || []).map(p => { const k = new Pickup(this, 'spark', this.v3(...p), 4, { floating: true }); this.pickups.push(k); return k; });
     this.owlLine = 0;
     this.see('attack', 'bellota');
     this.see('power', 'lluvia');
@@ -184,10 +199,7 @@ export class Game {
   /* ---------- atajos de prueba (URL) — ver CLAUDE.md ---------- */
   applyDebug() {
     const P = this.params;
-    const places = {
-      claro: [0, 0.6, 5], coral: [-46, 0.4, 1], menta: [0, 0.4, -45], lavanda: [44, 0.4, 0], nova: [0, 0.4, 44],
-      santuario: [0, 0.4, 54], altar: [82.5, 0.4, 0], puente: [62, 0.4, 0], torre: [8, 11.4, -64], campana: [-55, 0.4, -2],
-    };
+    const places = this.world.places;
     if (P.get('t')) this.time = parseFloat(P.get('t')) || 0;
     if (DAY_TIMES[P.get('hora')] !== undefined) this.dayShift = (DAY_TIMES[P.get('hora')] - 0.05) * DAY_CYCLE - this.time;
     if (P.get('items')) for (const id of Object.keys(ITEMS)) if (ITEMS[id].rar < 4) this.addItem(id, true);
@@ -198,19 +210,22 @@ export class Game {
       const ids = P.get('cofre') === 'todos' ? CHEST_LIST.map(c => c.id) : [P.get('cofre')];
       this.props.chests.forEach((c, i) => { const id = ids[i % ids.length]; if (CHESTS[id]) c.setType(id); });
     }
-    const nf = parseInt(P.get('frag') || (P.get('jefe') ? '3' : '0'), 10);
+    const nf = parseInt(P.get('frag') || (P.get('jefe') ? String(this.world.gateNeed) : '0'), 10);
     if (nf > 0) {
       this.missions.discoverAll();
-      for (const id of ['campanas', 'luciernagas', 'sombras', 'puente'].slice(0, nf)) this.missions.complete(id);
+      for (const m of MISSIONS.filter(x => x.fragment).slice(0, nf)) this.missions.complete(m.id);
     }
     if (P.get('puente')) for (const c of this.props.crystals) c.activate();
-    const go = P.get('jefe') ? 'santuario' : P.get('ir');
+    if (P.get('vencido')) this.markBossDone(true);
+    const go = P.get('jefe') ? this.world.bossPlace : P.get('ir');
     if (go && places[go]) { this.player.teleport(places[go]); this.cam.target.copy(this.player.pos); }
     if (P.get('cam')) { const [y, p, d] = P.get('cam').split(',').map(Number); this.cam.yaw = y || 0; this.cam.pitch = p ?? 0.32; if (d) this.cam.want = this.cam.cur = d; }
-    else if (go === 'lavanda' || go === 'puente') this.cam.yaw = -Math.PI / 2;
-    else if (go === 'nova' || go === 'santuario') this.cam.yaw = Math.PI;
+    else if (go && this.world.placeYaw && this.world.placeYaw[go] !== undefined) this.cam.yaw = this.world.placeYaw[go];
     const slot = parseInt(P.get('perfil') || '0', 10);
-    if (P.get('auto')) this.start();
+    if (P.get('auto')) {
+      this.start(false, !!P.get('llegada'));
+      if (P.get('llegada')) this.arrive(true);
+    }
     else if (SLOTS.includes(slot)) this.playSlot(slot, P.get('nombre'));
     if (P.get('enemigos')) {
       const n = parseInt(P.get('enemigos'), 10);
@@ -246,7 +261,9 @@ export class Game {
     $('btnMute').onclick = () => this.toggleMute();
     $('btnPause').onclick = () => this.openMenu('sistema');
     $('btnRespawn').onclick = () => this.respawn();
-    $('btnContinue').onclick = () => { $('ending').classList.add('hidden'); this.state = 'play'; this.input.enabled = true; this.saveSoon(); };
+    $('btnContinue').onclick = () => this.continueAfterEnding();
+    $('btnShopClose').onclick = () => this.closeShop();
+    $('btnGalaxyClose').onclick = () => this.closeGalaxy();
     $('dialog').onclick = () => this.advanceDialog();
     $('btnMute').textContent = Audio.muted ? '♪̸' : '♪';
     // menú: pasar de página con el teclado
@@ -293,9 +310,12 @@ export class Game {
   }
   /* Rótulo y pistas al empezar a jugar (tras el prólogo, si lo hubo). */
   welcome() {
-    if (!this.loadedPos) this.hud.banner(REGIONS.claro.name, REGIONS.claro.sub);
+    const hub = REGIONS[this.world.hub];
+    if (!this.loadedPos) this.hud.banner(hub.name, hub.sub);
     if (this.loadedPos) setTimeout(() => this.hud.toast('Partida de ' + this.profile.name + ' cargada'), 3800);
-    if (!this.owlDone && !this.params.get('ir') && !this.params.get('jefe')) setTimeout(() => this.hud.toast(this.k('Habla con la Abuela Lechuza (E) para empezar', 'Acércate a la Abuela Lechuza y toca el botón ✋ para hablar')), 2500);
+    const guide = this.world.guide ? NPCS[this.world.guide].name : 'la Abuela Lechuza';
+    const talkedGuide = this.world.guide ? this.talked[this.world.guide] : this.owlDone;
+    if (!talkedGuide && !this.params.get('ir') && !this.params.get('jefe')) setTimeout(() => this.hud.toast(this.k(`Habla con ${guide} (E) para empezar`, `Acércate a ${guide} y toca el botón ✋ para hablar`)), 2500);
   }
 
   /* ---------- historia: escenas animadas (ver js/cinema.js) ---------- */
@@ -317,15 +337,19 @@ export class Game {
     if (this.state !== 'title' || !SLOTS.includes(n)) return;
     let d = Profiles.read(n);
     if (!d) { d = Profiles.blank(name); Profiles.write(n, d); }
+    const target = WORLDS[d.world] ? d.world : 'islas';
+    if (target !== this.world.id) { this.travelReload({ slot: n, world: target }); return; }   // el perfil está en otro mundo
     this.slot = n;
     restore(this, d);
+    store.set('ultimoMundo', this.world.id);
     this.storyOn = this.params.get('cine') !== '0';
-    const intro = this.storyOn && !this.story.seen.prologo;
-    this.start(fromButton, intro);
+    const arriving = !!(this.travel && this.travel.arrive);
+    const intro = this.storyOn && !arriving && this.world.id === 'islas' && !this.story.seen.prologo;
+    this.start(fromButton, intro || arriving);
     if (intro) {
       this.step(STEP, true);                               // coloca campanas, cajas y farolillos en su sitio
       this.cinema.play('prologo', () => this.welcome());
-    }
+    } else if (arriving) this.arrive();
     this.saveNow(true);
   }
   /* Guarda la partida en la ranura en uso. Con quiet no muestra el avisito "guardado". */
@@ -339,6 +363,17 @@ export class Game {
   }
   /* Pide un guardado en un momento (tras recoger algo, cumplir una misión, subir de nivel…). */
   saveSoon() { this.saveT = Math.max(this.saveT, AUTOSAVE - 1.5); }
+  /* Recién llegada en el cohete: Pip sale junto al cohete y se ve la escena de llegada. */
+  arrive(test) {
+    const S = this.spots;
+    if (S.rocketExit) { this.player.teleport(S.rocketExit); this.player.lastSafe.copy(this.player.pos); this.cam.target.copy(this.player.pos); }
+    if (S.rocketExitYaw !== undefined) this.cam.yaw = S.rocketExitYaw;
+    this.loadedPos = false;
+    this.step(STEP, true);
+    const first = 'llegada_' + this.world.id;
+    const sid = this.story.seen[first] || test === 'corta' ? 'aterrizaje' : first;
+    if (!this.cinema.play(sid, () => this.welcome())) this.welcome();
+  }
   saveAndQuit() {
     this.saveNow(true);
     this.slot = 0;                       // nada más que guardar mientras la página se recarga
@@ -356,6 +391,7 @@ export class Game {
   buyOutfit(id) {
     const o = OUTFITS[id];
     if (!o || this.outfits.owned.includes(id) || this.sparks < o.price) return false;
+    if (o.shop && !(this.state === 'tienda' && this.shopNpc === o.shop)) return false;      // ropa exclusiva: solo en su tienda
     this.sparks -= o.price;
     this.outfits.owned.push(id);
     this.wearOutfit(id);
@@ -398,6 +434,8 @@ export class Game {
     if (this.state === 'menu') { this.closeMenu(); return 'sigue'; }
     if (this.state === 'dialog') { this.advanceDialog(); return 'dialogo'; }
     if (this.state === 'cine') { this.cinema.finish(true); return 'saltar'; }
+    if (this.state === 'tienda') { this.closeShop(); return 'cerrar'; }
+    if (this.state === 'galaxia') { this.closeGalaxy(); return 'cerrar'; }
     if (this.state === 'dead' || this.state === 'ending') return 'nada';
     if (this.menus.back()) return 'cerrar';
     return 'salir';
@@ -802,6 +840,14 @@ export class Game {
     this.input.enabled = true;
     this.saveSoon();
   }
+  splash() {
+    const pl = this.player;
+    this.fx.burst(pl.center, '#bfe8ff', 26, 4, 0.16, 0.8);
+    Audio.play('swipe');
+    pl.teleport(pl.lastSafe);
+    this.cam.target.copy(pl.pos);
+    this.hud.toast('¡Splash! Pip no sabe nadar: vuelve a la orilla');
+  }
   fellOff() {
     const pl = this.player;
     pl.teleport(pl.lastSafe);
@@ -825,64 +871,94 @@ export class Game {
       this.hud.toast('Premio: +60 chispas y un objeto');
     }
     if (m.fragment) {
-      const n = this.missions.fragments();
+      const W = this.world, P = this.props, n = this.missions.fragments();
       this.sparks += 40;
-      this.hud.toast('Fragmento de Nova obtenido (' + n + '/4)');
+      this.hud.toast(`Fragmento de ${W.star} obtenido (${n}/${W.fragSlots})`);
       this.fx.burst(this.player.center, '#fff0b0', 40, 5, 0.2, 1.2);
-      this.props.gate.setLights(Math.min(3, n));
-      this.props.nova.setLit(n / 4 * 0.5);
-      setTimeout(() => this.playStory('recuerdo' + n), 1600);
-      if (n >= 3 && !this.props.gate.open) {
-        this.props.gate.openGate();
-        setTimeout(() => this.hud.toast('El portón del Santuario de Nova se abrió (al sur)'), 1500);
-        this.missions.state.guardian.discovered = true;
-        setTimeout(() => this.playStory('porton'), 1700);
+      if (P.gate) P.gate.setLights(Math.min(W.gateNeed, n));
+      if (P.nova) P.nova.setLit(n / W.fragSlots * 0.5);
+      setTimeout(() => this.playStory(W.scenes.memory + n), 1600);
+      if (n >= W.gateNeed && P.gate && !P.gate.open) {
+        P.gate.openGate();
+        setTimeout(() => this.hud.toast(W.texts.gateOpen), 1500);
+        if (this.missions.state[W.finalMission]) this.missions.state[W.finalMission].discovered = true;
+        setTimeout(() => this.playStory(W.scenes.gate), 1700);
       }
     }
   }
 
+  /* ---------- jefe final de cada mundo (ver js/entities/bosses.js) ---------- */
   startBoss() {
     if (this.boss) return;
-    const c = REGIONS.nova.center;
-    this.boss = new Guardian(this, this.v3(c[0], 0.3, c[1] + 2));
+    const a = this.spots.arena;
+    this.boss = new Boss(this, this.v3(a.c[0], a.y || 0.3, a.c[1] + 2), BOSSES[this.world.boss]);
     this.enemies.push(this.boss);
-    this.hud.banner('El Guardián de Nova', 'protector de la estrella dormida');
-    this.playStory('guardian');
+    this.hud.banner(this.world.texts.bossName, this.world.texts.bossSub);
+    this.playStory(this.world.scenes.boss);
+  }
+  /* El jefe quedó vencido (al pelear o al cargar la partida): la estrella despierta y se puede viajar. */
+  markBossDone(quiet) {
+    this.bossDone = true;
+    const P = this.props;
+    if (P.nova) { if (quiet) P.nova.awake = 12; else P.nova.wake(); }
+    if (this.world.afterBossNight) this.sky.extraNight = 1;
+    if (P.rocket) P.rocket.setReady(true);
   }
   bossDefeated() {
-    this.bossDone = true;
+    this.markBossDone(false);
     this.missions.event('boss');
-    this.props.nova.wake();
-    this.sky.extraNight = 1;
-    // premio: un cofre Nova aparece en el santuario
-    const nc = REGIONS.nova.center;
-    const ch = new Chest(this, { pos: [nc[0] + 3, 0.6, nc[1] - 2], region: 'nova', type: 'nova' });
+    // premio: un cofre Nova aparece en la arena
+    const a = this.spots.arena;
+    const ch = new Chest(this, { pos: [a.c[0] + 3, a.y || 0.6, a.c[1] - 2], region: this.world.bossRegion, type: 'nova' });
     this.props.chests.push(ch);
     this.saveSoon();
-    if (this.storyOn && !this.story.seen.final) setTimeout(() => this.playStory('final', () => this.showEnding()), 2600);
+    const fin = this.world.scenes.final;
+    if (this.storyOn && !this.story.seen[fin]) setTimeout(() => this.playStory(fin, () => this.showEnding()), 2600);
     else setTimeout(() => this.showEnding(), 6500);
   }
   showEnding() {
     this.state = 'ending';
     this.input.enabled = false;
     if (document.exitPointerLock) document.exitPointerLock();
-    const s = Math.floor(this.time);
-    $('endStats').innerHTML = `Tiempo: ${Math.floor(s / 60)} min ${s % 60} s · Nivel ${this.level} · ${this.kills} sombras · ${Object.values(this.items).reduce((a, b) => a + b, 0)} objetos<br>Las islas vuelven a brillar. Pero las sombras no descansan… y un Cofre Nova te espera en el santuario.`;
+    const T = this.world.texts, s = Math.floor(this.time);
+    $('ending').querySelector('.kicker').textContent = T.endKicker;
+    $('ending').querySelector('h2').textContent = T.endTitle;
+    $('endStats').innerHTML = `Tiempo: ${Math.floor(s / 60)} min ${s % 60} s · Nivel ${this.level} · ${this.kills} sombras · ${Object.values(this.items).reduce((a, b) => a + b, 0)} objetos<br>${T.endText}`;
     $('ending').classList.remove('hidden');
   }
+  /* Al cerrar la pantalla final: seguir explorando (y, en las Islas, Brío destapa el cohete). */
+  continueAfterEnding() {
+    $('ending').classList.add('hidden');
+    this.state = 'play';
+    this.input.enabled = true;
+    this.saveSoon();
+    const next = WORLD_ORDER[WORLD_ORDER.indexOf(this.world.id) + 1];
+    if (this.world.scenes.rocket) this.playStory(this.world.scenes.rocket, () => this.hud.toast(next ? 'El Cohete Avellana te espera: súbete para viajar a otra galaxia' : ''));
+  }
 
-  /* ---------- interacción ---------- */
+  /* ---------- interacción: cofres, PNJ, lechuza y cohete ---------- */
   nearestInteractable() {
-    const p = this.player.pos;
+    const p = this.player.pos, P = this.props;
     let best = null, bd = 1.8;
-    for (const c of this.props.chests) {
+    for (const c of P.chests) {
       if (c.opened) continue;
       const d = c.p.distanceTo(p);
       if (d < bd) { bd = d; best = { type: 'chest', obj: c }; }
     }
-    const o = this.props.owl.p;
-    if (Math.hypot(o.x - p.x, o.z - p.z) < 2.3) best = { type: 'owl' };
+    for (const n of P.npcs) {
+      const d = Math.hypot(n.p.x - p.x, n.p.z - p.z);
+      if (d < 2.2 && d < bd + 0.4) { bd = d; best = { type: 'npc', obj: n }; }
+    }
+    if (P.owl && Math.hypot(P.owl.p.x - p.x, P.owl.p.z - p.z) < 2.3) best = { type: 'owl' };
+    if (P.rocket && P.rocket.ready && Math.hypot(P.rocket.p.x - p.x, P.rocket.p.z - p.z) < 3.2) best = { type: 'rocket' };
     return best;
+  }
+  interactLabel(it) {
+    if (it.type === 'chest') return ['Abrir: ' + it.obj.label(), 'Abrir'];
+    if (it.type === 'owl') return ['Hablar con la Abuela Lechuza', 'Hablar'];
+    if (it.type === 'rocket') return ['Subir al Cohete Avellana', 'Subir'];
+    const d = it.obj.def;
+    return [d.shop ? `Tienda de ${d.name}` : `Hablar con ${d.name}`, d.shop ? 'Tienda' : 'Hablar'];
   }
   interact(it) {
     if (it.type === 'chest') {
@@ -899,33 +975,128 @@ export class Game {
       else { Audio.play('deny'); this.hud.toast('Necesitas ' + cost + ' chispas'); }
     } else if (it.type === 'owl') {
       // la primera charla enseña a jugar; después la lechuza cuenta más de la historia según el avance
-      this.dialogLines = this.owlDone ? owlLines(this.missions.fragments(), this.props.gate.open, !!this.bossDone) : OWL_INTRO;
-      this.owlLine = 0;
-      this.openDialog();
+      const first = !this.owlDone;
+      const lines = first ? OWL_INTRO : owlLines(this.missions.fragments(), !!(this.props.gate && this.props.gate.open), !!this.bossDone);
+      this.openDialog('Abuela Lechuza', lines, () => {
+        this.owlDone = true;
+        this.missions.discoverAll();
+        this.saveSoon();
+        // el jugador elige qué misión hacer primero
+        if (first || !this.missions.tracked) setTimeout(() => this.openJournal(true, 'misiones'), 300);
+      });
+    } else if (it.type === 'npc') {
+      const n = it.obj, d = n.def;
+      this.openDialog(`${d.name}, ${d.title}`, d.lines(this), () => {
+        const first = !this.talked[n.id];
+        this.talked[n.id] = 1;
+        // el guía de cada mundo cuenta las misiones: al terminar de hablar se descubren
+        if (this.world.guide === n.id) {
+          this.missions.discoverAll();
+          if (first || !this.missions.tracked) setTimeout(() => this.openJournal(true, 'misiones'), 300);
+        }
+        if (d.shop) setTimeout(() => this.openShop(n.id), 150);
+        this.saveSoon();
+      });
+    } else if (it.type === 'rocket') {
+      this.openGalaxy();
     }
   }
-  openDialog() {
+  /* Diálogo genérico: quién habla, sus frases y qué pasa al terminar. */
+  openDialog(who, lines, after) {
+    this.dialog = { who, lines, i: 0, after };
     this.state = 'dialog';
     $('dialog').classList.remove('hidden');
-    $('dialog').querySelector('.who').textContent = 'Abuela Lechuza';
-    $('dialog').querySelector('.text').textContent = this.dialogLines[this.owlLine];
+    $('dialog').querySelector('.who').textContent = who;
+    $('dialog').querySelector('.text').textContent = lines[0];
     $('dialog').querySelector('.hint').textContent = this.k('Haz clic o pulsa E para continuar', 'Toca para continuar');
     Audio.play('select');
   }
   advanceDialog() {
-    this.owlLine++;
-    if (this.owlLine >= this.dialogLines.length) {
+    const D = this.dialog;
+    if (!D) return;
+    D.i++;
+    if (D.i >= D.lines.length) {
       $('dialog').classList.add('hidden');
       this.state = 'play';
-      this.owlDone = true;
-      this.missions.discoverAll();
-      this.saveSoon();
-      // el jugador elige qué misión hacer primero
-      if (!this.missions.tracked) setTimeout(() => this.openJournal(true, 'misiones'), 300);
+      this.dialog = null;
+      if (D.after) D.after();
       return;
     }
-    $('dialog').querySelector('.text').textContent = this.dialogLines[this.owlLine];
+    $('dialog').querySelector('.text').textContent = D.lines[D.i];
     Audio.play('select');
+  }
+
+  /* ---------- tienda de un PNJ (ropa que solo se vende en su mundo) ---------- */
+  openShop(npcId) {
+    if (this.state !== 'play') return;
+    this.state = 'tienda';
+    this.shopNpc = npcId;
+    if (document.exitPointerLock) document.exitPointerLock();
+    $('shop').classList.remove('hidden');
+    this.menus.renderShop(npcId);
+  }
+  closeShop() {
+    if (this.state !== 'tienda') return;
+    $('shop').classList.add('hidden');
+    this.state = 'play';
+    this.shopNpc = null;
+  }
+
+  /* ---------- mapa galáctico y viajes (ver js/worlds/) ---------- */
+  /* ¿Se puede viajar a este mundo? (hay que haber terminado el anterior) */
+  canTravel(id) {
+    const prev = previousWorld(id);
+    return !prev || doneWorlds(this).includes(prev);
+  }
+  openGalaxy() {
+    if (this.state !== 'play') return;
+    this.state = 'galaxia';
+    if (document.exitPointerLock) document.exitPointerLock();
+    $('galaxy').classList.remove('hidden');
+    this.menus.renderGalaxy();
+  }
+  closeGalaxy() {
+    if (this.state !== 'galaxia') return;
+    $('galaxy').classList.add('hidden');
+    this.state = 'play';
+  }
+  /* Viaje: escena de despegue en este mundo → se guarda → la página se recarga en el mundo de destino. */
+  travelTo(dest) {
+    if (!WORLDS[dest] || dest === this.world.id || !this.canTravel(dest)) return;
+    this.closeGalaxy();
+    const go = () => {
+      if (this.slot) {
+        this.saveNow(true);
+        const d = Profiles.read(this.slot);
+        if (d) { d.world = dest; Profiles.write(this.slot, d); }
+      }
+      this.slot = 0;                                   // nada más que guardar mientras la página se recarga
+      this.travelReload({ slot: this.slot0 || 0, world: dest, arrive: true });
+    };
+    this.slot0 = this.slot;
+    if (!this.cinema.play('viaje_' + dest, go, { dest })) go();
+  }
+  /* Recarga la página en otro mundo (con la ranura que hay que cargar al llegar). */
+  travelReload(info) {
+    try { sessionStorage.setItem('starnova.viaje', JSON.stringify(info)); } catch (e) { /* sin almacenamiento */ }
+    const w = WORLDS[info.world];
+    const ld = document.getElementById('loading');
+    if (!ld) {
+      const div = document.createElement('div');
+      div.id = 'loading'; div.className = 'loading';
+      div.innerHTML = '<div class="spinner"></div><div id="loadingText"></div>';
+      document.getElementById('app').append(div);
+    }
+    document.getElementById('loadingText').textContent = info.arrive ? `Viajando a la ${w.galaxy}…` : `Cargando ${w.name}…`;
+    if (!info.slot) {                                    // partida de prueba: se viaja con la URL
+      const q = new URLSearchParams();
+      if (this.params.get('ojos')) q.set('ojos', '1');
+      q.set('auto', '1'); q.set('mundo', info.world);
+      if (info.arrive) q.set('llegada', '1');
+      setTimeout(() => { location.href = 'index.html?' + q; }, 60);
+      return;
+    }
+    setTimeout(() => location.reload(), 60);
   }
 
   /* ---------- director de enemigos: oleadas por región (dificultad que crece con el tiempo) ----------
@@ -998,7 +1169,12 @@ export class Game {
     const t = now / 1000;
     const inp = this.input;
 
-    if (inp.pressed.pause) { if (this.state === 'menu') this.closeMenu(); else this.openMenu('sistema'); }
+    if (inp.pressed.pause) {
+      if (this.state === 'menu') this.closeMenu();
+      else if (this.state === 'tienda') this.closeShop();
+      else if (this.state === 'galaxia') this.closeGalaxy();
+      else this.openMenu('sistema');
+    }
     else if (inp.pressed.journal) { if (this.state === 'menu') this.closeMenu(); else this.openMenu(); }
     if (inp.pressed.mute) this.toggleMute();
     if (this.state === 'dialog' && (inp.pressed.interact || inp.pressed.jump)) this.advanceDialog();
@@ -1047,6 +1223,7 @@ export class Game {
     this.sun.target.position.copy(this.player.pos);
     this.player.animate(dt, t);
     if (this.state === 'menu' && this.menuTab === 'trajes') this.menus.wardrobeFrame(dt);
+    else if (this.state === 'tienda') this.menus.shopFrame(dt);
     this.renderer.render(this.scene, this.camera);
     if (this.state !== 'title' && this.state !== 'cine') { this.hud.update(dt); this.hud.draw(this.camera, dt); }
     inp.consume();
@@ -1109,7 +1286,9 @@ export class Game {
       if (this.shieldCd <= 0) this.shield = Math.min(st.maxShield, this.shield + st.maxShield * 0.25 * dt);
     }
     if (pl.burnT > 0) { pl.burnT -= dt; if (!this.god && B.invuln <= 0) this.hp -= 3 * this.dmgScale() * dt; if (Math.random() < 0.3) this.fx.emit(pl.pos.x, pl.pos.y + 0.3, pl.pos.z, 0, 1, 0, '#ff9a5c', 0.12, 0.4, 0); if (this.hp <= 0) this.die(); }
-    if (pl.pos.distanceTo(this.props.campfire.p) < 2.6) this.hp = Math.min(st.maxHp, this.hp + st.maxHp * 0.12 * dt);
+    if (this.props.campfire && pl.pos.distanceTo(this.props.campfire.p) < 2.6) this.hp = Math.min(st.maxHp, this.hp + st.maxHp * 0.12 * dt);
+    // agua honda (lagos y ríos): Pip no sabe nadar y vuelve a la orilla
+    if (this.spots.inWater && this.spots.inWater(pl.pos)) this.splash();
 
     for (const e of this.enemies) if (!e.dead) e.update(dt, this.time);
     for (const p of this.projectiles) if (!p.dead) p.update(dt);
@@ -1121,11 +1300,14 @@ export class Game {
     for (const c of P.crates) c.update(dt);
     for (const c of P.chests) c.update(dt, this.time);
     for (const l of P.lanterns) l.update(dt);
-    P.bridge.update(dt);
-    P.gate.update(dt);
-    P.campfire.update(dt, this.time);
-    P.owl.update(dt, this.time);
-    P.nova.update(dt, this.time);
+    if (P.bridge) P.bridge.update(dt);
+    if (P.gate) P.gate.update(dt);
+    if (P.campfire) P.campfire.update(dt, this.time);
+    if (P.owl) P.owl.update(dt, this.time);
+    if (P.nova) P.nova.update(dt, this.time);
+    for (const n of P.npcs) n.update(dt, this.time);
+    if (P.rocket) P.rocket.update(dt, this.time);
+    for (const x of P.extras) x.update(dt, this.time);
     for (const p of this.pickups) if (!p.dead) p.update(dt, this.time);
     for (const d of this.debris) if (!d.dead) d.update(dt);
 
@@ -1152,8 +1334,8 @@ export class Game {
       this.missions.event('region', reg);
     }
     // jefe
-    const nc = REGIONS.nova.center;
-    if (P.gate.open && !this.boss && !this.bossDone && Math.hypot(pl.pos.x - nc[0], pl.pos.z - nc[1]) < 13) this.startBoss();
+    const ar = this.spots.arena;
+    if (ar && P.gate && P.gate.open && !this.boss && !this.bossDone && Math.hypot(pl.pos.x - ar.c[0], pl.pos.z - ar.c[1]) < (ar.trigger || 13)) this.startBoss();
 
     // guardado automático (solo con los pies en el suelo)
     this.saveT += dt;
@@ -1162,8 +1344,8 @@ export class Game {
     // interacción
     const it = this.nearestInteractable();
     if (it) {
-      const what = it.type === 'chest' ? 'Abrir: ' + it.obj.label() : 'Hablar con la Abuela Lechuza';
-      this.hud.prompt(this.k('E · ' + what, what), it.type === 'chest' ? 'Abrir' : 'Hablar');
+      const [what, btn] = this.interactLabel(it);
+      this.hud.prompt(this.k('E · ' + what, what), btn);
       if (pressed.interact) this.interact(it);
     } else this.hud.prompt(null);
   }

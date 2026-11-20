@@ -82,7 +82,7 @@ export class HUD {
   buildFrags() {
     const f = $('frags');
     f.innerHTML = '';
-    for (let i = 0; i < 4; i++) { const d = document.createElement('div'); d.className = 'frag'; f.append(d); }
+    for (let i = 0; i < this.game.world.fragSlots; i++) { const d = document.createElement('div'); d.className = 'frag'; f.append(d); }
   }
 
   addItem(id, silent) {

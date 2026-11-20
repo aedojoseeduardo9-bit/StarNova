@@ -193,7 +193,7 @@ const SCENES = [
         estrellas: document.querySelectorAll('.slot[data-slot="2"] .stars .on').length,
       }));
       check(b.perfiles, 'tras salir no volvió a los perfiles');
-      check(/Nuez/.test(b.texto) && b.estrellas === 1, 'la ranura no muestra el perfil guardado');
+      check(/Nuez/.test(b.texto) && /Islas del Cielo/.test(b.texto) && b.estrellas === 0, 'la ranura no muestra el perfil guardado (' + b.texto.replace(/\s+/g, ' ') + ')');
       await page.click('.slot[data-slot="2"] .go');
       await page.waitForTimeout(1500);
       const c = await page.evaluate(() => {
