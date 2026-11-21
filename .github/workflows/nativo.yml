@@ -1,0 +1,152 @@
+# Versión NATIVA (Godot 4.7, carpeta godot/): prueba el juego con "los ojos nativos" y compila las apps
+# para Mac (universal: Intel y Apple), Windows, Linux y Android. En ramas solo prueba y compila;
+# en main publica todo en el release "nativo" (marcado como prelanzamiento para no tocar el enlace de la APK web).
+name: Nativo (Godot)
+on:
+  push:
+    paths: ['godot/**', '.github/workflows/nativo.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nativo-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GODOT_VERSION: "4.7"
+jobs:
+  nativo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot y plantillas de exportación (caché)
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-stable-v1
+
+      - name: Descargar Godot ${{ env.GODOT_VERSION }}
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          V="$GODOT_VERSION-stable"
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/$GODOT_VERSION.stable
+          curl -sSL -f -o g.zip "https://github.com/godotengine/godot/releases/download/$V/Godot_v${V}_linux.x86_64.zip"
+          unzip -q g.zip -d ~/godot && rm g.zip
+          curl -sSL -f -o t.tpz "https://github.com/godotengine/godot/releases/download/$V/Godot_v${V}_export_templates.tpz"
+          unzip -q t.tpz -d tpl && mv tpl/templates/* ~/.local/share/godot/export_templates/$GODOT_VERSION.stable/ && rm -rf t.tpz tpl
+
+      - name: Pantalla virtual y OpenGL por software
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb libgl1-mesa-dri libglx-mesa0 libegl1 qrencode
+          echo "GODOT=$(ls ~/godot/Godot_v*_linux.x86_64)" >> "$GITHUB_ENV"
+
+      - name: Los ojos nativos (capturas y pruebas)
+        run: bash godot/tools/ojos_nativo.sh "$GODOT" ojos_nativo
+
+      - name: Publicar capturas (release diagnostico-nativo)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d ojos_nativo ] || exit 0
+          gh release delete diagnostico-nativo --yes --cleanup-tag || true
+          gh release create diagnostico-nativo ojos_nativo/*.png ojos_nativo/report.txt \
+            --title "Capturas de la versión nativa (${GITHUB_REF_NAME})" --notes "Capturas y pruebas de los ojos nativos." \
+            --prerelease --latest=false --target "$(git rev-parse HEAD)" || true
+
+      - name: Java 17 y Android SDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0"
+
+      # La misma llave de firma de la APK web (caché privada del repositorio o Secrets); nunca va en el repositorio.
+      - name: Recuperar llave de firma (caché privada)
+        uses: actions/cache@v4
+        with:
+          path: ~/.starnova-signing
+          key: starnova-signing-v1
+
+      - name: Preparar firma y número de versión
+        env:
+          KS_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.SIGNING_PASSWORD }}
+          KS_ALIAS: ${{ secrets.SIGNING_ALIAS }}
+        run: |
+          D="$HOME/.starnova-signing"
+          mkdir -p "$D"
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$D/secret.jks"; KS="$D/secret.jks"; P="$KS_PASS"; A="${KS_ALIAS:-starnova}"
+          else
+            if [ ! -f "$D/release.jks" ]; then
+              openssl rand -hex 16 > "$D/pass.txt"
+              keytool -genkeypair -keystore "$D/release.jks" -storepass "$(cat "$D/pass.txt")" -keypass "$(cat "$D/pass.txt")" \
+                -alias starnova -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Star Nova, O=nioro, C=CL"
+            fi
+            KS="$D/release.jks"; P="$(cat "$D/pass.txt")"; A="starnova"
+          fi
+          echo "::add-mask::$P"
+          {
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KS"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$A"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$P"
+          } >> "$GITHUB_ENV"
+          # el SDK de Android que instaló setup-android y el número de versión (minutos: siempre crece)
+          S="$HOME/.config/godot/editor_settings-${GODOT_VERSION}.tres"
+          sed -i "s#^export/android/android_sdk_path = .*#export/android/android_sdk_path = \"$ANDROID_HOME\"#" "$S"
+          sed -i "s#^export/android/java_sdk_path = .*#export/android/java_sdk_path = \"$JAVA_HOME\"#" "$S"
+          grep -q "^export/android/android_sdk_path" "$S" || echo "export/android/android_sdk_path = \"$ANDROID_HOME\"" >> "$S"
+          sed -i "s/^version\/code=.*/version\/code=$(( $(date +%s) / 60 ))/" godot/export_presets.cfg
+          sed -i "s/^version\/name=.*/version\/name=\"0.7.${GITHUB_RUN_NUMBER}\"/" godot/export_presets.cfg
+
+      - name: Exportar Mac, Windows, Linux y Android
+        run: |
+          cd godot
+          mkdir -p build/linux build/windows build/macos build/android
+          for P in Linux Windows macOS Android; do
+            case $P in
+              Linux) OUT=build/linux/StarNova.x86_64 ;;
+              Windows) OUT=build/windows/StarNova.exe ;;
+              macOS) OUT=build/macos/StarNova_Mac.zip ;;
+              Android) OUT=build/android/StarNova_nativo.apk ;;
+            esac
+            "$GODOT" --headless --path . --export-release "$P" "$OUT" 2>&1 | tee "build/export_$P.log"
+            [ -s "$OUT" ] || { echo "::error::No se pudo exportar $P"; grep -E "ERROR|error" "build/export_$P.log" | head -20; exit 1; }
+          done
+          ls -la build/*/
+
+      - name: Empaquetar
+        run: |
+          mkdir -p dist
+          (cd godot/build/linux && zip -q -9 ../../../dist/StarNova_Linux.zip StarNova.x86_64)
+          (cd godot/build/windows && zip -q -9 ../../../dist/StarNova_Windows.zip StarNova.exe)
+          cp godot/build/macos/StarNova_Mac.zip dist/
+          cp godot/build/android/StarNova_nativo.apk dist/
+          qrencode -o dist/qr_nativo.png -s 14 -m 3 "https://github.com/${{ github.repository }}/releases/download/nativo/StarNova_nativo.apk"
+          ls -la dist
+
+      - name: Guardar compilaciones (artefacto)
+        uses: actions/upload-artifact@v4
+        with:
+          name: starnova-nativo
+          path: dist/
+          retention-days: 14
+
+      - name: Publicar release "nativo" (solo main)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete nativo --yes --cleanup-tag || true
+          gh release create nativo dist/* \
+            --title "Star Nova nativo (compilación ${GITHUB_RUN_NUMBER})" \
+            --notes "Versión nativa hecha con Godot (etapa 1: El Claro, Pip, movimiento y controles). Mac: StarNova_Mac.zip (Intel y Apple). Windows: StarNova_Windows.zip. Linux: StarNova_Linux.zip. Android: StarNova_nativo.apk (se instala aparte de la Star Nova de siempre)." \
+            --prerelease --latest=false --target "$(git rev-parse HEAD)"
