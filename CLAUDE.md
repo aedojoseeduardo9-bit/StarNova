@@ -54,6 +54,34 @@ Con GitHub disponible:
   enemigos, música y escenas (viaje, llegada, recuerdos, puerta, jefe y final). Lista de PNJ e historia completa en
   `docs/StarNova_Historia_y_Datos.docx`.
 
+## Versión NATIVA (Godot) — en construcción por etapas (el dueño la pidió: "que corra nativo en todo")
+La web (Three.js) sigue siendo el juego publicado mientras la nativa la alcanza. La nativa vive en **`godot/`**
+(Godot **4.7**, GDScript, renderizador *Compatibility* = OpenGL, físicas **Jolt**) y exporta apps nativas a
+**Mac (universal: Intel y Apple)**, **Windows**, **Linux** y **Android** (paquete aparte `com.nioro.starnova.nativo`,
+"Star Nova (nativo)", firmado con la misma llave de CI). iPhone/iPad: más adelante (pide Xcode en un Mac y cuenta de Apple).
+- Etapas: **1 (hecha)** base: El Claro, Pip (modelo y animación), movimiento, doble salto, voltereta, cámara, controles
+  (teclado/ratón, mando y táctil), cielo, niebla, hoguera y cajas con física · **2** Islas completas (regiones, enemigos,
+  oleadas, misiones, cofres, jefe, menús y 3 perfiles) · **3** Verdalia, Prismara, cohete, escenas y música ·
+  **4** iPhone/iPad, ajustes de calidad y pasar partidas de la web (código de exportación).
+- Mapa: `scenes/main.tscn` + `scripts/main.gd` (arranque) · `builder.gd` (port de `js/world/builder.js`: una malla por
+  región con color por vértice, caras planas y sombra horneada; colisiones en un StaticBody3D, capa 1) ·
+  `world_islas.gd` (port de `layout.js`) · `palette.gd` (regiones) · `pip.gd` (modelo + animación de Pip) ·
+  `player.gd` (CharacterBody3D: capas 2=Pip, 4=objetos con física; sube escalones de 0.34) · `camera_rig.gd` ·
+  `controls.gd` (acciones creadas por código: mover_*, saltar, voltereta, pausa) · `touch_ui.gd` · `hud.gd` y `sfx.gd`
+  (autoloads `Hud` y `Sfx`; sonidos sintetizados al arrancar) · `sky_env.gd` (cielo, niebla, sol, nubes, islas lejanas) ·
+  `props.gd` (hoguera, cajas) · `fx.gd` (partículas) · `ojos.gd` (capturas y pruebas).
+- **Luz**: en el renderizador Compatibility la luz del sol y la ambiental se suman en espacio sRGB; los valores
+  (sol 0.16, ambiente 0.28) se ajustaron midiendo píxeles contra la web. Si se cambian, comparar capturas con la web.
+- **Ojos nativos** (usar siempre tras un cambio): `bash godot/tools/ojos_nativo.sh <godot> <carpeta>` (Xvfb + OpenGL por
+  software): capturas `NN_*.png` + `report.txt` con pruebas (mover, doble salto, voltereta, escalón, empujar caja, caída).
+  Falla si hay `FALLO` o errores de guion. Godot para Linux: `https://github.com/godotengine/godot/releases/download/4.7-stable/`.
+  Atajos: `-- --cam=yaw,pitch,dist`, `--tactil` (controles táctiles), `--luz=sol,ambiente`.
+- CI: `.github/workflows/nativo.yml` (solo corre con cambios en `godot/`): ojos nativos → capturas en el release
+  `diagnostico-nativo` → exporta las 4 plataformas → en main publica el release **`nativo`** (prelanzamiento:
+  no toca el enlace `latest` de la APK web). `build.yml` y `ojos.yml` ignoran `godot/**`.
+- Mac: la app no está notarizada por Apple; la primera vez macOS la bloquea → Ajustes del Sistema → Privacidad y
+  seguridad → "Abrir igualmente" (o en Terminal: `xattr -cr StarNova.app`).
+
 ## Tecnología (y por qué)
 - **Three.js 0.180** (render 3D) + **Rapier 3D 0.21** (físicas, el mismo motor que usa Bevy). Ambos están
   copiados en `vendor/` (no hace falta internet ni compilar). Licencias en `vendor/`.
@@ -288,6 +316,8 @@ Hecho (v0.6):
 - [x] Pruebas automáticas `prueba_escenas` (27 escenas en 3 mundos) y `prueba_viaje` (Islas → cohete → Gemini → guardar).
 - [x] Documento Word con la historia, los PNJ y los datos técnicos: `docs/StarNova_Historia_y_Datos.docx`.
 
+- [x] Versión nativa (Godot), etapa 1: El Claro, Pip, movimiento, cámara, controles y exportación a Mac/Windows/Linux/Android.
+- [ ] Versión nativa: etapas 2 (Islas completas), 3 (Verdalia, Prismara, cohete, escenas, música) y 4 (iPhone/iPad).
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
 - [ ] Mezcla de sonido más rica (instrumentos con más matices); que la noche cambie algo del juego (criaturas nocturnas).
 - [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.

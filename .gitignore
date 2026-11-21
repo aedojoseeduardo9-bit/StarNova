@@ -10,3 +10,7 @@ android/app/build/
 android/local.properties
 *.jks
 *.keystore
+
+# Godot (versión nativa): caché de importación y compilaciones
+godot/.godot/
+godot/build/

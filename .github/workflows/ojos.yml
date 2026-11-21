@@ -3,7 +3,7 @@
 name: Ojos (capturas)
 on:
   push:
-    paths-ignore: ['**.md', 'docs/**']
+    paths-ignore: ['**.md', 'docs/**', 'godot/**', '.github/workflows/nativo.yml']
   workflow_dispatch:
 permissions:
   contents: write
