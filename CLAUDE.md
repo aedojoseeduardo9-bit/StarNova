@@ -71,7 +71,8 @@ Con GitHub disponible:
   `ojos.sh`, `build.yml` y `compilar_apk.sh`. `--validar` comprueba que sin HD se obtiene exactamente la malla original.
   Las colisiones siguen siendo las de `mundo_<id>.json`. Calidad: **baja** = arquitectura sencilla sin pasto ni brillo;
   **media** (teléfonos) y **alta** = HD + pasto (media: la mitad, hasta 40 m) + brillo. Con HD, la versión sencilla solo
-  dibuja las sombras (más barato).
+  dibuja las sombras (más barato). **Pasto solo en Verdalia** (suelo natural): en las Islas del Cielo y en Prismara el
+  suelo es piedra pulida tipo concreto y ahí no va pasto (lo pidió el dueño; `CON_PASTO` en `pasto.py`).
 
 ## Ver el juego (los "ojos")
 1. **En el contenedor** (usar siempre tras un cambio): `bash godot/tools/ojos.sh <godot> <carpeta> [islas gemini soledad]`
@@ -130,10 +131,14 @@ Con GitHub disponible:
 - **En táctil nunca se muestran teclas de PC** (el dueño lo pidió): usa `game.k(textoPC, textoTáctil)`.
 - **No poner paneles que tapen el juego**: en pantalla solo el botoncito de la misión seguida. Nada de textos de
   explicación bajo la barra de vida.
+- **Interfaz distinta por aparato** (lo pidió el dueño; `Hud.set_touch`): en **Android/iPhone** el HUD de siempre (vida y
+  objetos abajo al centro, botones Menú/♪/❚❚ arriba a la derecha, botones táctiles); en **PC/Mac** uno propio: medalla del
+  nivel con vida, experiencia y objetos abajo a la izquierda, habilidades grandes con recarga en abanico abajo a la
+  derecha y sin botones en pantalla (teclado: Esc pausa, Tab menú, M sonido). Un solo proyecto para todos.
 - **Nada de "texto molesto"** (el dueño lo pidió): la pantalla de inicio solo lleva **STAR NOVA** y **Comenzar** (más
   "Actualizar" cuando hay una compilación nueva): sin lema, sin descripción, sin controles, sin versión. En el juego no
   hay avisos de ayuda ("habla con…", "elige tu misión…", teclas) ni la versión; la versión está en Menú → Sistema.
-  Los íconos de habilidades en PC van abajo a la derecha, sin letras.
+  Los íconos de habilidades en PC van sin letras.
 - **Menú como en una aventura clásica**: título → **perfiles** → juego. Una partida nueva solo nace al elegir una ranura
   vacía; el menú del juego no tiene "Nueva partida". Se guarda solo (cada 30 s, al abrir el menú, al cumplir misiones…).
 - **No crear fuentes infinitas de chispas** (oleadas con calma; los invocados no dan chispas).
@@ -152,7 +157,7 @@ Hecho:
 - [x] Sin versión web: la app nativa reemplaza a la anterior (mismo paquete) y recupera sus partidas.
 
 Pendiente / ideas:
-- [x] Gráficos HD (1.ª parte): arquitectura con ~5× polígonos y detalles, pasto con viento, brillo, Pip HD (más
+- [x] Gráficos HD (1.ª parte): arquitectura con ~5× polígonos y detalles, pasto con viento (Verdalia), brillo, Pip HD (más
   polígonos, pelaje con borde de luz, ojos que brillan).
 - [ ] Gráficos HD (2.ª parte): enemigos, PNJ y jefes con más polígonos (`data/modelos.json`); agua con reflejos;
   terreno de Verdalia más suave.

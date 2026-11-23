@@ -36,6 +36,10 @@ var hp_text: Label
 var xp_bar: ProgressBar
 var items_box: HFlowContainer
 var skill_bar: Control
+var bottom_box: VBoxContainer
+var buttons_row: HBoxContainer
+var level_badge: PanelContainer
+var level_num: Label
 var prompt_panel: PanelContainer
 var prompt_label: Label
 var boss_box: VBoxContainer
@@ -233,6 +237,7 @@ func _build_hud() -> void:
 	brow.alignment = BoxContainer.ALIGNMENT_END
 	brow.add_theme_constant_override("separation", 6)
 	tr.add_child(brow)
+	buttons_row = brow
 	brow.add_child(small_button("Menú", func(): if game: game.press("journal")))
 	btn_mute = small_button("♪", func(): if game: game.toggle_mute())
 	brow.add_child(btn_mute)
@@ -252,6 +257,7 @@ func _build_hud() -> void:
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.add_theme_constant_override("separation", 4)
 	hud.add_child(bottom)
+	bottom_box = bottom
 	items_box = HFlowContainer.new()
 	items_box.alignment = FlowContainer.ALIGNMENT_CENTER
 	items_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -274,14 +280,33 @@ func _build_hud() -> void:
 	hp_wrap.add_child(hp_text)
 	xp_bar = _bar(Color("#9ce8d2"), 6)
 	bottom.add_child(xp_bar)
-	# habilidades (solo en PC): íconos con su recarga en la esquina de abajo a la derecha, sin textos
+	# habilidades (solo en PC): íconos grandes con su recarga abajo a la derecha, sin textos
 	skill_bar = Control.new()
 	skill_bar.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	skill_bar.position = Vector2(-196, -56)
-	skill_bar.size = Vector2(180, 40)
+	skill_bar.position = Vector2(-292, -84)
+	skill_bar.size = Vector2(272, 64)
 	skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	skill_bar.draw.connect(_draw_skills)
 	hud.add_child(skill_bar)
+	# nivel en una medalla junto a la vida (solo en PC)
+	level_badge = PanelContainer.new()
+	level_badge.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	level_badge.position = Vector2(20, -82)
+	level_badge.custom_minimum_size = Vector2(58, 58)
+	var lb := StyleBoxFlat.new()
+	lb.bg_color = Color(1, 1, 1, 0.8)
+	lb.set_corner_radius_all(29)
+	lb.border_color = Color("#9ce8d2")
+	lb.set_border_width_all(4)
+	level_badge.add_theme_stylebox_override("panel", lb)
+	level_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(level_badge)
+	level_num = Label.new()
+	level_num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	level_num.add_theme_font_override("font", serif)
+	_style(level_num, 28, INK)
+	level_badge.add_child(level_num)
 	# indicación para interactuar
 	prompt_panel = PanelContainer.new()
 	prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -378,9 +403,36 @@ func toast(text: String) -> void:
 func set_hint(text: String) -> void:
 	hint_label.text = text
 
+## Cada aparato con su interfaz:
+## - Teléfono/tableta (táctil): la de siempre: vida y objetos abajo al centro, botones Menú/♪/❚❚ arriba y los
+##   botones táctiles a la derecha.
+## - PC (Windows, Mac, Linux): vida, experiencia y objetos abajo a la izquierda junto a la medalla del nivel,
+##   habilidades grandes con su recarga abajo a la derecha y sin botones en pantalla (se usa el teclado:
+##   Esc pausa, Tab menú, M sonido). En ninguno hay textos de instrucciones.
 func set_touch(on: bool) -> void:
 	touch.visible = on
 	skill_bar.visible = not on
+	level_badge.visible = not on
+	level_label.visible = on
+	buttons_row.visible = on
+	if on:
+		_place(bottom_box, 0.5, -230, -112, 460, 100)
+		items_box.alignment = FlowContainer.ALIGNMENT_CENTER
+	else:
+		_place(bottom_box, 0.0, 90, -118, 380, 100)
+		items_box.alignment = FlowContainer.ALIGNMENT_BEGIN
+
+## Coloca un control anclado abajo (ax = 0 izquierda, 0.5 centro) con su esquina en (x, y) y su tamaño.
+func _place(c: Control, ax: float, x: float, y: float, w: float, h: float) -> void:
+	c.anchor_left = ax
+	c.anchor_right = ax
+	c.anchor_top = 1.0
+	c.anchor_bottom = 1.0
+	c.offset_left = x
+	c.offset_right = x + w
+	c.offset_top = y
+	c.offset_bottom = y + h
+	c.grow_vertical = Control.GROW_DIRECTION_BEGIN   # si hay muchos objetos crece hacia arriba (la vida no se sale)
 
 func set_night(on: bool) -> void:
 	if on == night:
@@ -523,6 +575,7 @@ func _process(dt: float) -> void:
 		frags_label.text = "★ %d / %d" % [g.missions.fragments(), int(g.W.fragSlots)]
 		sparks_label.text = "✦ %d" % floori(g.sparks)
 		level_label.text = "Nivel %d" % g.level
+		level_num.text = str(g.level)
 		hp_bar.value = maxf(0.0, g.hp / st.maxHp)
 		shield_bar.value = minf(1.0, g.shield / st.maxHp)
 		hp_text.text = "%d / %d%s" % [ceili(maxf(0.0, g.hp)), roundi(st.maxHp), (" +%d" % roundi(g.shield)) if g.shield > 0.5 else ""]
@@ -548,30 +601,40 @@ func _draw_skills() -> void:
 	if g == null or not is_instance_valid(g) or g.is_touch():
 		return
 	var ids := ["primary", "secondary", "utility", "special"]
-	var sz := 36.0
-	var gap := 8.0
-	var x0 := (skill_bar.size.x - (sz * 4 + gap * 3)) / 2.0
+	var sz := 58.0
+	var gap := 10.0
+	var x0 := skill_bar.size.x - (sz * 4 + gap * 3)
 	for i in ids.size():
 		var id: String = ids[i]
 		var r := Rect2(x0 + i * (sz + gap), 0, sz, sz)
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(1, 1, 1, 0.75)
-		sb.set_corner_radius_all(10)
+		sb.bg_color = Color(1, 1, 1, 0.8)
+		sb.set_corner_radius_all(16)
+		sb.border_color = Color(1, 0.86, 0.6, 0.95) if id == "special" else Color(1, 1, 1, 0.95)
+		sb.set_border_width_all(3)
+		sb.shadow_color = Color(0.35, 0.2, 0.3, 0.25)
+		sb.shadow_size = 4
 		skill_bar.draw_style_box(sb, r)
 		var c := r.get_center()
 		match id:
 			"primary":
-				skill_bar.draw_texture_rect(Datos.icon("atq_" + str(g.arsenal.attack.id)), r.grow(-4), false)
+				skill_bar.draw_texture_rect(Datos.icon("atq_" + str(g.arsenal.attack.id)), r.grow(-8), false)
 			"special":
-				skill_bar.draw_texture_rect(Datos.icon("pod_" + str(g.arsenal.power)), r.grow(-4), false)
+				skill_bar.draw_texture_rect(Datos.icon("pod_" + str(g.arsenal.power)), r.grow(-8), false)
 			"secondary":
-				skill_bar.draw_arc(c, 10, 0.3, TAU - 0.6, 20, Color("#de8f55"), 4.0, true)
+				skill_bar.draw_arc(c, 15, 0.3, TAU - 0.6, 28, Color("#de8f55"), 6.0, true)
 			"utility":
-				for o in [-4.0, 4.0]:
-					skill_bar.draw_polyline(PackedVector2Array([c + Vector2(o - 4, -8), c + Vector2(o + 4, 0), c + Vector2(o - 4, 8)]), Color("#5aa999"), 3.0, true)
+				for o in [-6.0, 6.0]:
+					skill_bar.draw_polyline(PackedVector2Array([c + Vector2(o - 6, -12), c + Vector2(o + 6, 0), c + Vector2(o - 6, 12)]), Color("#5aa999"), 4.5, true)
+		# recarga: un abanico que se va abriendo (sin números ni letras)
 		var f: float = g.skills.fraction(id) if id != "primary" else 0.0
 		if f > 0:
-			skill_bar.draw_rect(Rect2(r.position.x, r.position.y + sz * (1.0 - f), sz, sz * f), Color(0.25, 0.18, 0.32, 0.45))
+			var pts := PackedVector2Array([c])
+			var n := 24
+			for k in n + 1:
+				var a := -PI / 2 + TAU * (1.0 - f) + TAU * f * k / n
+				pts.append(c + Vector2(cos(a), sin(a)) * sz * 0.5)
+			skill_bar.draw_colored_polygon(pts, Color(0.25, 0.18, 0.32, 0.45))
 
 func _text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Color, outline := 3) -> void:
 	var w := sans.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
