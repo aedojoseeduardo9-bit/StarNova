@@ -285,9 +285,9 @@ func _islas() -> void:
 	var off: String = main.active[0]
 	main.toggle_item(off)
 	var ok_off: bool = not main.items.has(off) and main.bag.has(off)
-	var stored: Array = main.bag.keys().filter(func(i): return not main.active.has(i))
+	var stored: Array = main.bag.keys().filter(func(i): return not main.active.has(i) and i != off)
 	var ok_on: bool = main.toggle_item(stored[0]) and main.items.has(stored[0])
-	var ok_full: bool = main.active.size() == main.MAX_ACTIVOS and not main.toggle_item(off)
+	var ok_full: bool = main.active.size() == main.MAX_ACTIVOS and not main.toggle_item(off) and not main.items.has(off)
 	_check(ok5 and ok_off and ok_on and ok_full, "[prueba_mochila] solo 5 objetos activos; se activan y desactivan desde la Mochila")
 	main.bag = bag0
 	main.active = act0
