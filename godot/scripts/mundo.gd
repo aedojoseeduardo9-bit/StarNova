@@ -28,48 +28,27 @@ static func _v3(a) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 ## Arma el mundo dentro de root y devuelve los spots (con "extras": nodos animados creados aquí).
+## La arquitectura tiene dos versiones: la sencilla (data/mundo_<id>.bin) y la HD (data/mundo_<id>_hd.*, la arma
+## tools/hd_mundo.py desde la receta del mundo: más polígonos, detalles y pasto). set_quality() elige cuál se ve.
 static func build(game: Node, root: Node3D, id: String) -> Dictionary:
 	var d: Dictionary = Datos.load_json("res://data/mundo_%s.json" % id)
 	var bin := FileAccess.get_file_as_bytes("res://data/mundo_%s.bin" % id)
-	# mallas
-	for m in d.meshes:
-		var p := _f32(bin, m.p)
-		var c := _f32(bin, m.c)
-		var count := p.size() / 3
-		var verts := PackedVector3Array()
-		var norms := PackedVector3Array()
-		var cols := PackedColorArray()
-		verts.resize(count)
-		norms.resize(count)
-		cols.resize(count)
-		for t in range(0, count, 3):
-			var a := Vector3(p[t * 3], p[t * 3 + 1], p[t * 3 + 2])
-			var b := Vector3(p[t * 3 + 3], p[t * 3 + 4], p[t * 3 + 5])
-			var cc := Vector3(p[t * 3 + 6], p[t * 3 + 7], p[t * 3 + 8])
-			var n := (b - a).cross(cc - a)
-			n = n.normalized() if n.length_squared() > 1e-14 else Vector3.UP
-			# los datos vienen en sentido antihorario → Godot: horario
-			verts[t] = a
-			verts[t + 1] = cc
-			verts[t + 2] = b
-			norms[t] = n
-			norms[t + 1] = n
-			norms[t + 2] = n
-			for k in 3:
-				var src: int = t + [0, 2, 1][k]
-				cols[t + k] = Color(c[src * 3], c[src * 3 + 1], c[src * 3 + 2])
-		var arr := []
-		arr.resize(Mesh.ARRAY_MAX)
-		arr[Mesh.ARRAY_VERTEX] = verts
-		arr[Mesh.ARRAY_NORMAL] = norms
-		arr[Mesh.ARRAY_COLOR] = cols
-		var am := ArrayMesh.new()
-		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-		am.surface_set_material(0, world_material())
-		var mi := MeshInstance3D.new()
-		mi.mesh = am
-		mi.name = "Arquitectura"
-		root.add_child(mi)
+	var info := {"id": id, "d": d, "bin": bin, "hd": {}, "base": null, "hd_node": null, "fixed": null}
+	if FileAccess.file_exists("res://data/mundo_%s_hd.json" % id):
+		info.hd = Datos.load_json("res://data/mundo_%s_hd.json" % id)
+	var replace := {}
+	for i in info.hd.get("replace", []):
+		replace[int(i)] = true
+	info.replace = replace
+	# mallas que no tienen versión HD (terreno de Verdalia): siempre
+	var fixed := Node3D.new()
+	fixed.name = "Terreno"
+	root.add_child(fixed)
+	for i in d.meshes.size():
+		if not replace.has(i):
+			fixed.add_child(_mesh(bin, d.meshes[i]))
+	root.set_meta("mundo", info)
+	set_quality(root, Juego.quality())
 	# colisiones fijas
 	var body := StaticBody3D.new()
 	body.name = "Suelo"
@@ -133,6 +112,186 @@ static func build(game: Node, root: Node3D, id: String) -> Dictionary:
 			extras.append(node)
 	spots["extras_nodos"] = extras
 	return spots
+
+
+## Una malla de la versión sencilla: caras planas, colores por vértice (lineales).
+static func _mesh(bin: PackedByteArray, m: Dictionary) -> MeshInstance3D:
+	var p := _f32(bin, m.p)
+	var c := _f32(bin, m.c)
+	var count := p.size() / 3
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var cols := PackedColorArray()
+	verts.resize(count)
+	norms.resize(count)
+	cols.resize(count)
+	for t in range(0, count, 3):
+		var a := Vector3(p[t * 3], p[t * 3 + 1], p[t * 3 + 2])
+		var b := Vector3(p[t * 3 + 3], p[t * 3 + 4], p[t * 3 + 5])
+		var cc := Vector3(p[t * 3 + 6], p[t * 3 + 7], p[t * 3 + 8])
+		var n := (b - a).cross(cc - a)
+		n = n.normalized() if n.length_squared() > 1e-14 else Vector3.UP
+		# los datos vienen en sentido antihorario → Godot: horario
+		verts[t] = a
+		verts[t + 1] = cc
+		verts[t + 2] = b
+		norms[t] = n
+		norms[t + 1] = n
+		norms[t + 2] = n
+		for k in 3:
+			var src: int = t + [0, 2, 1][k]
+			cols[t + k] = Color(c[src * 3], c[src * 3 + 1], c[src * 3 + 2])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_COLOR] = cols
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	am.surface_set_material(0, world_material())
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.name = "Arquitectura"
+	return mi
+
+static func _var(bin: PackedByteArray, ref: Array):
+	return bytes_to_var(bin.slice(int(ref[0]), int(ref[0]) + int(ref[1])))
+
+## Elige la arquitectura que se ve: "baja" = la sencilla; "media" y "alta" = la HD con pasto
+## (en media el pasto es la mitad y se ve hasta más cerca). Arma cada versión la primera vez que hace falta.
+static func set_quality(root: Node3D, q: String) -> void:
+	if not root.has_meta("mundo"):
+		return
+	var info: Dictionary = root.get_meta("mundo")
+	var hd_ok: bool = not info.hd.is_empty() and q != "baja"
+	if hd_ok and info.hd_node == null:
+		info.hd_node = _build_hd(info)
+		root.add_child(info.hd_node)
+	if info.base == null:
+		var base := Node3D.new()
+		base.name = "ArquitecturaSencilla"
+		for i in info.d.meshes.size():
+			if info.replace.has(i):
+				base.add_child(_mesh(info.bin, info.d.meshes[i]))
+		root.add_child(base)
+		info.base = base
+	# con HD, la versión sencilla sigue ahí pero solo para las sombras (mucho más barato)
+	for mi in info.base.get_children():
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if hd_ok else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	if info.hd_node:
+		info.hd_node.visible = hd_ok
+		if hd_ok:
+			Pasto.calidad(info.hd_node.get_node_or_null("Pasto"), q)
+
+static func _build_hd(info: Dictionary) -> Node3D:
+	var node := Node3D.new()
+	node.name = "ArquitecturaHD"
+	var bin := FileAccess.get_file_as_bytes("res://data/mundo_%s_hd.bin" % info.id)
+	for m in info.hd.meshes:
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = _var(bin, m.v)
+		arr[Mesh.ARRAY_NORMAL] = _var(bin, m.n)
+		arr[Mesh.ARRAY_COLOR] = _var(bin, m.c)
+		arr[Mesh.ARRAY_INDEX] = _var(bin, m.i)
+		var am := ArrayMesh.new()
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		am.surface_set_material(0, world_material())
+		var mi := MeshInstance3D.new()
+		mi.mesh = am
+		mi.name = "Arquitectura"
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(mi)
+	if not info.hd.get("grass", []).is_empty():
+		node.add_child(Pasto.new(info.hd.grass, bin))
+	return node
+
+
+# ======================================================================== pasto
+## Matas de pasto (MultiMesh por cuadros de 24 m; solo se dibujan los cercanos). Se mecen con el viento.
+class Pasto extends Node3D:
+	const SH := """
+shader_type spatial;
+render_mode diffuse_lambert, specular_disabled, cull_disabled;
+varying float h;
+void vertex() {
+	h = clamp(VERTEX.y / 0.3, 0.0, 1.0);
+	vec3 wp = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	float w = sin(TIME * 1.6 + wp.x * 0.31 + wp.z * 0.23) * 0.6 + sin(TIME * 2.7 + wp.x * 0.9 - wp.z * 0.7) * 0.25;
+	vec3 off = vec3(w * 0.07, 0.0, w * 0.045) * h * h;
+	VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
+	NORMAL = vec3(0.0, 1.0, 0.0);
+}
+void fragment() {
+	ALBEDO = COLOR.rgb * mix(0.78, 1.1, h);
+	NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+}
+"""
+	static var _mesh_cache: ArrayMesh
+	static var _mat_cache: ShaderMaterial
+	var chunks: Array = []
+
+	static func tuft() -> ArrayMesh:
+		if _mesh_cache:
+			return _mesh_cache
+		var v := PackedVector3Array()
+		var rnd := RandomNumberGenerator.new()
+		rnd.seed = 11
+		for i in 7:
+			var a := TAU * i / 7.0 + rnd.randf_range(-0.3, 0.3)
+			var dir := Vector3(cos(a), 0, sin(a))
+			var side := Vector3(-dir.z, 0, dir.x)
+			var hgt := rnd.randf_range(0.17, 0.3)
+			var lean := rnd.randf_range(0.05, 0.12)
+			var base := dir * rnd.randf_range(0.0, 0.08)
+			var wdt := rnd.randf_range(0.022, 0.032)
+			var p0 := base - side * wdt
+			var p1 := base + side * wdt
+			var mid := base + dir * lean * 0.45 + Vector3(0, hgt * 0.55, 0)
+			var m0 := mid - side * wdt * 0.7
+			var m1 := mid + side * wdt * 0.7
+			var tip := base + dir * lean + Vector3(0, hgt, 0)
+			v.append_array([p0, m0, p1, p1, m0, m1, m0, tip, m1])
+		var n := PackedVector3Array()
+		n.resize(v.size())
+		n.fill(Vector3.UP)
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = v
+		arr[Mesh.ARRAY_NORMAL] = n
+		_mesh_cache = ArrayMesh.new()
+		_mesh_cache.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		_mat_cache = ShaderMaterial.new()
+		var s := Shader.new()
+		s.code = SH
+		_mat_cache.shader = s
+		_mesh_cache.surface_set_material(0, _mat_cache)
+		return _mesh_cache
+
+	func _init(list: Array, bin: PackedByteArray) -> void:
+		name = "Pasto"
+		var mesh := tuft()
+		for c in list:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.mesh = mesh
+			mm.instance_count = int(c.count)
+			mm.buffer = Mundo._var(bin, c.buf)
+			var mi := MultiMeshInstance3D.new()
+			mi.multimesh = mm
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = 60.0
+			add_child(mi)
+			chunks.append(mi)
+
+	static func calidad(p, q: String) -> void:
+		if p == null:
+			return
+		for mi in p.chunks:
+			var mm: MultiMesh = mi.multimesh
+			mm.visible_instance_count = -1 if q == "alta" else mm.instance_count / 2
+			mi.visibility_range_end = 62.0 if q == "alta" else 40.0
 
 
 # ======================================================================== agua (lago y río)

@@ -63,6 +63,15 @@ Con GitHub disponible:
   en `godot/iconos/` y la música y los sonidos en `godot/audio/*.ogg`. **Para añadir contenido basta editar esos datos.**
 - **Luz**: en Compatibility la luz del sol y la ambiental se suman en espacio sRGB; los valores (sol 0.16, ambiente 0.28)
   están ajustados a mano. Si se cambia el renderizador o la luz, comparar capturas antes y después.
+- **Arquitectura HD y pasto**: `godot/data/receta_<id>.json` guarda cada mundo pieza por pieza (caja, cilindro, torre,
+  arco, ventana…). `python3 godot/tools/hd_mundo.py` (+ `pasto.py`) lo rearma con más polígonos (bordes biselados,
+  columnas y cúpulas redondas, follaje con volumen, rocas con relieve, pinos de tres pisos, marcos y repisas en las
+  ventanas, zócalos y molduras en las torres, capiteles en los arcos) y reparte el pasto. Sale
+  `data/mundo_<id>_hd.json/.bin` (formato de `var_to_bytes`, carga instantánea). **No se suben a git**: los generan
+  `ojos.sh`, `build.yml` y `compilar_apk.sh`. `--validar` comprueba que sin HD se obtiene exactamente la malla original.
+  Las colisiones siguen siendo las de `mundo_<id>.json`. Calidad: **baja** = arquitectura sencilla sin pasto ni brillo;
+  **media** (teléfonos) y **alta** = HD + pasto (media: la mitad, hasta 40 m) + brillo. Con HD, la versión sencilla solo
+  dibuja las sombras (más barato).
 
 ## Ver el juego (los "ojos")
 1. **En el contenedor** (usar siempre tras un cambio): `bash godot/tools/ojos.sh <godot> <carpeta> [islas gemini soledad]`
@@ -87,7 +96,8 @@ Con GitHub disponible:
 - `--arma=rayo:3` · `--poder=agujero` · `--cofre=oro|todos` · `--traje=maga` · `--hora=dia|tarde|noche|amanecer`.
 - `--menu=misiones|historia|mochila|trajes|mapa|compendio|sistema` · `--perfiles` · `--perfil=2 --nombre=Nuez`.
 - `--cine=<escena> --cinet=12` · `--llegada` · `--vencido` · `--tienda=ovillo|musgo|lumen` · `--galaxia` · `--final`.
-- `--hud=0` (fotos sin interfaz) · `--tactil` (controles táctiles en PC) · `--luz=sol,ambiente`.
+- `--hud=0` (fotos sin interfaz) · `--tactil` (controles táctiles en PC) · `--luz=sol,ambiente` · `--calidad=baja|media|alta`
+  · `--brillo=umbral,intensidad`.
 - `--ojos=CARPETA --ojos_set=islas` lo pone `tools/ojos.sh`.
 
 ## Mapa del código (`godot/scripts/`)
@@ -97,8 +107,8 @@ Con GitHub disponible:
 - `juego.gd` (autoload `Juego`): viaje pendiente, ajustes, compendio, calidad gráfica y **recuperar las partidas de la
   versión anterior de la app** (Android). Guarda en `user://`.
 - `datos.gd` (autoload `Datos`): lee `data/*.json`, `compute_stats`, `roll_item/attack/power/chest`.
-- `modelos.gd` (modelos de `data/modelos.json` con sus partes con nombre) · `mundo.gd` (carga un mundo + agua,
-  cascada, metal líquido, impulsor, gelatina) · `builder.gd` (piezas de arquitectura) · `palette.gd` (regiones).
+- `modelos.gd` (modelos de `data/modelos.json` con sus partes con nombre) · `mundo.gd` (carga un mundo, su versión HD y el
+  pasto + agua, cascada, metal líquido, impulsor, gelatina) · `builder.gd` (piezas de arquitectura) · `palette.gd` (regiones).
 - `enemigos.gd` (16 IA, élites, estados, `Boss` de los 3 jefes, esquirlas) · `combate.gd` (proyectiles, zonas,
   aliados, recogibles) · `arsenal.gd` (ataques, poderes, efectos) · `utileria.gd` (campanas, cristales, luciérnagas,
   cofres, puente, portón, farolillos, lechuza, estrella, PNJ, cohete) · `props.gd` (hoguera, cajas).
@@ -142,8 +152,10 @@ Hecho:
 - [x] Sin versión web: la app nativa reemplaza a la anterior (mismo paquete) y recupera sus partidas.
 
 Pendiente / ideas:
-- [ ] **Gráficos HD** (pedido del dueño): más polígonos en Pip, enemigos, PNJ y arquitectura (torres con más detalle),
-  pasto, más brillo (bloom), mejor luz y sombras, agua con reflejos; aprovechar GPU y CPU del teléfono con calidades.
+- [x] Gráficos HD (1.ª parte): arquitectura con ~5× polígonos y detalles, pasto con viento, brillo, Pip HD (más
+  polígonos, pelaje con borde de luz, ojos que brillan).
+- [ ] Gráficos HD (2.ª parte): enemigos, PNJ y jefes con más polígonos (`data/modelos.json`); agua con reflejos;
+  terreno de Verdalia más suave.
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
 - [ ] Mezcla de sonido más rica; que la noche cambie algo del juego (criaturas nocturnas).
 - [ ] Más capítulos de historia y PNJ con sus propias escenas.

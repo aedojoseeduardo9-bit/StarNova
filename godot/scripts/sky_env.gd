@@ -325,5 +325,24 @@ func update_sky(dt: float, focus: Vector3, t: float) -> void:
 	sun.global_position = focus + SUN_OFFSET
 	sun.look_at(focus, Vector3.UP)
 
+## Brillo (resplandor suave alrededor de lo más luminoso: fuego, cristales, estrellas, chispas). Sin él en "baja".
+func set_quality(q: String) -> void:
+	var th := 0.25
+	var it := 0.75
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--brillo="):
+			var v := a.substr(9).split(",")
+			th = float(v[0])
+			it = float(v[1]) if v.size() > 1 else it
+	env.glow_enabled = q != "baja" and it > 0.0
+	env.glow_intensity = it
+	env.glow_strength = 1.0
+	env.glow_bloom = 0.0
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	env.glow_hdr_threshold = th
+	env.glow_hdr_scale = 2.0
+	for i in 7:
+		env.set_glow_level(i, 1.0 if i in [1, 2, 3, 4] else 0.0)
+
 func fog_color() -> Color:
 	return _fog

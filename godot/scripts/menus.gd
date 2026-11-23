@@ -187,18 +187,22 @@ func show_title() -> void:
 	hide_all()
 	var s := _screen("title", 0.0)
 	s.color = Color(1, 0.94, 0.9, 0.0)
+	# el título arriba y "Comenzar" abajo: el centro queda libre para ver el mundo
 	var v := VBoxContainer.new()
-	v.set_anchors_preset(Control.PRESET_CENTER)
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.custom_minimum_size = Vector2(minf(760, _vw() - 32), 0)
-	v.position = Vector2(-v.custom_minimum_size.x / 2, -110)
-	v.add_theme_constant_override("separation", 18)
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.offset_top = 28
+	v.offset_bottom = -44
+	v.add_theme_constant_override("separation", 12)
 	s.add_child(v)
 	var t := _title("STAR NOVA", 84)
 	t.add_theme_color_override("font_color", Color.WHITE)
 	t.add_theme_color_override("font_shadow_color", Color(0.5, 0.25, 0.35, 0.45))
 	t.add_theme_constant_override("shadow_offset_y", 4)
 	v.add_child(t)
+	var gap := Control.new()
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(gap)
 	var row := _row(10, true)
 	var b := button("Comenzar", func(): show_profiles(), true)
 	b.custom_minimum_size = Vector2(220, 0)

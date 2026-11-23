@@ -36,9 +36,18 @@ func _cam(yaw: float, pitch: float, dist: float) -> void:
 	c.want = dist
 	c.cur = dist
 
+## Las pruebas corren en calidad baja (con OpenGL por software el HD va muy lento y falsea las pruebas de tiempo);
+## cada captura se toma en calidad alta (HD, pasto y brillo) para ver el juego como en un teléfono bueno.
+func _hd(on: bool) -> void:
+	var q := "alta" if on else "baja"
+	Mundo.set_quality(main.world, q)
+	main.sky.set_quality(q)
+
 func _shot(file: String) -> void:
+	_hd(true)
 	await _frames(10)
 	var img := get_viewport().get_texture().get_image()
+	_hd(false)
 	var name_ := "%s_%02d_%s" % [set_id, n_shot, file]
 	n_shot += 1
 	img.save_png(out_dir.path_join(name_ + ".png"))

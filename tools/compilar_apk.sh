@@ -39,6 +39,7 @@ fi
 export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$C/local.jks" GODOT_ANDROID_KEYSTORE_RELEASE_USER=starnova
 GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$(cat "$C/local_pass.txt")"
 export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD
+python3 "$ROOT/godot/tools/hd_mundo.py"
 "$G" --headless --path "$ROOT/godot" --import > /dev/null 2>&1 || true
 mkdir -p "$ROOT/godot/build/android"
 "$G" --headless --path "$ROOT/godot" --export-release Android "$ROOT/godot/build/android/StarNova.apk"

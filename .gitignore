@@ -5,3 +5,8 @@ godot/.godot/
 godot/build/
 *.jks
 *.keystore
+
+# arquitectura HD: la arma godot/tools/hd_mundo.py desde data/receta_<mundo>.json (los ojos y GitHub la generan)
+godot/data/mundo_*_hd.json
+godot/data/mundo_*_hd.bin
+__pycache__/

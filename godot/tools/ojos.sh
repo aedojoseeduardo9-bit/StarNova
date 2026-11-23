@@ -9,6 +9,8 @@ OUT="$(mkdir -p "${2:?falta la carpeta de salida}" && cd "$2" && pwd)"
 shift 2
 SETS="${*:-islas gemini soledad}"
 PROJ="$(cd "$(dirname "$0")/.." && pwd)"
+# arquitectura HD y pasto (data/mundo_<id>_hd.*) desde las recetas de los mundos
+python3 "$PROJ/tools/hd_mundo.py" > "$OUT/hd.log" 2>&1 || { echo "FALLO: no se pudo armar la arquitectura HD"; cat "$OUT/hd.log"; exit 1; }
 "$GODOT" --headless --path "$PROJ" --import > "$OUT/import.log" 2>&1
 CODE=0
 : > "$OUT/report.txt"
@@ -18,7 +20,7 @@ for S in $SETS; do
   # partidas guardadas de prueba aparte de las del jugador
   export XDG_DATA_HOME="$OUT/datos"
   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path "$PROJ" --rendering-driver opengl3 --audio-driver Dummy \
-    --resolution 1280x720 -- --ojos="$OUT" --ojos_set="$S" $EXTRA > "$OUT/juego_$S.log" 2>&1 || CODE=1
+    --resolution 1280x720 -- --ojos="$OUT" --ojos_set="$S" --calidad=baja $EXTRA > "$OUT/juego_$S.log" 2>&1 || CODE=1
   cat "$OUT/report_$S.txt" >> "$OUT/report.txt" 2>/dev/null || { echo "FALLO: no hubo informe de $S" >> "$OUT/report.txt"; tail -30 "$OUT/juego_$S.log" >> "$OUT/report.txt"; CODE=1; }
 done
 # errores del motor o de los guiones también cuentan como fallo
