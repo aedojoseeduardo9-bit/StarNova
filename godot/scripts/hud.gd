@@ -475,35 +475,38 @@ func clear() -> void:
 	pop_panel.visible = false
 
 func add_item(id: String, silent := false) -> void:
-	var n := int(game.items.get(id, 0)) if game else 1
-	if not item_nodes.has(id):
-		var box := Control.new()
-		box.custom_minimum_size = Vector2(34, 34)
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var tr := TextureRect.new()
-		tr.texture = Datos.icon("obj_" + id)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		box.add_child(tr)
-		var l := Label.new()
-		l.position = Vector2(20, 18)
-		_style(l, 12, INK)
-		box.add_child(l)
-		items_box.add_child(box)
-		item_nodes[id] = l
-	item_nodes[id].text = ("×%d" % n) if n > 1 else ""
+	refresh_items()
 	if not silent:
 		popup("item", id)
 
+## Íconos sobre la vida: solo los objetos activos (máximo 5; se eligen en la Mochila).
 func refresh_items() -> void:
+	if game == null or not is_instance_valid(game):
+		return
+	var want: Array = game.active.filter(func(i): return int(game.items.get(i, 0)) > 0)
 	for id in item_nodes.keys():
-		var n := int(game.items.get(id, 0))
-		if n <= 0:
+		if not want.has(id):
 			item_nodes[id].get_parent().queue_free()
 			item_nodes.erase(id)
-		else:
-			item_nodes[id].text = ("×%d" % n) if n > 1 else ""
+	for id in want:
+		if not item_nodes.has(id):
+			var box := Control.new()
+			box.custom_minimum_size = Vector2(34, 34)
+			box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var tr := TextureRect.new()
+			tr.texture = Datos.icon("obj_" + str(id))
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			box.add_child(tr)
+			var l := Label.new()
+			l.position = Vector2(20, 18)
+			_style(l, 12, INK)
+			box.add_child(l)
+			items_box.add_child(box)
+			item_nodes[id] = l
+		var n := int(game.items[id])
+		item_nodes[id].text = ("×%d" % n) if n > 1 else ""
 
 func popup(kind: String, v) -> void:
 	var rar: Dictionary

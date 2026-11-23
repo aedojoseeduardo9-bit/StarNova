@@ -50,7 +50,10 @@ var cinema: Cine
 var spots: Dictionary
 var props := {}
 var stats: Dictionary
-var items := {}
+const MAX_ACTIVOS := 5
+var bag := {}               ## todos los objetos de Pip (id → cantidad), en la Mochila
+var active: Array = []      ## los que funcionan: máximo 5, el jugador los elige en la Mochila
+var items := {}             ## solo los activos: esto leen las estadísticas y los efectos
 var level := 1
 var xp := 0.0
 var sparks := 0.0
@@ -570,8 +573,34 @@ func heal(v: float, quiet := false) -> void:
 	if not quiet and hp - before > 1:
 		Hud.number(player.center() + Vector3(0, 0.6, 0), hp - before, false, Color("#9fe3b0"))
 
+## Rehace "items" con los objetos activos de la Mochila y recalcula todo.
+func sync_items() -> void:
+	active = active.filter(func(i): return int(bag.get(i, 0)) > 0)
+	items = {}
+	for i in active:
+		items[i] = int(bag[i])
+	recompute()
+	Hud.refresh_items()
+
+## Activa o desactiva un objeto desde la Mochila. Devuelve false si ya hay 5 activos.
+func toggle_item(id: String) -> bool:
+	if active.has(id):
+		active.erase(id)
+	elif active.size() >= MAX_ACTIVOS or int(bag.get(id, 0)) <= 0:
+		return false
+	else:
+		active.append(id)
+	sync_items()
+	return true
+
 func add_item(id: String, silent := false) -> void:
-	items[id] = int(items.get(id, 0)) + 1
+	bag[id] = int(bag.get(id, 0)) + 1
+	if not active.has(id) and active.size() < MAX_ACTIVOS:
+		active.append(id)
+	active = active.filter(func(i): return int(bag.get(i, 0)) > 0)
+	items = {}
+	for i in active:
+		items[i] = int(bag[i])
 	recompute()
 	if stats.maxShield > 0 and shield == 0:
 		shield = stats.maxShield
@@ -997,12 +1026,9 @@ func hurt_player(dmg: float, from = null, src = null) -> bool:
 func die() -> void:
 	if int(items.get("corazon", 0)) > 0 or int(items.get("fenix", 0)) > 0:
 		var fenix: bool = int(items.get("fenix", 0)) > 0
-		if fenix:
-			items.fenix -= 1
-		else:
-			items.corazon -= 1
-		recompute()
-		Hud.refresh_items()
+		var key := "fenix" if fenix else "corazon"
+		bag[key] = int(bag.get(key, 0)) - 1
+		sync_items()
 		hp = stats.maxHp * (1.0 if fenix else 0.6)
 		player.invuln = 2.0
 		Hud.toast("¡La Pluma de Fénix te devolvió la vida!" if fenix else "El Corazón de Nova te devolvió la vida")
@@ -1113,8 +1139,8 @@ func show_ending() -> void:
 	var T: Dictionary = W.texts
 	var s := int(time)
 	var n_items := 0
-	for id in items:
-		n_items += int(items[id])
+	for id in bag:
+		n_items += int(bag[id])
 	menus.show_ending(T.endKicker, T.endTitle, "Tiempo: %d min %d s · Nivel %d · %d sombras · %d objetos\n%s" % [s / 60, s % 60, level, kills, n_items, T.endText])
 
 func continue_after_ending() -> void:

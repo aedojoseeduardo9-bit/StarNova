@@ -74,6 +74,11 @@ Con GitHub disponible:
   dibuja las sombras (más barato). **Pasto solo en Verdalia** (suelo natural): en las Islas del Cielo y en Prismara el
   suelo es piedra pulida tipo concreto y ahí no va pasto (lo pidió el dueño; `CON_PASTO` en `pasto.py`).
 
+- **Reflejos tipo espejo** (`reflejo.gd`, sin trazado de rayos: Lumen/ray tracing no existen en teléfonos ni en el
+  renderizador Compatibility): una cámara en el punto reflejado bajo la superficie dibuja en un SubViewport chico (alta:
+  ½ de la pantalla cada cuadro; media: ⅓ cada 2 cuadros; baja: sin reflejos). El agua de Verdalia y el metal líquido de
+  Prismara lo leen con ondas y fresnel. Capas visuales: 1 mundo · 2 superficies que reflejan · 3 pasto (no se reflejan).
+
 ## Ver el juego (los "ojos")
 1. **En el contenedor** (usar siempre tras un cambio): `bash godot/tools/ojos.sh <godot> <carpeta> [islas gemini soledad]`
    (Xvfb + OpenGL por software). Deja capturas `<mundo>_NN_*.png` + `report.txt` con pruebas: perfil y prólogo, mover,
@@ -118,7 +123,7 @@ Con GitHub disponible:
   final, importar partida, botón "Actualizar") · `controls.gd` (teclado/ratón, mando y táctil).
 - `cine.gd` + `cine_ctx.gd` + `cine_escenas.gd` (las 26 escenas; **no cambian la partida**: actores temporales y deshacer).
 - `sfx.gd` (autoload `Sfx`: sonidos y música con fundidos) · `sky_env.gd` (cielo, estrellas, planetas, noche, espacio) ·
-  `fx.gd` (partículas) · `player.gd` · `pip.gd` (modelo y animación de Pip) · `camera_rig.gd` · `ojos.gd` (pruebas).
+  `fx.gd` (partículas) · `reflejo.gd` (reflejos tipo espejo) · `player.gd` · `pip.gd` (modelo y animación de Pip) · `camera_rig.gd` · `ojos.gd` (pruebas).
 - Capas de física: 1 terreno · 2 Pip · 4 objetos · 8 enemigos · 16 proyectiles de Pip · 32 enemigos · 64 portón ·
   128 esquirlas · 256 recogibles. En GDScript las lambdas copian las variables simples: el estado compartido va en un
   diccionario. El árbol se pausa fuera de `play`; `Main`, `Hud`, `Sfx`, `Juego`, menús y escenas usan `PROCESS_MODE_ALWAYS`.
@@ -135,6 +140,10 @@ Con GitHub disponible:
   objetos abajo al centro, botones Menú/♪/❚❚ arriba a la derecha, botones táctiles); en **PC/Mac** uno propio: medalla del
   nivel con vida, experiencia y objetos abajo a la izquierda, habilidades grandes con recarga en abanico abajo a la
   derecha y sin botones en pantalla (teclado: Esc pausa, Tab menú, M sonido). Un solo proyecto para todos.
+- **Objetos: solo 5 funcionan a la vez** (lo pidió el dueño): `main.bag` guarda todos, `main.active` los activos (máx.
+  `MAX_ACTIVOS` = 5) y `main.items` es solo lo activo (lo leen las estadísticas y los efectos). Se activan/desactivan
+  tocándolos en Menú → Mochila (borde dorado = activo). Sobre la vida solo se ven los activos. Los nuevos se activan
+  solos si hay hueco. Se guarda `active` en el perfil; partidas viejas: se activan los 5 más raros.
 - **Nada de "texto molesto"** (el dueño lo pidió): la pantalla de inicio solo lleva **STAR NOVA** y **Comenzar** (más
   "Actualizar" cuando hay una compilación nueva): sin lema, sin descripción, sin controles, sin versión. En el juego no
   hay avisos de ayuda ("habla con…", "elige tu misión…", teclas) ni la versión; la versión está en Menú → Sistema.
@@ -159,8 +168,8 @@ Hecho:
 Pendiente / ideas:
 - [x] Gráficos HD (1.ª parte): arquitectura con ~5× polígonos y detalles, pasto con viento (Verdalia), brillo, Pip HD (más
   polígonos, pelaje con borde de luz, ojos que brillan).
-- [ ] Gráficos HD (2.ª parte): enemigos, PNJ y jefes con más polígonos (`data/modelos.json`); agua con reflejos;
-  terreno de Verdalia más suave.
+- [x] Reflejos tipo espejo en el agua (Verdalia) y el metal líquido (Prismara).
+- [ ] Gráficos HD (2.ª parte): enemigos, PNJ y jefes con más polígonos (`data/modelos.json`); terreno de Verdalia más suave.
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
 - [ ] Mezcla de sonido más rica; que la noche cambie algo del juego (criaturas nocturnas).
 - [ ] Más capítulos de historia y PNJ con sus propias escenas.
