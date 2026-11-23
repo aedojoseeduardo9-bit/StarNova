@@ -1,4 +1,4 @@
-## Star Nova — trajes de Pip (port de js/entities/outfits.js): colores del pelaje/bufanda y piezas colgadas del
+## Star Nova — trajes de Pip: colores del pelaje/bufanda y piezas colgadas del
 ## esqueleto (cabeza, torso, orejas, punta de la cola). Las piezas salen de data/modelos.json ("trajes").
 class_name Trajes
 

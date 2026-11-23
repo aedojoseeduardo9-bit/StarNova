@@ -1,32 +1,18 @@
 # ⭐ Star Nova
 
-Aventura **3D de mundo abierto** en el navegador. **Pip**, una ardilla diminuta, viaja por islas flotantes
-de arquitectura pastel para devolverle la luz a la estrella **Nova**.
+Aventura **3D de mundo abierto** para **Android, iPhone/iPad, Mac, Windows y Linux** (app nativa hecha con Godot).
+**Pip**, una ardilla diminuta, viaja por islas flotantes de arquitectura pastel y por otras galaxias para
+devolverle la luz a la estrella **Nova**.
 
-- Misiones en cualquier orden por cuatro regiones (Coral, Menta, Lavanda y el Santuario de Nova).
+- Tres mundos: Islas del Cielo, Planeta Verdalia y Planeta Prismara, con misiones en cualquier orden.
 - Acción roguelite: habilidades, enemigos que se hacen más fuertes con el tiempo, cofres y objetos acumulables.
-- Físicas reales en todo (Rapier): campanas colgantes, puentes de tablones, cajas, esquirlas.
-- Se juega en **PC** (teclado y ratón) o en el **teléfono en horizontal** (controles táctiles).
+- Historia con escenas animadas, trajes, tiendas, día y noche, música y 3 perfiles de guardado.
+- Se juega con controles táctiles (teléfono en horizontal), teclado y ratón o mando.
 
-## Jugar
-- En línea (cuando esté activado GitHub Pages): `https://aedojoseeduardo9-bit.github.io/StarNova/`
-- En local: `node tools/serve.mjs 8080` y abrir `http://127.0.0.1:8080/`
+## Descargar
+Última versión: [releases/latest](https://github.com/aedojoseeduardo9-bit/StarNova/releases/latest)
+- Android: `StarNova.apk` · Mac: `StarNova_Mac.zip` · Windows: `StarNova_Windows.zip` · Linux: `StarNova_Linux.zip`
+- iPhone/iPad: `StarNova_iOS_Xcode.zip` (se instala desde un Mac con Xcode; instrucciones dentro).
 
-## Controles
-| Acción | PC | Teléfono |
-|---|---|---|
-| Moverse / mirar | WASD / ratón | Joystick izquierdo / arrastrar a la derecha |
-| Saltar (doble salto) | Espacio | ⤒ |
-| Bellotazo | Clic | ● |
-| Coletazo | Q o clic derecho | ◎ |
-| Voltereta | Shift | » |
-| Lluvia estelar | R | ★ |
-| Interactuar | E | E |
-| Misiones / pausa / sonido | Tab / Esc / M | botones arriba |
-
-## Tecnología
-Three.js + Rapier 3D (en `vendor/`, sin compilación). Detalles para desarrollo en [`CLAUDE.md`](CLAUDE.md)
-y la investigación de motores en [`docs/investigacion.md`](docs/investigacion.md).
-
-Inspirado en el estilo visual de juegos como Monument Valley y en la acción de Risk of Rain 2;
-todos los personajes, niveles y gráficos son originales.
+## Desarrollo
+Proyecto de Godot 4.7 en [`godot/`](godot). Detalles en [`CLAUDE.md`](CLAUDE.md).

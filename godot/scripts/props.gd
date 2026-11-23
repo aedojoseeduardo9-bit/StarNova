@@ -1,4 +1,4 @@
-## Star Nova — objetos del mundo con lógica o física (port de js/props.js): hoguera y cajas.
+## Star Nova — objetos del mundo con lógica o física: hoguera y cajas.
 class_name Props
 
 static var _mats := {}

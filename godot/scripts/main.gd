@@ -1,7 +1,7 @@
-## Star Nova — núcleo del juego nativo (port de js/game.js): estados, reglas, cofres, director de enemigos en
+## Star Nova — núcleo del juego: estados, reglas, cofres, director de enemigos en
 ## oleadas, combate, interacción (cofres, PNJ, lechuza, cohete, impulsores), misiones, jefe, muerte, viajes entre
-## mundos, perfiles y atajos de prueba (`-- --auto --ir=coral …`, los mismos de la web; ver godot/LEEME.md).
-## Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena (como la web recarga la página).
+## mundos, perfiles y atajos de prueba (`-- --auto --ir=coral …`; ver CLAUDE.md).
+## Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena.
 extends Node3D
 
 const STEP := 1.0 / 60.0
@@ -223,6 +223,9 @@ func _ready() -> void:
 	add_child(cinema)
 	Hud.attach(self)
 	Juego.apply_quality(self)
+	var rec: int = Juego.recuperar_partidas_anteriores()
+	if rec > 0:
+		later(0.8, func(): Hud.toast("Se recuperaron %d partida%s de la versión anterior de la app" % [rec, "" if rec == 1 else "s"]))
 	_apply_debug()
 	var back: bool = Juego.volver_perfiles
 	Juego.volver_perfiles = false
@@ -368,12 +371,6 @@ func welcome() -> void:
 	var hub: Dictionary = regions[W.hub]
 	if not loaded_pos:
 		Hud.banner(hub.name, hub.sub)
-	else:
-		later(3.8, func(): Hud.toast("Partida de " + str(profile.name) + " cargada"))
-	var guide: String = Datos.pnj[W.guide].name if W.get("guide") else "la Abuela Lechuza"
-	var talked_guide: bool = talked.has(W.guide) if W.get("guide") else owl_done
-	if not talked_guide and not args.has("ir") and not args.has("jefe"):
-		later(2.5, func(): Hud.toast(k("Habla con %s (E) para empezar" % guide, "Acércate a %s y toca el botón ✋ para hablar" % guide)))
 
 func play_story(id: String, then := Callable()) -> void:
 	if id == "" or not story_on or story.seen.has(id):
@@ -1124,13 +1121,8 @@ func continue_after_ending() -> void:
 	menus.hide_ending()
 	state = "play"
 	save_soon()
-	var order: Array = Datos.mundos.order
-	var nxt := order.find(world_id) + 1
-	var tip := func(): Hud.toast("El Cohete Avellana te espera: súbete para viajar a otra galaxia" if nxt < order.size() else "Puedes volver a cualquier galaxia en el Cohete Avellana")
 	if W.scenes.get("rocket"):
-		play_story(str(W.scenes.rocket), tip)
-	else:
-		later(0.8, tip)
+		play_story(str(W.scenes.rocket))
 
 # ----------------------------------------------------------------------------------------------- interacción
 func nearest_interactable():

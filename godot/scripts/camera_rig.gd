@@ -1,5 +1,5 @@
-## Star Nova — cámara en tercera persona sobre el hombro, con colisión contra el escenario (port de js/camera.js).
-## yaw 0 = mirando al norte (-z), igual que en la web.
+## Star Nova — cámara en tercera persona sobre el hombro, con colisión contra el escenario.
+## yaw 0 = mirando al norte (-z).
 class_name CameraRig
 extends Camera3D
 

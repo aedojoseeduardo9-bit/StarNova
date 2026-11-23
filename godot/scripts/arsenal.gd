@@ -1,4 +1,4 @@
-## Star Nova — arsenal de Pip (port de js/arsenal.js): ataque principal equipado (21 tipos con rango), poder
+## Star Nova — arsenal de Pip: ataque principal equipado (21 tipos con rango), poder
 ## especial (13), efectos al golpear (de ataques y de objetos) y aliados (torres, espíritus, orbes, luciérnagas).
 class_name Arsenal
 extends Node3D

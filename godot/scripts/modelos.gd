@@ -1,6 +1,6 @@
-## Star Nova — modelos 3D exportados de la web (data/modelos.json): enemigos, jefes, PNJ, lechuza, cohete,
+## Star Nova — modelos 3D (data/modelos.json): enemigos, jefes, PNJ, lechuza, cohete,
 ## cofres, campanas, cristales, portón, estrella y piezas de los trajes. Se reconstruyen con su geometría exacta
-## (caras planas como en la web) y se devuelven con sus partes con nombre (meta "u") para animarlas.
+## (caras planas) y se devuelven con sus partes con nombre (meta "u") para animarlas.
 class_name Modelos
 
 static var _data: Dictionary
@@ -27,7 +27,7 @@ static func _mesh(gid: String, flat: bool) -> ArrayMesh:
 	var count := p.size() / 3
 	verts.resize(count)
 	norms.resize(count)
-	# three.js usa caras en sentido antihorario y Godot en horario: se invierte cada triángulo
+	# los datos vienen en sentido antihorario y Godot usa horario: se invierte cada triángulo
 	for t in range(0, count, 3):
 		for k in 3:
 			var src: int = t + [0, 2, 1][k]

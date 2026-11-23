@@ -1,346 +1,150 @@
 # Star Nova — guía para Claude
 
-Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **en horizontal** o en PC).
-El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
+Aventura **3D de mundo abierto** hecha con **Godot 4.7** que corre **nativa** en el teléfono (en horizontal), en PC/Mac
+y en iPhone/iPad. El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
+
+> **El dueño NO quiere versión de navegador ni de página web** (lo ha pedido muchas veces): el juego es una **app
+> nativa** y nada más. No crear páginas web del juego, no sugerir GitHub Pages ni "jugar en el navegador", no usar
+> WebView. Todo se hace en `godot/` (GDScript, procesos nativos, la GPU y la CPU del aparato).
 
 ## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
 > **Cuenta de GitHub (nov 2026):** el proyecto vive SOLO en **`aedojoseeduardo9-bit/StarNova`**.
 > La cuenta antigua (`aedoniororebolledo6-lgtm`) fue suspendida: **no usarla nunca más** (ni en enlaces,
-> ni en remotos, ni en código). El repositorio se llama `StarNova` (sin guion) para no chocar con el
-> `Star-Nova` antiguo. Si una sesión no tiene acceso de escritura a `aedojoseeduardo9-bit/StarNova`, compilar la APK en el contenedor
-> (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con **SendUserFile** junto con un
-> **respaldo .zip** del proyecto (con `.git`), y pedirle que abra una sesión nueva con ese repositorio.
+> ni en remotos, ni en código). Si una sesión no tiene acceso de escritura a `aedojoseeduardo9-bit/StarNova`,
+> compilar la APK en el contenedor (`bash tools/compilar_apk.sh <scratchpad>`), mandársela al dueño con
+> **SendUserFile** junto con un **respaldo .zip** del proyecto (con `.git`), y pedirle una sesión nueva con ese repositorio.
 
 Con GitHub disponible:
-1. Trabajar en la rama asignada → push → esperar en verde **"Compilar APK"** (`build.yml`, en ramas solo
-   compila) y **"Ojos (capturas)"** (`ojos.yml`).
+1. Trabajar en la rama asignada → push → esperar en verde **"Compilar Star Nova"** (`.github/workflows/build.yml`):
+   corre "los ojos" (capturas + pruebas de los 3 mundos, release **`diagnostico`**) y compila las apps.
 2. Mirar las capturas si el cambio es visual (ver "los ojos").
 3. Crear el PR a `main` y fusionarlo **sin preguntar**: el dueño lo autorizó para siempre.
-4. En `main`, `build.yml` compila la APK y reemplaza el release **`latest`** (`StarNova.apk` + `qr.png`).
+4. En `main`, `build.yml` reemplaza el release **`latest`**: `StarNova.apk` (Android), `StarNova_Mac.zip` (Intel y Apple),
+   `StarNova_Windows.zip`, `StarNova_Linux.zip`, `StarNova_iOS_Xcode.zip` y `qr.png`.
    Enlace fijo: `https://github.com/aedojoseeduardo9-bit/StarNova/releases/latest/download/StarNova.apk`.
-   La app compara su número de compilación con el título del release `latest` ("compilación N") y muestra
-   el botón "Actualizar" en la pantalla de título.
+   El título del release es "Star Nova 0.8 (compilación N)"; la app compara su compilación (`application/config/build`,
+   la pone CI) con ese número y muestra "Actualizar" en la pantalla de título.
 5. Si la rama ya se fusionó antes, reiníciala desde `origin/main` antes de seguir.
-6. Cambios solo de documentación (`*.md`, `docs/`, `tools/`, `ci/`) no compilan una APK nueva.
-7. Si la compilación falla, el error queda en el release **`build-error`**.
+6. Cambios solo de documentación (`*.md`, `docs/`) no compilan.
+7. Android: paquete **`com.nioro.starnova`**, firmado con la llave de siempre (Secrets o caché privada de CI), así cada
+   versión se instala encima de la anterior. La llave **nunca** va en el repositorio.
 
 ## Visión (lo que pidió el dueño)
 - **Pip**, una ardilla diminuta, recorre islas flotantes para reunir los fragmentos de la estrella **Nova**.
 - **Mundo abierto con misiones** (no niveles lineales): cada región tiene misiones que se hacen en cualquier orden.
 - Sensación de **roguelite de acción en tercera persona** (inspiración: Risk of Rain 2): habilidades con recarga,
-  enemigos que aparecen y se hacen más fuertes con el tiempo (reloj de dificultad), chispas, cofres y
-  objetos que se acumulan.
-- Estética **inspirada en Monument Valley**: arquitectura geométrica pastel, arcos, cúpulas, cielos en
-  degradado, bruma. **Todo es original**: no copiar personajes, niveles, música ni arte de ese juego.
-- **Físicas en todo** (motor Rapier): personaje, enemigos, proyectiles, campanas, puentes, cajas, esquirlas.
-- **Historia** (original, resumida en `js/content/story.js`): bajo las islas dormía la *Penumbra*; para que no
-  la devoraran, Nova se rompió en fragmentos. Su amigo el Guardián se tragó la Penumbra y por eso ya no
-  recuerda quién es. Cada fragmento guarda un recuerdo de Nova; Pip los reúne, despierta al Guardián y
-  devuelve a Nova al cielo. Se cuenta con **escenas animadas** hechas con el propio mundo del juego.
-- **Trajes**: 10 atuendos para Pip que se compran con chispas en el menú (página Trajes).
+  enemigos que aparecen y se hacen más fuertes con el tiempo (reloj de dificultad), chispas, cofres y objetos.
+- Estética **inspirada en Monument Valley**: arquitectura geométrica pastel, arcos, cúpulas, cielos en degradado,
+  bruma. **Todo es original**: no copiar personajes, niveles, música ni arte de ese juego.
+- **Gráficos (pedido actual del dueño):** mantener el ambiente, pero mucho más **HD**: más polígonos (Pip, torres con
+  más detalle, enemigos, PNJ), **pasto**, más **brillo** y mejor luz. Que use de verdad la GPU y la CPU del teléfono.
+- **Físicas en todo** (Jolt): personaje, enemigos, proyectiles, campanas, puentes, cajas, esquirlas.
+- **Historia** (original): bajo las islas dormía la *Penumbra*; para que no la devoraran, Nova se rompió en fragmentos.
+  Su amigo el Guardián se tragó la Penumbra y por eso ya no recuerda quién es. Cada fragmento guarda un recuerdo de
+  Nova; Pip los reúne, despierta al Guardián y devuelve a Nova al cielo. Se cuenta con **escenas animadas**.
+- **Trajes** que se compran con chispas (y ropa exclusiva en las tiendas de cada mundo).
 - **Día y noche** con **música que cambia** según la hora y lo que pasa (día, noche, combate, peligro, jefe).
-- **Sombras en oleadas** (el dueño pidió que no fueran ilimitadas: daban chispas sin fin para los cofres):
-  cada región trae una ola, luego queda en calma un rato. Las invocadas no dan chispas.
-- **Viaje por galaxias** (v0.6): el juego se divide en **3 mundos**. Al terminar uno, Pip sube al **Cohete Avellana**
-  (lo armó Brío, el topo) y en el **mapa galáctico** elige a dónde viajar (una galaxia se abre al terminar la anterior):
-  1. **Islas del Cielo** (Galaxia Nova) — el mundo original; jefe: El Guardián.
-  2. **Planeta Verdalia** (Galaxia Gemini) — bosque vivo en un terreno continuo: praderas, Bosque Susurro, Lago Espejo
-     con cascada y nenúfares, Río Cantarín y un altar en un barranco. Estrellas gemelas **Alba y Ocaso**;
-     jefe: **Los Gemelos de Raíz** (dos tótems atados por una cadena de Penumbra).
-  3. **Planeta Prismara** (Galaxia Soledad) — islas en el espacio con planetas en el cielo, **suelo de metal líquido
-     arcoíris que hace ondas al pisarlo**, Impulsores Cometa (vuelo en arco entre planetoides) y gelatinas trampolín
-     (inspiración de plataformas tipo "galaxia", todo original). Estrella **Sola**; jefe: **La Polilla de la Soledad**.
-  Cada mundo tiene sus PNJ, su tienda con **ropa exclusiva** (3–4 trajes que solo vende ese PNJ), sus misiones,
-  enemigos, música y escenas (viaje, llegada, recuerdos, puerta, jefe y final). Lista de PNJ e historia completa en
+- **Sombras en oleadas** (no ilimitadas: daban chispas sin fin): cada región trae una ola y luego queda en calma.
+  Las invocadas no dan chispas.
+- **Viaje por galaxias**: **3 mundos**. Al terminar uno, Pip sube al **Cohete Avellana** (lo armó Brío, el topo) y en el
+  **mapa galáctico** elige a dónde viajar (una galaxia se abre al terminar la anterior):
+  1. **Islas del Cielo** (Galaxia Nova); jefe: El Guardián.
+  2. **Planeta Verdalia** (Galaxia Gemini): praderas, Bosque Susurro, Lago Espejo con cascada y nenúfares, Río
+     Cantarín y un altar en un barranco. Estrellas **Alba y Ocaso**; jefe: **Los Gemelos de Raíz**.
+  3. **Planeta Prismara** (Galaxia Soledad): islas en el espacio, **metal líquido arcoíris con ondas**, Impulsores
+     Cometa y gelatinas trampolín. Estrella **Sola**; jefe: **La Polilla de la Soledad**.
+  Cada mundo tiene sus PNJ, su tienda con **ropa exclusiva**, misiones, enemigos, música y escenas. Historia y PNJ en
   `docs/StarNova_Historia_y_Datos.docx`.
 
-## Versión NATIVA (Godot) — el juego completo (el dueño la pidió: "que corra nativo en todo")
-La nativa vive en **`godot/`** (Godot **4.7**, GDScript, renderizador *Compatibility* = OpenGL, físicas **Jolt**) y
-tiene **todo el juego de la web**: los 3 mundos, misiones, enemigos y jefes, cofres, objetos, ataques y poderes, trajes,
-tiendas, PNJ, cohete y viajes, escenas animadas, día y noche, música, 3 perfiles y menús. Exporta a **Mac (universal:
-Intel y Apple)**, **Windows**, **Linux**, **Android** (paquete aparte `com.nioro.starnova.nativo`, "Star Nova (nativo)",
-firmado con la misma llave de CI) e **iPhone/iPad** (proyecto de Xcode: se instala desde un Mac, ver `godot/IPHONE.md`).
-La web sigue publicada en `latest`; la nativa sale en el release **`nativo`**.
-- **Lo que no es lógica se exporta de la web** (para que sea igual): `node godot/tools/exportar_web.cjs [datos,modelos,mundos,iconos,audio]`
-  abre la web con Playwright y genera `godot/data/` (contenido, historia, PNJ, mundos, trajes, **modelos** de enemigos/jefes/PNJ/
-  cofres/campanas/cohete y las **mallas + colisiones + puntos** de cada mundo en `mundo_<id>.json/.bin`), `godot/iconos/` (177 PNG)
-  y `godot/audio/` (canciones en cada tono y efectos en .ogg, grabados del sintetizador de la web). **Si cambia un dato,
-  modelo, mundo o sonido en la web, volver a correr el exportador.** La lógica se porta a mano (mismo comportamiento).
-- Mapa: `main.gd` (**núcleo**, port de `js/game.js`: estados, reglas, combate, cofres, oleadas, interacción, jefe, viajes,
-  atajos) · `juego.gd` (autoload `Juego`: viaje pendiente, ajustes, compendio, calidad gráfica; guarda en `user://`) ·
-  `datos.gd` (autoload `Datos`: JSON, `compute_stats`, `roll_*`) · `modelos.gd` (reconstruye modelos exportados) ·
-  `mundo.gd` (carga un mundo + agua, cascada, metal líquido, impulsor, gelatina) · `enemigos.gd` (16 IA, élites, estados,
-  `Boss`) · `combate.gd` (proyectiles, zonas, aliados, recogibles, esquirlas) · `arsenal.gd` · `utileria.gd` (campanas,
-  cristales, luciérnagas, cofres, puente, portón, farolillos, lechuza, estrella, PNJ, cohete) · `misiones.gd` ·
-  `guardado.gd` (perfiles v2, **mismo formato que la web**) · `trajes.gd` · `hud.gd` (autoload `Hud`) · `touch_ui.gd` ·
-  `menus.gd` (título, perfiles, menú por páginas, tienda, galaxia, muerte, final, importar) · `cine.gd` + `cine_ctx.gd` +
-  `cine_escenas.gd` (las 26 escenas) · `sfx.gd` (autoload `Sfx`: .ogg y música con fundidos) · `sky_env.gd` (cielo,
-  estrellas, planetas, noche, espacio) · `player.gd` · `pip.gd` · `camera_rig.gd` · `controls.gd` · `ojos.gd`.
-- Capas de física: 1 terreno · 2 Pip · 4 objetos · 8 enemigos · 16 proyectiles de Pip · 32 enemigos · 64 portón ·
-  128 esquirlas · 256 recogibles. En GDScript las lambdas copian las variables simples: el estado compartido va en un diccionario.
-- Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena (`Juego.viaje`). El árbol se pausa fuera de
-  `play`; `Main`, `Hud`, `Sfx`, `Juego`, menús y escenas siguen con `PROCESS_MODE_ALWAYS`.
-- **Pasar partidas**: en la web, Menú → Sistema → «Código para la versión nativa» (texto `STARNOVA:` + base64 del perfil);
-  en la nativa, Perfiles → «Importar de la web». También funciona entre aparatos nativos («Copiar código de la partida»).
-- **Calidad gráfica** (Sistema): automática, baja, media, alta (sombras, suavizado y resolución 3D).
+## Tecnología
+- **Godot 4.7**, GDScript, renderizador *Compatibility* (OpenGL ES 3), físicas **Jolt**. Proyecto en `godot/`.
+- Los datos del juego (objetos, ataques, poderes, cofres, enemigos, historia, PNJ, mundos, trajes, modelos) están en
+  `godot/data/*.json`; las mallas, colisiones y puntos de cada mundo en `godot/data/mundo_<id>.json/.bin`; los íconos
+  en `godot/iconos/` y la música y los sonidos en `godot/audio/*.ogg`. **Para añadir contenido basta editar esos datos.**
 - **Luz**: en Compatibility la luz del sol y la ambiental se suman en espacio sRGB; los valores (sol 0.16, ambiente 0.28)
-  se ajustaron midiendo píxeles contra la web. Si se cambian, comparar capturas con la web.
-- **Ojos nativos** (usar siempre tras un cambio): `bash godot/tools/ojos_nativo.sh <godot> <carpeta> [islas gemini soledad]`
-  (Xvfb + OpenGL por software): capturas `<mundo>_NN_*.png` + `report.txt` con pruebas (perfil y prólogo, mover, salto,
-  voltereta, lechuza y misiones, disparo, cofre y botín, campana, guardado, código de partida, jefe, desmayo, agua, traje
-  exclusivo, impulsor y **todas las escenas dejan el mundo como estaba**). Falla si hay `FALLO` o errores de guion.
-  Godot para Linux: `https://github.com/godotengine/godot/releases/download/4.7-stable/`.
-- Atajos (los mismos de la web, tras `--`): `--auto --mundo=gemini --ir=lago --cam=yaw,pitch,dist --dios --t=600 --items
-  --frag=3 --jefe --enemigos=8 --tipo=sombra --elite --arma=rayo:3 --poder=agujero --cofre=todos --menu=mochila --perfil=2
-  --traje=maga --hora=noche --cine=final --cinet=12 --llegada --vencido --tienda=musgo --galaxia --hud=0 --tactil`.
-- CI: `.github/workflows/nativo.yml` (solo corre con cambios en `godot/`): ojos nativos → capturas en el release
-  `diagnostico-nativo` → exporta las 5 plataformas → en main publica el release **`nativo`** (prelanzamiento:
-  no toca el enlace `latest` de la APK web). `build.yml` y `ojos.yml` ignoran `godot/**`.
-- Mac: la app no está notarizada por Apple; la primera vez macOS la bloquea → Ajustes del Sistema → Privacidad y
-  seguridad → "Abrir igualmente" (o en Terminal: `xattr -cr StarNova.app`).
-
-## Tecnología (y por qué)
-- **Three.js 0.180** (render 3D) + **Rapier 3D 0.21** (físicas, el mismo motor que usa Bevy). Ambos están
-  copiados en `vendor/` (no hace falta internet ni compilar). Licencias en `vendor/`.
-- JavaScript con módulos ES y `importmap` en `index.html`. **Sin paso de compilación**: se edita y se recarga.
-- Investigación de motores y repositorios: `docs/investigacion.md` (Godot, Bevy, Babylon, PlayCanvas, etc.).
-- Si algún día se quiere APK nativo: empaquetar la web (Capacitor/TWA) o portar a Godot (ver la investigación).
+  están ajustados a mano. Si se cambia el renderizador o la luz, comparar capturas antes y después.
 
 ## Ver el juego (los "ojos")
-1. **En el contenedor** (rápido, usar siempre tras un cambio visual):
-   ```bash
-   node tools/ojos.cjs <carpeta_scratchpad>          # todas las escenas + prueba de movimiento
-   node tools/ojos.cjs <carpeta_scratchpad> coral    # solo escenas cuyo nombre contenga "coral"
-   ```
-   Abre Chromium (WebGL por software), recorre escenas con atajos de URL, guarda `NN_nombre.png` y
-   `report.txt` (errores de consola, FPS aproximados, posición, enemigos, llamadas de dibujo, pruebas).
-   Mira las capturas con **Read**. Los FPS por software son bajos (~8–20): solo sirven para comparar.
-2. **En CI**: cada push corre `.github/workflows/ojos.yml` y publica capturas + informe en el release
-   **`diagnostico`**. Descárgalas con `bash tools/capturas.sh <carpeta> [filtro]`.
-   El trabajo falla si `report.txt` tiene `consola:`, `ERROR` o `FALLO`.
-3. **APK en el contenedor** (si CI no está disponible): `bash tools/compilar_apk.sh <carpeta_scratchpad>`
-   descarga Gradle + SDK de Android (dl.google.com sí está permitido) y compila. Su llave es local:
-   esa APK no se instala encima de la de CI (habría que desinstalar).
-4. Servidor local para probar a mano: `node tools/serve.mjs 8080` → `http://127.0.0.1:8080/`.
-5. **Después de cualquier cambio visual, mira las capturas** antes de dar el trabajo por terminado.
+1. **En el contenedor** (usar siempre tras un cambio): `bash godot/tools/ojos.sh <godot> <carpeta> [islas gemini soledad]`
+   (Xvfb + OpenGL por software). Deja capturas `<mundo>_NN_*.png` + `report.txt` con pruebas: perfil y prólogo, mover,
+   salto, voltereta, lechuza y misiones, disparo, cofre y botín, campana, guardado, código de partida, jefe, desmayo,
+   agua, traje exclusivo, impulsor y **todas las escenas dejan el mundo como estaba**. Falla si hay `FALLO` o errores de
+   guion. Mira las capturas con **Read**. Godot para Linux:
+   `https://github.com/godotengine/godot/releases/download/4.7-stable/`.
+2. **En GitHub**: cada push publica capturas + informe en el release **`diagnostico`**. Descárgalas con
+   `bash tools/capturas.sh <carpeta> [filtro]`.
+3. **APK en el contenedor** (si no hay GitHub): `bash tools/compilar_apk.sh <carpeta_cache>` (Godot + SDK de Android
+   en caché, llave local: esa APK no se instala encima de la de GitHub).
+4. **Después de cualquier cambio visual, mira las capturas** antes de dar el trabajo por terminado.
    Si el dueño manda capturas de su teléfono, úsalas también.
 
-### Atajos de URL (para pruebas y capturas)
-`index.html?auto=1` empieza sin pantalla de título, como **partida de prueba** (sin perfil: no lee ni escribe
-guardados). Se combinan con `&`:
-- `ir=claro|coral|campana|menta|torre|lavanda|puente|altar|nova|santuario` — aparecer en ese lugar.
-- `cam=yaw,pitch,dist` — orientar la cámara (yaw 0 = mirando al norte, -z).
-- `dios=1` (sin daño) · `t=600` (segundos de partida: sube la dificultad) · `items=1` (todos los objetos).
-- `frag=N` (completa N misiones de fragmento; con 3 se abre el santuario) · `puente=1` (activa los cristales).
-- `jefe=1` (3 fragmentos + dentro del santuario: empieza el jefe) · `enemigos=N` (N enemigos alrededor;
-  `tipo=sombra,erizo` elige tipos, `elite=1` los hace élite).
-- `arma=rayo:3` (ataque y rango 0–5) · `poder=agujero` · `cofre=oro` o `cofre=todos` (estilos de cofre)
-  · `compendio=1` (abre el compendio).
-- `diario=1` · `pausa=1` · `final=1` (pantalla final) · `hud=0` (sin interfaz, para fotos bonitas).
-- `menu=misiones|historia|mochila|trajes|mapa|compendio|sistema` (abre el menú en esa página) · `perfiles=1`
-  (pantalla de perfiles) · `perfil=2` (entra con la ranura 2, sin `auto`; `nombre=Nuez` si hay que crearla).
-  `tools/ojos.cjs` puede sembrar perfiles de ejemplo con `store:` en la escena.
-- `traje=maga` (pone ese traje; ids en `js/entities/outfits.js`).
-- `hora=dia|tarde|noche|amanecer` (mueve el ciclo de día y noche sin cambiar la dificultad).
-- `cine=prologo|recuerdo1|recuerdo2|recuerdo3|recuerdo4|porton|guardian|final` (pone esa escena animada;
-  con `cinet=12` la adelanta a ese segundo, para capturas). Las partidas de prueba (`auto=1`) no ponen
-  escenas solas; con un perfil sí (`perfil=1&cine=0` las apaga).
-- `mundo=islas|gemini|soledad` (carga ese mundo; sin perfil) · `llegada=1` (aterriza en cohete con su escena) ·
-  `vencido=1` (jefe del mundo ya vencido: cohete listo) · `tienda=ovillo|musgo|lumen` (abre esa tienda) · `galaxia=1`
-  (abre el mapa galáctico). Lugares de `ir=` en Gemini: `pradera|bosque|lago|cascada|meseta|rio|puente|altar|raices|santuario|cohete|campana`;
-  en Soledad: `muelle|mercurio|anillos|planetoide|impulsor|aurora|puente|altar|trono|santuario|cohete`.
-  Escenas nuevas para `cine=`: `cohete`, `viaje_gemini`, `viaje_soledad`, `llegada_gemini`, `llegada_soledad`, `aterrizaje`,
-  `gemini_recuerdo1..3`, `gemini_puerta`, `gemini_jefe`, `gemini_final` y lo mismo con `soledad_`.
-- `ojos=1` lo pone `tools/ojos.cjs` (conserva el búfer de dibujo para las capturas).
-- En la consola del navegador: `window.__starnova.game` da acceso a todo el estado.
+### Atajos (para pruebas y capturas), tras `--` en la línea de órdenes
+`godot --path godot -- --auto --ir=coral`. `--auto` empieza sin pantalla de título, como partida de prueba (no guarda).
+- `--mundo=islas|gemini|soledad` · `--ir=<lugar>` (Islas: `claro|coral|campana|menta|torre|lavanda|puente|altar|nova|santuario`;
+  Gemini: `pradera|bosque|lago|cascada|meseta|rio|puente|altar|raices|santuario|cohete|campana`; Soledad:
+  `muelle|mercurio|anillos|planetoide|impulsor|aurora|puente|altar|trono|santuario|cohete`) · `--cam=yaw,pitch,dist`.
+- `--dios` · `--t=600` (dificultad) · `--items` · `--frag=N` · `--puente` · `--jefe` · `--enemigos=N --tipo=sombra,erizo --elite`.
+- `--arma=rayo:3` · `--poder=agujero` · `--cofre=oro|todos` · `--traje=maga` · `--hora=dia|tarde|noche|amanecer`.
+- `--menu=misiones|historia|mochila|trajes|mapa|compendio|sistema` · `--perfiles` · `--perfil=2 --nombre=Nuez`.
+- `--cine=<escena> --cinet=12` · `--llegada` · `--vencido` · `--tienda=ovillo|musgo|lumen` · `--galaxia` · `--final`.
+- `--hud=0` (fotos sin interfaz) · `--tactil` (controles táctiles en PC) · `--luz=sol,ambiente`.
+- `--ojos=CARPETA --ojos_set=islas` lo pone `tools/ojos.sh`.
 
-## Mapa del código
-- `index.html` — interfaz (HUD, pantallas, controles táctiles) e `importmap`. `css/style.css` — estilos.
-- `js/main.js` — arranque: elige el mundo (URL `mundo=`, viaje en `sessionStorage['starnova.viaje']` o el último
-  mundo jugado), inicia Rapier (WASM) y crea `Game`.
-- `js/worlds/` — **los mundos**: `index.js` (registro `WORLDS`, orden `WORLD_ORDER`, `setWorld`), `islas.js`, `gemini.js`,
-  `soledad.js`. Cada mundo define regiones (cielo/colores), `build(game)` → puntos del mapa (`spots`: cofres, campanas,
-  cristales, luciérnagas/semillas/notas, puente, portón, arena, PNJ, cohete, `extras` animados, `inWater`), misiones
-  (`on: { evento: true | fn }`), guía, jefe, filtro de enemigos (`enemies`), música, cielo (`sky`), escenas, textos y
-  lugares para `ir=`. **Se carga UN mundo por página**: viajar guarda y recarga la página en el destino.
-- `js/world/special.js` — piezas de los planetas nuevos: `buildTerrain` (terreno con colinas + colisionador de triángulos),
-  `Water` (lago o río que sigue una curva), `Waterfall`, `LiquidFloor` (metal líquido con ondas), `Launcher`
-  (Impulsor Cometa: se usa con el botón de acción) y `Bouncer` (gelatina trampolín).
-- `js/content/npcs.js` — los **PNJ** de cada mundo (nombre, especie, diálogo según el avance, tienda).
-  `js/entities/npcs.js` — sus modelos, la clase `NPC` y el **Cohete Avellana** (`Rocket`, con lona hasta vencer al Guardián).
-- `js/entities/bosses.js` — los **3 jefes** como datos para la clase `Boss` (fases `ring`, `slam-up`, `hover`, `summon`,
-  `spin` de los gemelos, `blink` de la polilla).
-- `js/cinema2.js` — escenas del gran viaje: cohete, viajes por el espacio (`ctx.space`), llegadas, recuerdos, jefes y finales
-  de Gemini y Soledad.
-- `js/game.js` — **núcleo**: ciclo fijo de 60 pasos/s, habilidades, daño/críticos/efectos de objetos,
-  director de enemigos (dificultad por tiempo), interacción (cofres, lechuza), misiones, jefe, atajos,
-  perfiles (`playSlot`, `saveNow`, `saveSoon`, `saveAndQuit`) y el menú (`openMenu(página)`, estado `'menu'`).
-- `js/save.js` — **perfiles de guardado** (versión 2): 3 ranuras en `localStorage` (`starnova.perfil.1..3`). Lo de Pip
-  (nivel, objetos, chispas, trajes, escenas vistas, reloj) es común; cada mundo guarda su estado en `worlds[id]`
-  (misiones, campanas, cofres, oleadas, jefe…) y `world` dice en qué mundo está. Los perfiles v1 se migran solos.
-  `snapshot(juego)` fotografía la partida y `restore(juego, datos)` la aplica **en silencio** sobre el mundo
-  recién creado (sin premios ni sonidos). Como el mundo solo está "nuevo" al cargar la página, "Guardar y
-  salir" recarga y vuelve a los perfiles. Si se añade algo que deba recordarse, va en ambas funciones.
-- `js/menus.js` — pantalla de **perfiles** (nueva aventura, continuar, copiar, borrar) y **menú del juego por
-  páginas**: Misiones (+ Historia) · Mochila (ataque, poder, datos de Pip, objetos) · Trajes (probador y
-  compra) · Mapa (islas, misión seguida, dónde está Pip) · Compendio · Sistema (guardar, salir, ajustes).
-- `js/cinema.js` — **escenas animadas**: estado `'cine'`, franjas, subtítulos y botón de esquina
-  "mantén para saltar" (`#cineSkip`; Esc en PC; Atrás en Android). Cada escena es una lista de planos
-  (`t`, `cam`, `say`, `on`, `tick`). **Las escenas no cambian la partida**: usan actores temporales
-  (`ctx.add`) y deshacen lo que toquen (`ctx.undo`), así se pueden saltar o repetir. Se piden con
-  `game.playStory(id)` (una sola vez; esperan en cola a que Pip pise el suelo) y se repiten desde
-  Misiones → Historia (`game.replayStory`). Disparadores: perfil nuevo → `prologo`; fragmento n →
-  `recuerdo<n>`; tercer fragmento → `porton`; entrar al santuario → `guardian`; vencer al jefe → `final`.
-  Un plano puede llevar `music: 'cuento'|'penumbra'|'recuerdo'|'guardian'|'esperanza'` (cambia la música
-  con fundido) y hacer actuar a Pip con `ctx.pip.lookUp = 0..1` (mirar arriba) y `ctx.pip.hop()` (saltito).
-  Al escribir textos: que dé tiempo a leerlos (unos 15 caracteres por segundo como máximo).
-- `js/music.js` — **director de música** del juego (`MusicDirector.choose()`): prioridad jefe › peligro (élite o
-  Gólem cerca) › combate (sombras cerca; se mantiene 7 s) › noche › día (cada región en su tono). No toca nada
-  durante las escenas (tienen su música). Con el menú abierto baja el volumen (`Audio.duck`).
-- `js/content/story.js` — textos de la historia: capítulos, recuerdos de Nova y lo que cuenta la lechuza
-  según el avance (`OWL_INTRO`, `owlLines`).
-- `js/entities/outfits.js` — los **10 trajes** (colores + piezas colgadas del esqueleto de Pip) y
-  `applyOutfit(modelo, id)`. `js/wardrobe.js` — probador: dibuja a Pip con un traje en un lienzo 2D usando
-  el renderizador del juego (sin otro contexto WebGL). Para añadir un traje basta una entrada en `OUTFIT_LIST`.
-- `js/physics.js` — mundo Rapier, **grupos de colisión** (`G`), controladores de personaje, rayos.
-- `js/world/palette.js` — paletas y nombres de las 5 regiones; mezcla de cielo por posición.
-- `js/world/builder.js` — piezas de arquitectura (caja, cilindro, torre, arco, cúpula, isla, pasarela…);
-  une la geometría de cada región en **una malla** y crea los colisionadores fijos. Sombreado horneado
-  por cara (las caras laterales toman el color `shade` de la región).
-- `js/world/layout.js` — **el mapa**: dónde está cada isla, torre, campana, cristal, cofre, etc.
-- `js/entities/models.js` — modelos low-poly hechos con primitivas (Pip, Sombra, Farol, Tótem, Guardián, Lechuza).
-- `js/entities/player.js` — Pip: movimiento (controlador cinemático), doble salto, voltereta, animación.
-- `js/entities/enemies.js` — IA de los 16 enemigos (`ai`: hopper, flyer, heavy, swarm, roller, turret, bomber,
-  splitter, healer, shielder, blinker, summoner, sniper, burrower, twister, golem), estados (`tickStatus`),
-  élites, el jefe `Guardian` y `shatter` (esquirlas).
-- `js/combat.js` — `Shot` (todos los proyectiles de Pip), `StarFall`, `EnemyOrb`, `VoidHole`, `PoisonCloud`,
-  aliados (`Turret`, `Spirit`, `OwlSpirit`, `Orbitals`, `Drones`), `Pickup` (chispas, xp, vida, objeto, ataque,
-  poder, fragmento) y `Debris`.
-- `js/props.js` — campanas (articulación esférica), cristales, cajas, puente de tablones (bisagras),
-  luciérnagas, cofres, portón, farolillos (cadena), hoguera, lechuza, estrella Nova.
-- **Contenido (123 entradas, datos puros)** en `js/content/`:
-  `items.js` (49 objetos en 6 rarezas + `computeStats`), `attacks.js` (21 ataques con rango 0–5 + 13 poderes),
-  `chests.js` (18 estilos de cofre en 6 rangos + `rollChest(progreso)`), `enemies.js` (16 enemigos + 6 élites),
-  `icons.js` (rarezas y ~60 glifos 2D para íconos). Para añadir contenido basta con agregar una entrada:
-  un objeto usa claves de `stats` que ya entiende `computeStats`; un ataque usa un `kind` y efectos existentes;
-  un enemigo usa un `ai` y un `model` existentes (o se añade uno nuevo en `enemies.js` / `enemyModels.js`).
-- `js/arsenal.js` — ataque equipado (cómo dispara cada `kind`), haz continuo, poderes, efectos al golpear
-  (quemar, congelar, cadena, veneno, robo de vida, aturdir, agujero negro…) y aliados/efectos periódicos.
-- `js/entities/pip.js` — modelo de Pip (grupos tipo esqueleto) y `PipAnimator` (galope, cola con resorte,
-  parpadeo, orejas, voltereta del doble salto, lanzamiento, aplastarse al caer, daño).
-- `js/entities/enemyModels.js` — modelos geométricos de los 16 enemigos y el aura de los élite.
-- `js/missions.js` — misiones **principales** (historia de Nova) y **secundarias** (premios), progreso y
-  objetivos del marcador. El jugador elige cuál seguir en el menú (nada se elige solo). En pantalla solo
-  hay un botoncito con la misión seguida (`#trackChip`): **no poner paneles que tapen el juego**.
-- `js/hud.js` — HUD en DOM + capa 2D (números de daño, barras/nombres de enemigos, marcador de misión),
-  íconos y recarga en los botones táctiles, ventana de premio, aviso de guardado y las páginas de
-  Misiones (principales, secundarias e Historia) y Compendio del menú.
-- `js/sky.js` — cielo degradado, estrellas, nubes, islas lejanas y el **ciclo de día y noche** (`DAY_CYCLE` = 480 s de
-  juego; `dayPhase`, `nightOf`, `duskOf`). El ciclo sale del reloj de la partida, así que se guarda solo; de noche
-  el HUD usa textos claros (`body.is-night`). `js/fx.js` — partículas (un solo `Points`).
-- `js/input.js` — acciones abstractas (teclado/ratón/táctil). `js/camera.js` — cámara sobre el hombro.
-- `js/audio.js` — sonidos sintetizados con WebAudio (sin archivos) y la **música** (`Audio.score(canción, tono)` /
-  `Audio.scoreStop()`): canciones en `SCORES` hechas de compases de 8 pasos (acorde, bajo, melodía con tres
-  timbres —cajita, cuerda pulsada, suave— y percusión suave opcional). La música va por su propio volumen
-  (`Audio.setMusicVolume`, ajuste "Volumen de la música"); se silencia al salir de la app. Las notas empiezan con
-  volumen 0 (si no, el ruido de la percusión "se cuela" y suena un chasquido). `js/util.js` — utilidades.
-- `tools/ojos.cjs` (capturas), `tools/serve.mjs` (servidor), `tools/capturas.sh` (bajar capturas de CI).
-- `.github/workflows/ojos.yml` (capturas en cada push), `build.yml` (APK + QR), `pages.yml` (versión web).
-- `tools/compilar_apk.sh` — compila la APK en el contenedor (Gradle + SDK de Android descargados en caché).
-- `android/` — app de Android (Kotlin, sin librerías): `MainActivity.kt` es una WebView que sirve el juego
-  desde los assets en `https://appassets.androidplatform.net/` (los módulos ES funcionan sin internet),
-  pantalla completa en horizontal, botón Atrás → `game.backButton()`, puente `window.StarNovaAndroid`
-  (`build()`, `version()`, `exit()`). Antes de compilar se copian `index.html`, `css/`, `js/`, `vendor/`…
-  a `android/app/src/main/assets/` (carpeta ignorada por git). La llave de firma nunca va en el repo.
-  Versiones: AGP 8.10.1, Kotlin 1.9.24, Gradle 8.14.3, compileSdk 36, minSdk 26.
+## Mapa del código (`godot/scripts/`)
+- `main.gd` — **núcleo**: estados (`title`, `play`, `menu`, `dialog`, `cine`, `tienda`, `galaxia`, `dead`, `ending`), reglas,
+  combate, daño/críticos, cofres, director de enemigos en oleadas, interacción, misiones, jefe, muerte, viajes, atajos.
+  Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena (`Juego.viaje`).
+- `juego.gd` (autoload `Juego`): viaje pendiente, ajustes, compendio, calidad gráfica y **recuperar las partidas de la
+  versión anterior de la app** (Android). Guarda en `user://`.
+- `datos.gd` (autoload `Datos`): lee `data/*.json`, `compute_stats`, `roll_item/attack/power/chest`.
+- `modelos.gd` (modelos de `data/modelos.json` con sus partes con nombre) · `mundo.gd` (carga un mundo + agua,
+  cascada, metal líquido, impulsor, gelatina) · `builder.gd` (piezas de arquitectura) · `palette.gd` (regiones).
+- `enemigos.gd` (16 IA, élites, estados, `Boss` de los 3 jefes, esquirlas) · `combate.gd` (proyectiles, zonas,
+  aliados, recogibles) · `arsenal.gd` (ataques, poderes, efectos) · `utileria.gd` (campanas, cristales, luciérnagas,
+  cofres, puente, portón, farolillos, lechuza, estrella, PNJ, cohete) · `props.gd` (hoguera, cajas).
+- `misiones.gd` · `guardado.gd` (3 perfiles; `snapshot`/`restore`) · `trajes.gd`.
+- `hud.gd` (autoload `Hud`) · `touch_ui.gd` · `menus.gd` (título, perfiles, menú por páginas, tienda, galaxia, muerte,
+  final, importar partida, botón "Actualizar") · `controls.gd` (teclado/ratón, mando y táctil).
+- `cine.gd` + `cine_ctx.gd` + `cine_escenas.gd` (las 26 escenas; **no cambian la partida**: actores temporales y deshacer).
+- `sfx.gd` (autoload `Sfx`: sonidos y música con fundidos) · `sky_env.gd` (cielo, estrellas, planetas, noche, espacio) ·
+  `fx.gd` (partículas) · `player.gd` · `pip.gd` (modelo y animación de Pip) · `camera_rig.gd` · `ojos.gd` (pruebas).
+- Capas de física: 1 terreno · 2 Pip · 4 objetos · 8 enemigos · 16 proyectiles de Pip · 32 enemigos · 64 portón ·
+  128 esquirlas · 256 recogibles. En GDScript las lambdas copian las variables simples: el estado compartido va en un
+  diccionario. El árbol se pausa fuera de `play`; `Main`, `Hud`, `Sfx`, `Juego`, menús y escenas usan `PROCESS_MODE_ALWAYS`.
+- `export_presets.cfg`: Android, Linux, Windows, macOS (universal) e iOS (proyecto de Xcode, ver `godot/IPHONE.md`).
+- `tools/compilar_apk.sh` (APK en el contenedor) · `tools/capturas.sh` (bajar capturas) · `godot/tools/ojos.sh`.
 
 ## Reglas del proyecto
 - Unidades: **1 = 1 metro**. Pip mide ~0.55. Gravedad −22. Arriba es +y; el norte es −z.
-- Todo lo que choca va por Rapier. Usa los grupos de `physics.js` (`groups(miembro, filtro)`); al crear
-  un colisionador que el juego deba reconocer, regístralo con `phys.own(collider, objeto)`.
-  Si el objeto tiene `onHit(proyectil)` o `push(dir, fuerza)`, las bellotas y el coletazo lo afectan.
-- Los objetos con cuerpo deben tener `destroy()` que llame a `phys.removeBody` y quite la malla.
-- Rendimiento en teléfono: la arquitectura estática va por `Builder` (una malla por región). No crear
-  geometrías ni materiales por cuadro; reutiliza `mat()` y `GEO` de `models.js`. Máximo 1 luz puntual.
 - Textos visibles **en español**. Estilo de la interfaz: suave, redondeado, tipografía serif para títulos.
-- **En táctil nunca se muestran teclas de PC** (el dueño lo pidió). Usa `game.k(textoPC, textoTáctil)` y las
-  clases CSS `pc-only` / `touch-only`. El cuerpo lleva `is-touch` en teléfonos y en la app de Android.
-- Ajustes guardados en `localStorage` (`starnova.ajustes`): sensibilidad, disparo automático (táctil),
-  cámara que acompaña, vibración. El compendio se guarda en `starnova.compendio`.
-- **Sombras en oleadas** (`game.runDirector` / `updateWaves`): cada región con sombras tiene una reserva
-  (`waveSize`, crece con la dificultad). Al gastarse ('fin') y caer sus últimas sombras, la región queda en calma
-  `WAVE_CALM` (75 s) y luego vuelve una ola. El estado se guarda en el perfil y se ve en la página Mapa. Los
-  enemigos **invocados** (`summoned`: chispitas de la Campana Oscura, refuerzos del jefe) no dan chispas ni
-  objetos y la Campana tiene como máximo 4 vivas: **no crear fuentes infinitas de chispas**.
-- **Menú como en una aventura clásica** (el dueño lo pidió): título → **perfiles** → juego. Una partida nueva
-  solo nace al elegir una ranura vacía; **el menú del juego no tiene "Nueva partida"**. Se guarda solo (cada
-  30 s, al abrir el menú, al cumplir misiones, recoger objetos, subir de nivel y al salir de la app).
+- **En táctil nunca se muestran teclas de PC** (el dueño lo pidió): usa `game.k(textoPC, textoTáctil)`.
+- **No poner paneles que tapen el juego**: en pantalla solo el botoncito de la misión seguida. Nada de textos de
+  explicación bajo la barra de vida.
+- **Nada de "texto molesto"** (el dueño lo pidió): la pantalla de inicio solo lleva **STAR NOVA** y **Comenzar** (más
+  "Actualizar" cuando hay una compilación nueva): sin lema, sin descripción, sin controles, sin versión. En el juego no
+  hay avisos de ayuda ("habla con…", "elige tu misión…", teclas) ni la versión; la versión está en Menú → Sistema.
+  Los íconos de habilidades en PC van abajo a la derecha, sin letras.
+- **Menú como en una aventura clásica**: título → **perfiles** → juego. Una partida nueva solo nace al elegir una ranura
+  vacía; el menú del juego no tiene "Nueva partida". Se guarda solo (cada 30 s, al abrir el menú, al cumplir misiones…).
+- **No crear fuentes infinitas de chispas** (oleadas con calma; los invocados no dan chispas).
 - Nada de identificadores de modelo en commits, PR ni código.
-- Licencias: Three.js (MIT) y Rapier (Apache-2.0) en `vendor/`; mantener sus avisos.
 - **Nunca** subir llaves, contraseñas ni tokens al repositorio (es público). Van en Secrets o en la caché de CI.
 
 ## Control de avance
-Hecho (v0.1):
-- [x] Mundo abierto: El Claro + 4 regiones unidas por pasarelas; cielo y niebla cambian por región.
-- [x] Pip con controlador de personaje (Rapier): correr, doble salto, voltereta, cámara con colisión.
-- [x] Habilidades: bellotazo (clic), coletazo (Q), voltereta (Shift), lluvia estelar (R).
-- [x] Enemigos: Sombra, Farol, Tótem + director que escala con el tiempo; jefe El Guardián.
-- [x] Chispas, experiencia y niveles, cofres, 14 objetos acumulables (3 rarezas).
-- [x] Misiones: Tres Campanas, Luciérnagas, Plaga de Sombras, Puente Dormido, Guardián (+ final).
-- [x] Físicas: campanas colgantes, puente de tablones con bisagras, cajas, farolillos en cadena, esquirlas.
-- [x] Controles táctiles en horizontal (joystick + botones + ayuda de puntería), aviso de girar el teléfono.
-- [x] Ojos: `tools/ojos.cjs` + workflow con release `diagnostico`; publicación en GitHub Pages.
-- [x] APK de Android (WebView con el juego dentro), QR en el release `latest`, aviso de actualización.
-
-Hecho (v0.2):
-- [x] Pip nuevo: modelo más tierno y animación procedural completa.
-- [x] Controles táctiles: botones con íconos y recarga, joystick flotante con zona muerta, disparo
-  automático, cámara que acompaña, sensibilidad, vibración; sin teclas de PC en táctil.
-- [x] Más de 100 contenidos: 49 objetos, 21 ataques con rango, 13 poderes, 18 cofres en 6 rangos,
-  16 enemigos, 6 élites (+ Compendio). Los cofres reaparecen con rango según el avance.
-
-- [x] Menú de misiones: principales y secundarias, el jugador elige; sin panel fijo en pantalla.
-
-Hecho (v0.3):
-- [x] Perfiles de guardado (3 ranuras): nueva aventura, continuar, copiar y borrar; guardado automático.
-- [x] Menú del juego por páginas: Misiones, Mochila, Mapa, Compendio y Sistema (sin "Nueva partida").
-- [x] Prueba automática de guardado en los ojos (`prueba_guardado`: crear → guardar y salir → continuar → borrar).
-
-Hecho (v0.4):
-- [x] Trajes: 10 atuendos para Pip, comprables con chispas, con probador 3D en el menú; se guardan en el perfil.
-- [x] Historia ampliada (la Penumbra, la promesa del Guardián, los recuerdos de Nova) y más charla de la lechuza.
-- [x] Escenas animadas: prólogo, 4 recuerdos, portón, Guardián y final; se saltan manteniendo el botón de
-  la esquina y se pueden volver a ver en Misiones → Historia.
-- [x] Música propia en las escenas (5 ambientes), Pip actúa (mira al cielo, salta de alegría) y más tiempo
-  para leer los textos largos. Prueba automática `prueba_escenas`: cada escena deja el mundo como estaba.
-
-Hecho (v0.5):
-- [x] Ciclo de día y noche (8 min de juego) con atardecer y amanecer, luz de luna e iconito sol/luna.
-- [x] Música durante el juego: día (tono por región), noche, combate, peligro y jefe; avisos de anochecer,
-  amanecer, oleada y calma; volumen de música en Ajustes.
-- [x] Sombras en oleadas con calma (antes ~312 chispas/min farmeando quieto, ahora ~108) e invocadas sin chispas.
-  Prueba automática `prueba_musica`.
+Hecho:
+- [x] Mundo abierto con 3 mundos (Islas del Cielo, Verdalia, Prismara), regiones, cielo y niebla por región.
+- [x] Pip: correr, doble salto, voltereta, coletazo, cámara con colisión; animación completa.
+- [x] Combate: 21 ataques con rango, 13 poderes, 49 objetos en 6 rarezas, 18 cofres, 32 enemigos + 6 élites, 3 jefes.
+- [x] Misiones principales y secundarias, el jugador elige cuál seguir; sombras en oleadas con calma.
+- [x] Historia con 26 escenas animadas; trajes, tiendas con ropa exclusiva, 8 PNJ, Cohete Avellana y mapa galáctico.
+- [x] Día y noche, música según la situación, 3 perfiles de guardado, compendio.
+- [x] App nativa (Godot) en Android, Mac, Windows, Linux e iPhone/iPad; calidad gráfica; importar partidas con código.
+- [x] Sin versión web: la app nativa reemplaza a la anterior (mismo paquete) y recupera sus partidas.
 
 Pendiente / ideas:
-Hecho (v0.6):
-- [x] Viaje por galaxias: Cohete Avellana, mapa galáctico (galaxias bloqueadas hasta terminar la anterior) y escenas de
-  despegue, viaje por el espacio y llegada; el perfil recuerda en qué mundo está.
-- [x] Planeta Verdalia (Gemini): terreno con colinas, bosque, lago con cascada, río, nenúfares; 4 misiones principales
-  y 4 secundarias; 8 enemigos del bosque; jefe Los Gemelos de Raíz.
-- [x] Planeta Prismara (Soledad): islas en el espacio, metal líquido con ondas, impulsores y gelatinas trampolín,
-  polvo de estrella; 4 + 4 misiones; 8 enemigos; jefe La Polilla de la Soledad.
-- [x] 8 PNJ (Brío, Doña Ovillo, Abuelo Sauce, Musgo, Tilo, Eco, Lumen, Capitana Vela) y 3 tiendas con 11 trajes exclusivos.
-- [x] Pruebas automáticas `prueba_escenas` (27 escenas en 3 mundos) y `prueba_viaje` (Islas → cohete → Gemini → guardar).
-- [x] Documento Word con la historia, los PNJ y los datos técnicos: `docs/StarNova_Historia_y_Datos.docx`.
-
-- [x] Versión nativa (Godot), etapa 1: El Claro, Pip, movimiento, cámara, controles y exportación a Mac/Windows/Linux/Android.
-- [x] Versión nativa, etapas 2–4: el juego completo en Godot (3 mundos, misiones, jefes, escenas, trajes, perfiles,
-  música), iPhone/iPad (proyecto de Xcode), calidad gráfica e importar partidas de la web con un código.
-- [x] Sin textos de explicación bajo la barra de vida (web y nativa; en PC quedan los íconos de habilidades).
+- [ ] **Gráficos HD** (pedido del dueño): más polígonos en Pip, enemigos, PNJ y arquitectura (torres con más detalle),
+  pasto, más brillo (bloom), mejor luz y sombras, agua con reflejos; aprovechar GPU y CPU del teléfono con calidades.
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
-- [ ] Mezcla de sonido más rica (instrumentos con más matices); que la noche cambie algo del juego (criaturas nocturnas).
-- [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.
-- [ ] Carga por zonas (streaming) si el mundo crece mucho; nivel de detalle (LOD) para islas lejanas.
-- [ ] Postproceso suave (bloom en estrellas/cristales) con opción para teléfonos lentos.
-- [ ] Recuperar GitHub (cuenta suspendida) o mudar el proyecto a otro alojamiento, y subir este historial.
-- [ ] Llave de firma permanente en Secrets (`SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`) cuando haya GitHub.
+- [ ] Mezcla de sonido más rica; que la noche cambie algo del juego (criaturas nocturnas).
+- [ ] Más capítulos de historia y PNJ con sus propias escenas.
+- [ ] Llave de firma permanente en Secrets (`SIGNING_KEYSTORE_B64`, `SIGNING_PASSWORD`).

@@ -1,5 +1,5 @@
-## Star Nova — "los ojos" de la versión nativa: capturas + pruebas automáticas, como tools/ojos.cjs en la web.
-## Uso: godot --path godot -- --ojos=CARPETA --ojos_set=islas|gemini|soledad   (lo hace godot/tools/ojos_nativo.sh).
+## Star Nova — "los ojos": capturas + pruebas automáticas del juego.
+## Uso: godot --path godot -- --ojos=CARPETA --ojos_set=islas|gemini|soledad   (lo hace godot/tools/ojos.sh).
 ## Cada juego de pruebas escribe report_<set>.txt; una línea con "FALLO" hace fallar el trabajo de CI.
 class_name Ojos
 extends Node
@@ -98,7 +98,7 @@ func _run() -> void:
 	await _escenas()
 	report.append("Pruebas con fallos (%s): %d" % [set_id, fails])
 	var fa := FileAccess.open(out_dir.path_join("report_%s.txt" % set_id), FileAccess.WRITE)
-	fa.store_string("Star Nova nativo — informe de los ojos (%s) · Godot %s\n%s\n" % [set_id, Engine.get_version_info().string, "\n".join(report)])
+	fa.store_string("Star Nova — informe de los ojos (%s) · Godot %s\n%s\n" % [set_id, Engine.get_version_info().string, "\n".join(report)])
 	fa.close()
 	print("\n".join(report))
 	get_tree().quit(1 if fails > 0 else 0)
@@ -243,7 +243,7 @@ func _islas() -> void:
 	main.save_now(true)
 	var d = Guardado.read(3)
 	_check(d != null and int(d.sparks) == 321 and d.world == "islas" and d.worlds.islas.missions.campanas[0] >= 1, "[prueba_guardado] el perfil guardó chispas, mundo y misiones")
-	# código de partida (el mismo formato que da la web): exportar y volver a importar
+	# código de partida: exportar y volver a importar
 	var code: String = main.menus.export_code()
 	var libres := Guardado.SLOTS.filter(func(n): return Guardado.read(n) == null)
 	var r := Menus.import_code(code)

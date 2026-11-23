@@ -1,4 +1,4 @@
-## Star Nova — las escenas de la historia (port de las de js/cinema.js y js/cinema2.js), con los mismos planos,
+## Star Nova — las escenas de la historia, con los mismos planos,
 ## textos (data/historia.json y data/mundos.json), música y utilería. Ver cine.gd para el motor.
 ## Nota: en GDScript las funciones anónimas copian las variables simples, así que el estado que comparten los
 ## planos va en un diccionario (st).

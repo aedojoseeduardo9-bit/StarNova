@@ -1,5 +1,5 @@
-## Star Nova — datos del juego (autoload "Datos"). Se leen de godot/data/*.json, que se generan desde la web con
-## godot/tools/exportar_web.cjs (así la versión nativa usa exactamente los mismos objetos, enemigos e historia).
+## Star Nova — datos del juego (autoload "Datos"). Se leen de godot/data/*.json: objetos, ataques, poderes, cofres,
+## enemigos, historia, PNJ, mundos y trajes. Para añadir contenido basta con editar esos archivos.
 extends Node
 
 var rarity: Array = []
@@ -103,7 +103,7 @@ func roll_chest(p: float, luck := 0.0) -> String:
 	var pool := chest_list.filter(func(c): return int(c.rank) == rank)
 	return pool[randi() % pool.size()].id
 
-## Suma las estadísticas de todos los objetos y el nivel (igual que computeStats de la web).
+## Suma las estadísticas de todos los objetos y el nivel .
 func compute_stats(level: int, counts: Dictionary) -> Dictionary:
 	var s := {}
 	var cdr_mul := 1.0

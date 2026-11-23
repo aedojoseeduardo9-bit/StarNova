@@ -1,7 +1,7 @@
-## Star Nova — interfaz en pantalla (autoload "Hud"; port de js/hud.js): fragmentos, chispas, nivel, misión
+## Star Nova — interfaz en pantalla (autoload "Hud"): fragmentos, chispas, nivel, misión
 ## seguida, reloj y dificultad, vida/escudo/experiencia, objetos, ataque y poder, avisos, carteles de región,
 ## ventana de premio, barra del jefe y una capa 2D con números de daño, barras de enemigos y el marcador de misión.
-## Estilo de la web: suave, redondeado y con títulos en letra serif. En táctil nunca se muestran teclas de PC.
+## Estilo: suave, redondeado y con títulos en letra serif. En táctil nunca se muestran teclas de PC.
 extends CanvasLayer
 
 const DIFF_NAMES := ["Brisa", "Llovizna", "Lluvia", "Chubasco", "Tormenta", "Diluvio", "¡NOVA!"]
@@ -21,7 +21,6 @@ var banner_sub: Label
 var toast_panel: PanelContainer
 var toast_label: Label
 var hint_label: Label
-var version_label: Label
 var frags_label: Label
 var sparks_label: Label
 var level_label: Label
@@ -89,12 +88,6 @@ func _ready() -> void:
 	root.add_child(hud)
 	_build_hud()
 
-	version_label = Label.new()
-	version_label.text = "Star Nova · versión nativa " + str(ProjectSettings.get_setting("application/config/version"))
-	version_label.position = Vector2(16, 12)
-	_style(version_label, 14, INK_SOFT)
-	root.add_child(version_label)
-	version_label.visible = false
 
 	banner_box = VBoxContainer.new()
 	banner_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -281,12 +274,14 @@ func _build_hud() -> void:
 	hp_wrap.add_child(hp_text)
 	xp_bar = _bar(Color("#9ce8d2"), 6)
 	bottom.add_child(xp_bar)
-	# habilidades (solo en PC): íconos con su recarga, sin textos de explicación debajo de la vida
+	# habilidades (solo en PC): íconos con su recarga en la esquina de abajo a la derecha, sin textos
 	skill_bar = Control.new()
-	skill_bar.custom_minimum_size = Vector2(0, 40)
+	skill_bar.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	skill_bar.position = Vector2(-196, -56)
+	skill_bar.size = Vector2(180, 40)
 	skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	skill_bar.draw.connect(_draw_skills)
-	bottom.add_child(skill_bar)
+	hud.add_child(skill_bar)
 	# indicación para interactuar
 	prompt_panel = PanelContainer.new()
 	prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -547,17 +542,17 @@ func _process(dt: float) -> void:
 			boss_box.visible = false
 	overlay.queue_redraw()
 
-## Íconos de las habilidades en PC (como en la web): ataque, coletazo, voltereta y poder, con su recarga y su tecla.
+## Íconos de las habilidades en PC: ataque, coletazo, voltereta y poder, con su recarga (sin letras).
 func _draw_skills() -> void:
 	var g = game
 	if g == null or not is_instance_valid(g) or g.is_touch():
 		return
-	var ids := [["primary", "Clic"], ["secondary", "Q"], ["utility", "Shift"], ["special", "R"]]
+	var ids := ["primary", "secondary", "utility", "special"]
 	var sz := 36.0
 	var gap := 8.0
 	var x0 := (skill_bar.size.x - (sz * 4 + gap * 3)) / 2.0
 	for i in ids.size():
-		var id: String = ids[i][0]
+		var id: String = ids[i]
 		var r := Rect2(x0 + i * (sz + gap), 0, sz, sz)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(1, 1, 1, 0.75)
@@ -577,10 +572,6 @@ func _draw_skills() -> void:
 		var f: float = g.skills.fraction(id) if id != "primary" else 0.0
 		if f > 0:
 			skill_bar.draw_rect(Rect2(r.position.x, r.position.y + sz * (1.0 - f), sz, sz * f), Color(0.25, 0.18, 0.32, 0.45))
-		var key: String = ids[i][1]
-		var w := sans.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
-		skill_bar.draw_string_outline(sans, Vector2(c.x - w / 2, r.end.y - 2), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color(1, 1, 1, 0.9))
-		skill_bar.draw_string(sans, Vector2(c.x - w / 2, r.end.y - 2), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
 
 func _text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Color, outline := 3) -> void:
 	var w := sans.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x

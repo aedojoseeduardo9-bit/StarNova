@@ -1,5 +1,5 @@
 ## Star Nova — cielo en degradado con sol, niebla, luz del sol con sombras, mar de nubes e islas lejanas
-## entre la bruma (port de js/sky.js). Los colores se mezclan según la región donde está Pip.
+## entre la bruma. Los colores se mezclan según la región donde está Pip.
 class_name SkyEnv
 extends Node3D
 

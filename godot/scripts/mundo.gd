@@ -1,4 +1,4 @@
-## Star Nova — carga un mundo exportado de la web (data/mundo_<id>.json + .bin): mallas de arquitectura y terreno
+## Star Nova — carga un mundo (data/mundo_<id>.json + .bin): mallas de arquitectura y terreno
 ## (colores por vértice, caras planas), colisiones fijas exactas y los puntos del mapa (spots). También crea las
 ## piezas animadas de los planetas: agua, cascada, metal líquido con ondas, Impulsores Cometa y gelatinas.
 class_name Mundo
@@ -9,7 +9,7 @@ static func world_material() -> StandardMaterial3D:
 	if _mat == null:
 		_mat = StandardMaterial3D.new()
 		_mat.vertex_color_use_as_albedo = true
-		_mat.vertex_color_is_srgb = false        # three.js guarda los colores de vértice en espacio lineal
+		_mat.vertex_color_is_srgb = false        # los colores de vértice están guardados en espacio lineal
 		_mat.roughness = 1.0
 		_mat.metallic_specular = 0.0
 		_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
@@ -48,7 +48,7 @@ static func build(game: Node, root: Node3D, id: String) -> Dictionary:
 			var cc := Vector3(p[t * 3 + 6], p[t * 3 + 7], p[t * 3 + 8])
 			var n := (b - a).cross(cc - a)
 			n = n.normalized() if n.length_squared() > 1e-14 else Vector3.UP
-			# three.js: antihorario → Godot: horario
+			# los datos vienen en sentido antihorario → Godot: horario
 			verts[t] = a
 			verts[t + 1] = cc
 			verts[t + 2] = b
@@ -153,7 +153,7 @@ void fragment() {
 """
 	var o: Dictionary
 
-	## Agua honda: Pip no sabe nadar (igual que S.inWater de la web).
+	## Agua honda: Pip no sabe nadar .
 	func is_inside(p: Vector3) -> bool:
 		var level := float(o.get("level", 0.0))
 		if p.y >= level - 0.3:

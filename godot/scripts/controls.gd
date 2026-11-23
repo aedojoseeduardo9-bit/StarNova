@@ -46,7 +46,7 @@ func _init(p: Player, c: CameraRig) -> void:
 
 ## ¿Es un teléfono o tableta? (en la app de Android/iOS o con pantalla táctil sin ratón)
 static func is_touch_device() -> bool:
-	return OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+	return OS.has_feature("android") or OS.has_feature("ios")
 
 func set_touch(on: bool) -> void:
 	touch_mode = on
@@ -119,7 +119,7 @@ func _process(dt: float) -> void:
 		tu.dash_pressed = false
 		var l := tu.take_look()
 		cam.add_look(l.x * 0.0062 * sens, l.y * 0.0062 * sens)
-		# cámara que acompaña al moverse de lado (como en la web)
+		# cámara que acompaña al moverse de lado
 		if absf(mv.x) > 0.25 and not tu.looking() and (game == null or game.settings.get("camAssist", true)):
 			cam.add_look(mv.x * 1.1 * dt, 0)
 		if game:

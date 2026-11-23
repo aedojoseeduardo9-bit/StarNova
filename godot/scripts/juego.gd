@@ -1,6 +1,6 @@
 ## Star Nova — lo que sobrevive a recargar la escena (autoload "Juego"): referencia al juego en curso, el viaje
 ## pendiente entre mundos, volver a los perfiles tras "Guardar y salir", los ajustes y el compendio.
-## Guarda en user:// (en la web era localStorage): ajustes.json, compendio.json, varios.json y perfil_N.json.
+## Guarda en user://: ajustes.json, compendio.json, varios.json y perfil_N.json.
 extends Node
 
 var main = null
@@ -25,13 +25,84 @@ func _ready() -> void:
 	_store = v if v is Dictionary else {}
 	get_tree().auto_accept_quit = false
 
+## Al actualizar desde la versión anterior de la app (mismo paquete en Android), sus partidas siguen guardadas
+## en la carpeta de la app (app_webview/…/Local Storage/leveldb). La primera vez se buscan los perfiles
+## ("starnova.perfil.N") y se copian a las ranuras. Devuelve cuántos recuperó.
+func recuperar_partidas_anteriores() -> int:
+	if not OS.has_feature("android") or store_get("migrado", false):
+		return 0
+	store_set("migrado", true)
+	for n in Guardado.SLOTS:
+		if Guardado.read(n) != null:
+			return 0
+	var base := OS.get_user_data_dir().get_base_dir().path_join("app_webview/Default/Local Storage/leveldb")
+	var dir := DirAccess.open(base)
+	if dir == null:
+		return 0
+	var found := {}
+	var files: Array = []
+	for f in dir.get_files():
+		if f.ends_with(".log") or f.ends_with(".ldb"):
+			files.append(f)
+	files.sort()
+	for f in files:
+		var data := FileAccess.get_file_as_bytes(base.path_join(f))
+		for n in Guardado.SLOTS:
+			var d = _ultimo_perfil(data, ("starnova.perfil.%d" % n).to_ascii_buffer())
+			if d != null:
+				found[n] = d
+	for n in found:
+		Guardado.write(n, found[n])
+	return found.size()
+
+static func _ultimo_perfil(data: PackedByteArray, key: PackedByteArray):
+	var best = null
+	var i := 0
+	while true:
+		i = _buscar(data, key, i)
+		if i < 0:
+			break
+		var p := i + key.size()
+		i += 1
+		# largo del valor (varint) y el valor: 0x00 = UTF-16LE, 0x01 = Latin-1
+		var length := 0
+		var shift := 0
+		while p < data.size() and shift < 35:
+			var byte := data[p]
+			p += 1
+			length |= (byte & 0x7F) << shift
+			shift += 7
+			if byte < 0x80:
+				break
+		if length < 3 or p + length > data.size():
+			continue
+		var raw := data.slice(p + 1, p + length)
+		var text := raw.get_string_from_utf16() if data[p] == 0 else raw.get_string_from_ascii()
+		var j = JSON.parse_string(text)
+		if j is Dictionary and j.get("name") is String:
+			best = j
+	return best
+
+static func _buscar(data: PackedByteArray, key: PackedByteArray, from: int) -> int:
+	var k0 := key[0]
+	var last := data.size() - key.size()
+	var i := from
+	while i <= last:
+		i = data.find(k0, i)
+		if i < 0 or i > last:
+			return -1
+		if data.slice(i, i + key.size()) == key:
+			return i
+		i += 1
+	return -1
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if main and is_instance_valid(main):
 			main.save_now(true)
 		get_tree().quit()
 
-## Atajos de la línea de órdenes: `godot -- --auto --ir=coral` (los mismos de la URL de la web).
+## Atajos de la línea de órdenes: `godot -- --auto --ir=coral`.
 func args() -> Dictionary:
 	if args_override is Dictionary:
 		var o: Dictionary = args_override

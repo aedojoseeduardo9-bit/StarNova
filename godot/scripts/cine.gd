@@ -1,4 +1,4 @@
-## Star Nova — escenas animadas ("videos" hechos con el propio mundo del juego; port de js/cinema.js y js/cinema2.js).
+## Star Nova — escenas animadas ("videos" hechos con el propio mundo del juego).
 ## Una escena es una lista de planos: {t, cam: {p: [desde, hasta], l: [desde, hasta], fov, linear}, say, music, on, tick}.
 ## Mientras dura, el juego queda en estado "cine" (el mundo en pausa salvo lo que la escena anima), con franjas,
 ## subtítulos y un botón en la esquina: mantenerlo apretado salta la escena (en PC también Esc).
