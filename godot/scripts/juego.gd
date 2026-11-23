@@ -153,11 +153,22 @@ func store_set(key: String, v) -> void:
 	_store[key] = v
 	write("varios", _store)
 
-## Calidad gráfica (Sistema → Calidad gráfica): sombras, suavizado y resolución 3D. "auto" elige según el aparato.
-func apply_quality(g) -> void:
+## Calidad elegida (Sistema → Calidad gráfica): "baja", "media" o "alta"; "auto" elige según el aparato.
+func quality() -> String:
 	var q: String = str(settings.get("quality", "auto"))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--calidad="):
+			q = a.substr(10)
 	if q == "auto":
 		q = "media" if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else "alta"
+	return q
+
+## Aplica la calidad: arquitectura HD y pasto (media y alta), sombras, suavizado, brillo y resolución 3D.
+func apply_quality(g, forzar := "") -> void:
+	var q := quality() if forzar == "" else forzar
+	Mundo.set_quality(g.world, q)
+	if g.sky.has_method("set_quality"):
+		g.sky.set_quality(q)
 	var vp = g.get_viewport()
 	match q:
 		"baja":

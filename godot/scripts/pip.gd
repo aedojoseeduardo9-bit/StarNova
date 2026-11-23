@@ -53,24 +53,24 @@ static func _geos() -> void:
 	_ball = SphereMesh.new()
 	_ball.radius = 1.0
 	_ball.height = 2.0
-	_ball.radial_segments = 20
-	_ball.rings = 10
+	_ball.radial_segments = 28
+	_ball.rings = 14
 	_low = SphereMesh.new()
 	_low.radius = 1.0
 	_low.height = 2.0
-	_low.radial_segments = 8
-	_low.rings = 4
+	_low.radial_segments = 14
+	_low.rings = 7
 	_cone = CylinderMesh.new()
 	_cone.top_radius = 0.0
 	_cone.bottom_radius = 1.0
 	_cone.height = 1.0
-	_cone.radial_segments = 10
-	_cone.rings = 1
+	_cone.radial_segments = 16
+	_cone.rings = 2
 	_torus = TorusMesh.new()
 	_torus.inner_radius = 0.7
 	_torus.outer_radius = 1.3
-	_torus.rings = 18
-	_torus.ring_segments = 8
+	_torus.rings = 32
+	_torus.ring_segments = 12
 	_star = _make_star()
 
 static func _make_star() -> ArrayMesh:
@@ -103,15 +103,28 @@ static func _make_star() -> ArrayMesh:
 			st.add_vertex(v)
 	return st.commit()
 
-static func pip_mat(color: String, emissive := Color.BLACK) -> StandardMaterial3D:
+static func pip_mat(color: String, emissive := Color.BLACK, fur := true) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(color)
 	m.roughness = 0.9
 	m.metallic_specular = 0.15
 	m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT
+	if fur:
+		# borde de luz suave: el pelaje se ve esponjoso
+		m.rim_enabled = true
+		m.rim = 0.45
+		m.rim_tint = 0.6
 	if emissive != Color.BLACK:
 		m.emission_enabled = true
 		m.emission = emissive
+	return m
+
+## Ojos y nariz húmedos: brillan con la luz.
+static func gloss_mat(color: String) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(color)
+	m.roughness = 0.18
+	m.metallic_specular = 0.8
 	return m
 
 func _part(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3, sc: Vector3) -> MeshInstance3D:
@@ -120,7 +133,8 @@ func _part(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3, sc: Vector3)
 	m.material_override = mat
 	m.position = pos
 	m.scale = sc
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	# las piezas chiquitas (ojos, mechones) no hacen sombra: ahorra trabajo y no se nota
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if maxf(sc.x, maxf(sc.y, sc.z)) > 0.045 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(m)
 	return m
 
@@ -136,8 +150,8 @@ func _init() -> void:
 	name = "Pip"
 	M = {
 		"fur": pip_mat("#cf7a3e"), "fur2": pip_mat("#e59a5c"), "furDark": pip_mat("#a95e2c"), "cream": pip_mat("#fbe6cf"),
-		"paw": pip_mat("#8c4e2a"), "eye": pip_mat("#2a1a18"), "white": pip_mat("#ffffff", Color(0.4, 0.4, 0.4)),
-		"pink": pip_mat("#f4a7a2"), "nose": pip_mat("#5a2f2a"), "scarf": pip_mat("#6cc9b2"), "scarf2": pip_mat("#4fae98"),
+		"paw": pip_mat("#8c4e2a"), "eye": gloss_mat("#2a1a18"), "white": pip_mat("#ffffff", Color(0.4, 0.4, 0.4), false),
+		"pink": pip_mat("#f4a7a2"), "nose": gloss_mat("#5a2f2a"), "scarf": pip_mat("#6cc9b2"), "scarf2": pip_mat("#4fae98"),
 		"gold": pip_mat("#ffd36e", Color(0.48, 0.33, 0.06)), "tailTip": pip_mat("#ffe9d2"),
 	}
 	(M.gold as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -146,6 +160,9 @@ func _init() -> void:
 	_part(torso, _ball, M.fur, Vector3(0, 0.05, -0.01), Vector3(0.15, 0.14, 0.17))
 	_part(torso, _ball, M.cream, Vector3(0, 0.04, 0.105), Vector3(0.1, 0.115, 0.08))
 	_part(torso, _ball, M.cream, Vector3(0, 0.13, 0.07), Vector3(0.085, 0.07, 0.07))
+	for i in 3:
+		var ch := _part(torso, _cone, M.cream, Vector3((i - 1) * 0.03, 0.03, 0.17), Vector3(0.022, 0.05, 0.016))
+		ch.rotation = Vector3(PI - 0.5, 0.0, (i - 1) * 0.3)
 	# cabeza grande (proporción tierna)
 	neck = _pivot(torso, Vector3(0, 0.17, 0.05))
 	head = _pivot(neck, Vector3(0, 0.1, 0.02))
@@ -154,6 +171,14 @@ func _init() -> void:
 	for s in [-1.0, 1.0]:
 		_part(head, _ball, M.cream, Vector3(s * 0.075, -0.045, 0.09), Vector3(0.07, 0.06, 0.055))
 	_part(head, _ball, M.cream, Vector3(0, -0.035, 0.125), Vector3(0.06, 0.048, 0.05))
+	# mechón en la frente y pelitos en las mejillas
+	for i in 3:
+		var tf := _part(head, _cone, M.fur2, Vector3((i - 1) * 0.022, 0.13, 0.045 - absf(i - 1) * 0.01), Vector3(0.022, 0.06, 0.018))
+		tf.rotation = Vector3(0.5, 0.0, (1 - i) * 0.45)
+	for s in [-1.0, 1.0]:
+		for i in 2:
+			var ck := _part(head, _cone, M.cream, Vector3(s * (0.128 + i * 0.012), -0.06 - i * 0.022, 0.07), Vector3(0.018, 0.045, 0.016))
+			ck.rotation = Vector3(0.0, 0.0, -s * (1.9 + i * 0.25))
 	_part(head, _ball, M.nose, Vector3(0, -0.012, 0.172), Vector3(0.022, 0.017, 0.015))
 	for s in [-1.0, 1.0]:
 		var e := _pivot(head, Vector3(s * 0.07, 0.025, 0.118))
@@ -203,6 +228,10 @@ func _init() -> void:
 		_part(seg, _ball, m, Vector3(0, 0.04, 0), Vector3(r, r * 0.95, r * 0.9))
 		if i >= 3:
 			_part(seg, _ball, M.fur2, Vector3(0, 0.04, r * 0.45), Vector3(r * 0.6, r * 0.6, r * 0.4))
+		# mechones de la cola (se ve más peluda)
+		for k in 3:
+			var a := TAU * (k / 3.0) + i * 0.9
+			_part(seg, _low, m, Vector3(cos(a) * r * 0.55, 0.04 + (k - 1) * r * 0.2, sin(a) * r * 0.5), Vector3(r * 0.55, r * 0.5, r * 0.5))
 		tail.append(seg)
 		parent = seg
 
