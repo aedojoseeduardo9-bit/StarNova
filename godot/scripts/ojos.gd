@@ -39,9 +39,7 @@ func _cam(yaw: float, pitch: float, dist: float) -> void:
 ## Las pruebas corren en calidad baja (con OpenGL por software el HD va muy lento y falsea las pruebas de tiempo);
 ## cada captura se toma en calidad alta (HD, pasto y brillo) para ver el juego como en un teléfono bueno.
 func _hd(on: bool) -> void:
-	var q := "alta" if on else "baja"
-	Mundo.set_quality(main.world, q)
-	main.sky.set_quality(q)
+	Juego.apply_quality(main, "alta" if on else "baja")
 
 func _shot(file: String) -> void:
 	_hd(true)
@@ -387,7 +385,8 @@ func _escenas() -> void:
 		await _play_ready()
 		var pl: Player = main.player
 		pl.teleport(Utileria._v3(main.spots.spawn))
-		await _frames(3)
+		# el punto de inicio está un poco sobre el suelo: esperar a que Pip aterrice antes de medir
+		await _secs(0.6)
 		var p0 := pl.global_position
 		var f0: int = main.missions.fragments()
 		if not main.cinema.play(id):

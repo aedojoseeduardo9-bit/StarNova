@@ -164,8 +164,8 @@ func quality() -> String:
 	return q
 
 ## Aplica la calidad: arquitectura HD y pasto (media y alta), sombras, suavizado, brillo y resolución 3D.
-func apply_quality(g) -> void:
-	var q := quality()
+func apply_quality(g, forzar := "") -> void:
+	var q := quality() if forzar == "" else forzar
 	Mundo.set_quality(g.world, q)
 	if g.sky.has_method("set_quality"):
 		g.sky.set_quality(q)
