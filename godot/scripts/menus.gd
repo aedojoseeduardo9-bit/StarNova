@@ -582,23 +582,27 @@ func _page_bag() -> void:
 			["Armadura", str(roundi(st.armor))], ["Chispas", str(floori(g.sparks))], ["Derrotados", str(g.kills)]]:
 		chips.add_child(_label("%s %s" % kv, 15, INK, false, false))
 	body.add_child(chips)
-	var ids: Array = g.items.keys().filter(func(id): return int(g.items[id]) > 0 and Datos.items.has(id))
-	ids.sort_custom(func(a, b): return int(Datos.items[a].rar) > int(Datos.items[b].rar))
+	# Mochila: todos los objetos; solo 5 funcionan a la vez (los activos, con borde dorado). Tocar uno lo activa o
+	# lo desactiva; los activos son los que se ven sobre la barra de vida.
+	var ids: Array = g.bag.keys().filter(func(id): return int(g.bag[id]) > 0 and Datos.items.has(id))
+	ids.sort_custom(func(a, b): return [1 if g.active.has(a) else 0, int(Datos.items[a].rar)] > [1 if g.active.has(b) else 0, int(Datos.items[b].rar)])
 	var total := 0
 	for id in ids:
-		total += int(g.items[id])
-	body.add_child(_title("Objetos (%d)" % total, 22, false))
+		total += int(g.bag[id])
+	body.add_child(_title("Objetos (%d) · activos %d / %d" % [total, g.active.size(), g.MAX_ACTIVOS], 22, false))
 	var detail := _label("", 15, INK)
 	var grid := HFlowContainer.new()
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
-	var show_it := func(id):
+	var show_it := func(id, msg := ""):
 		bag_sel = id
 		if id == null:
-			detail.text = g.k("Haz clic en un objeto para ver qué hace", "Toca un objeto para ver qué hace") if ids.size() else "Aún no tienes objetos. Salen de los cofres: ábrelos con chispas."
+			detail.text = "" if ids.size() else "Aún no tienes objetos. Salen de los cofres: ábrelos con chispas."
 			return
 		var it: Dictionary = Datos.items[id]
-		detail.text = "%s%s · %s — %s" % [it.name, (" ×%d" % int(g.items[id])) if int(g.items[id]) > 1 else "", Datos.rarity[int(it.rar)].name, it.desc]
+		var state := "activo" if g.active.has(id) else "guardado"
+		detail.text = "%s%s · %s · %s — %s%s" % [it.name, (" ×%d" % int(g.bag[id])) if int(g.bag[id]) > 1 else "", Datos.rarity[int(it.rar)].name,
+			state, it.desc, ("\n" + msg) if msg != "" else ""]
 	for id in ids:
 		var b := Button.new()
 		b.icon = Datos.icon("obj_" + id)
@@ -606,7 +610,22 @@ func _page_bag() -> void:
 		b.custom_minimum_size = Vector2(54, 54)
 		b.text = ""
 		b.tooltip_text = Datos.items[id].name
-		b.pressed.connect(func(): show_it.call(id))
+		var on: bool = g.active.has(id)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(1, 0.97, 0.88, 0.98) if on else Color(1, 1, 1, 0.45)
+		sb.set_corner_radius_all(12)
+		sb.border_color = Color("#e0a93a") if on else Color(1, 1, 1, 0.0)
+		sb.set_border_width_all(3)
+		for sname in ["normal", "hover", "pressed", "focus"]:
+			b.add_theme_stylebox_override(sname, sb)
+		b.modulate = Color(1, 1, 1, 1) if on else Color(1, 1, 1, 0.55)
+		b.pressed.connect(func():
+			if g.toggle_item(id):
+				Sfx.play("select")
+				bag_sel = id
+				show_tab("mochila")
+			else:
+				show_it.call(id, "Ya tienes 5 activos: toca uno activo para guardarlo."))
 		grid.add_child(b)
 	body.add_child(grid)
 	body.add_child(detail)

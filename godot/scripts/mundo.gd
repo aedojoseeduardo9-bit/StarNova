@@ -111,6 +111,19 @@ static func build(game: Node, root: Node3D, id: String) -> Dictionary:
 			root.add_child(node)
 			extras.append(node)
 	spots["extras_nodos"] = extras
+	# reflejos tipo espejo en el agua y el metal líquido
+	var sup: Array = []
+	for n in extras:
+		if n is Agua:
+			sup.append({"h": float(n.o.get("level", 0.0)), "aabb": n.mesh.get_aabb(), "mats": [n.material_override]})
+		elif n is MetalLiquido:
+			var c: Vector3 = n.center
+			sup.append({"h": c.y + 0.04, "aabb": AABB(c - Vector3(n.r, 0.1, n.r), Vector3(n.r * 2, 0.2, n.r * 2)), "mats": [n.material_override]})
+	if not sup.is_empty():
+		var rf := Reflejo.new(sup)
+		root.add_child(rf)
+		info["reflejo"] = rf
+		rf.set_quality(Juego.quality())
 	return spots
 
 
@@ -178,6 +191,8 @@ static func set_quality(root: Node3D, q: String) -> void:
 	# con HD, la versión sencilla sigue ahí pero solo para las sombras (mucho más barato)
 	for mi in info.base.get_children():
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if hd_ok else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	if info.get("reflejo"):
+		info.reflejo.set_quality(q)
 	if info.hd_node:
 		info.hd_node.visible = hd_ok
 		if hd_ok:
@@ -281,6 +296,7 @@ void fragment() {
 			var mi := MultiMeshInstance3D.new()
 			mi.multimesh = mm
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.layers = Reflejo.CAPA_PASTO
 			mi.visibility_range_end = 60.0
 			add_child(mi)
 			chunks.append(mi)
@@ -301,13 +317,31 @@ shader_type spatial;
 render_mode diffuse_lambert, specular_disabled, cull_disabled, depth_draw_opaque;
 uniform vec3 c1 : source_color;
 uniform vec3 c2 : source_color;
+uniform sampler2D refl_tex : source_color, filter_linear, repeat_disable;
+uniform mat4 refl_vp;
+uniform float refl_on = 0.0;
+uniform float refl_h = -1000.0;
 varying vec3 wp;
 void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment() {
 	float w = sin(wp.x * 0.9 + TIME * 1.3) * sin(wp.z * 0.8 - TIME * 1.1) + sin((wp.x + wp.z) * 0.35 + TIME * 0.7);
-	ALBEDO = mix(c1, c2, smoothstep(0.9, 1.6, w) * 0.65);
+	vec3 base = mix(c1, c2, smoothstep(0.9, 1.6, w) * 0.65);
+	ALBEDO = base;
 	EMISSION = c2 * 0.25;
 	ALPHA = 0.82;
+	if (refl_on > 0.5 && abs(wp.y - refl_h) < 0.3) {
+		// reflejo tipo espejo: la imagen de la cámara reflejada, movida un poco por las ondas
+		vec4 cp = refl_vp * vec4(wp.x, refl_h, wp.z, 1.0);
+		vec2 uv = cp.xy / cp.w * 0.5 + 0.5;
+		uv.y = 1.0 - uv.y;
+		uv += vec2(sin(wp.z * 1.7 + TIME * 1.6), cos(wp.x * 1.5 - TIME * 1.3)) * 0.006;
+		vec3 r = texture(refl_tex, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
+		vec3 v = normalize(CAMERA_POSITION_WORLD - wp);
+		float fres = 0.3 + 0.6 * pow(1.0 - clamp(v.y, 0.0, 1.0), 3.0);
+		ALBEDO = base * (1.0 - fres);
+		EMISSION = mix(c2 * 0.25, r, fres);
+		ALPHA = 0.9;
+	}
 }
 """
 	var o: Dictionary
@@ -350,6 +384,7 @@ void fragment() {
 		m.set_shader_parameter("c2", Color(o.get("color2", "#d8f4ff")))
 		material_override = m
 		cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		layers = Reflejo.CAPA_ESPEJO
 
 
 # ======================================================================== cascada
@@ -399,6 +434,10 @@ shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
 uniform vec4 rip[10];
 uniform float t_now;
+uniform sampler2D refl_tex : source_color, filter_linear, repeat_disable;
+uniform mat4 refl_vp;
+uniform float refl_on = 0.0;
+uniform float refl_h = -1000.0;
 varying vec3 wp;
 void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment() {
@@ -419,6 +458,18 @@ void fragment() {
 	vec3 metal = mix(vec3(0.82, 0.85, 0.95), rb, 0.42) + sheen * 0.1;
 	ALBEDO = metal + g * (rb * 0.7 + 0.25);
 	EMISSION = rb * (0.08 + g * 0.55);
+	if (refl_on > 0.5 && abs(wp.y - refl_h) < 0.3) {
+		// metal espejo: refleja las islas y el cielo, teñido de arcoíris y movido por las ondas
+		vec4 cp = refl_vp * vec4(wp.x, refl_h, wp.z, 1.0);
+		vec2 uv = cp.xy / cp.w * 0.5 + 0.5;
+		uv.y = 1.0 - uv.y;
+		uv += vec2(sin(p.y * 0.9 + t_now * 1.2), cos(p.x * 0.8 - t_now)) * 0.004 + vec2(g * 0.02);
+		vec3 r = texture(refl_tex, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
+		vec3 v = normalize(CAMERA_POSITION_WORLD - wp);
+		float k = 0.28 + 0.4 * pow(1.0 - clamp(v.y, 0.0, 1.0), 2.0);
+		ALBEDO = ALBEDO * (1.0 - k * 0.6);
+		EMISSION = EMISSION + r * mix(vec3(1.0), rb, 0.45) * k * 1.15;
+	}
 }
 """
 	static var _mat: ShaderMaterial
@@ -460,6 +511,7 @@ void fragment() {
 		position = center + Vector3(0, 0.035, 0)
 		material_override = shared_mat()
 		cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		layers = Reflejo.CAPA_ESPEJO
 
 	func _process(dt: float) -> void:
 		now = Time.get_ticks_msec() * 0.001

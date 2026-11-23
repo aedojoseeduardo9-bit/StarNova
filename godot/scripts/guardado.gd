@@ -113,9 +113,9 @@ static func _world_snapshot(g) -> Dictionary:
 
 static func snapshot(g) -> Dictionary:
 	var items := {}
-	for id in g.items:
-		if int(g.items[id]) > 0:
-			items[id] = int(g.items[id])
+	for id in g.bag:
+		if int(g.bag[id]) > 0:
+			items[id] = int(g.bag[id])
 	var ws := _world_snapshot(g)
 	var worlds: Dictionary = g.world_states.duplicate()
 	worlds[g.world_id] = ws
@@ -123,7 +123,7 @@ static func snapshot(g) -> Dictionary:
 	return {
 		"v": VERSION, "name": g.profile.name, "created": g.profile.created, "saved": now_ms(), "started": 1,
 		"time": _r2(g.time), "level": g.level, "xp": _r2(g.xp), "sparks": floori(g.sparks), "hp": _r2(maxf(1.0, g.hp)), "kills": g.kills,
-		"items": items, "attack": {"id": g.arsenal.attack.id, "tier": int(g.arsenal.attack.tier)}, "power": g.arsenal.power,
+		"items": items, "active": g.active.duplicate(), "attack": {"id": g.arsenal.attack.id, "tier": int(g.arsenal.attack.tier)}, "power": g.arsenal.power,
 		"outfits": {"owned": g.outfits.owned.duplicate(), "on": g.outfits.on},
 		"story": g.story.seen.keys(), "world": g.world_id, "worlds": worlds, "done": g.done_worlds(),
 		"frags": ws.frags, "regionName": reg.name,
@@ -145,8 +145,19 @@ static func restore(g, d: Dictionary) -> bool:
 			var n := _int(its[id], 0, 999, 0)
 			if not Datos.items.has(id) or n == 0:
 				continue
-			g.items[id] = n
-			Hud.add_item(id, true)
+			g.bag[id] = n
+	# objetos activos (máximo 5); las partidas de antes no los tenían: se activan los 5 más raros
+	g.active = []
+	var act = d.get("active")
+	if act is Array:
+		for id in act:
+			if g.bag.has(str(id)) and not g.active.has(str(id)) and g.active.size() < g.MAX_ACTIVOS:
+				g.active.append(str(id))
+	else:
+		var ids: Array = g.bag.keys()
+		ids.sort_custom(func(a, b): return [int(Datos.items[a].rar), int(g.bag[a])] > [int(Datos.items[b].rar), int(g.bag[b])])
+		g.active = ids.slice(0, g.MAX_ACTIVOS)
+	g.sync_items()
 	g.recompute()
 	g.hp = maxf(1.0, minf(g.stats.maxHp, _num(d.get("hp"), g.stats.maxHp)))
 	g.shield = g.stats.maxShield

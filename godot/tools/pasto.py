@@ -1,4 +1,4 @@
-"""Star Nova — reparte matas de pasto sobre el suelo de cada mundo (lo usa hd_mundo.py).
+"""Star Nova — reparte matas de pasto sobre el suelo natural (Verdalia; lo usa hd_mundo.py).
 
 Solo sobre el suelo de verdad: caras que miran hacia arriba con el color de suelo de su región (o la pradera
 verde de Verdalia), en manchas (no una alfombra pareja), y nunca debajo de algo (plazas, escalones, muros)
@@ -57,7 +57,14 @@ def _mancha(x, z, seed):
             + 0.35 * math.sin(x * 0.37 - z * 0.29 + seed * 0.3))
 
 
+# Solo en mundos con suelo natural. Las Islas del Cielo y Prismara son de piedra pulida (estilo concreto):
+# ahí no crece pasto (lo pidió el dueño).
+CON_PASTO = {"gemini"}
+
+
 def repartir(world, rec):
+    if world not in CON_PASTO:
+        return []
     d, f32 = H.leer_mundo(world)
     pals = H.paletas(world)
     rnd = random.Random(7 + len(world))
