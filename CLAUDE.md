@@ -120,6 +120,10 @@ Con GitHub disponible:
 - **En táctil nunca se muestran teclas de PC** (el dueño lo pidió): usa `game.k(textoPC, textoTáctil)`.
 - **No poner paneles que tapen el juego**: en pantalla solo el botoncito de la misión seguida. Nada de textos de
   explicación bajo la barra de vida.
+- **Nada de "texto molesto"** (el dueño lo pidió): la pantalla de inicio solo lleva **STAR NOVA** y **Comenzar** (más
+  "Actualizar" cuando hay una compilación nueva): sin lema, sin descripción, sin controles, sin versión. En el juego no
+  hay avisos de ayuda ("habla con…", "elige tu misión…", teclas) ni la versión; la versión está en Menú → Sistema.
+  Los íconos de habilidades en PC van abajo a la derecha, sin letras.
 - **Menú como en una aventura clásica**: título → **perfiles** → juego. Una partida nueva solo nace al elegir una ranura
   vacía; el menú del juego no tiene "Nueva partida". Se guarda solo (cada 30 s, al abrir el menú, al cumplir misiones…).
 - **No crear fuentes infinitas de chispas** (oleadas con calma; los invocados no dan chispas).

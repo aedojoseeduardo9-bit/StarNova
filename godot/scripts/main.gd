@@ -371,12 +371,6 @@ func welcome() -> void:
 	var hub: Dictionary = regions[W.hub]
 	if not loaded_pos:
 		Hud.banner(hub.name, hub.sub)
-	else:
-		later(3.8, func(): Hud.toast("Partida de " + str(profile.name) + " cargada"))
-	var guide: String = Datos.pnj[W.guide].name if W.get("guide") else "la Abuela Lechuza"
-	var talked_guide: bool = talked.has(W.guide) if W.get("guide") else owl_done
-	if not talked_guide and not args.has("ir") and not args.has("jefe"):
-		later(2.5, func(): Hud.toast(k("Habla con %s (E) para empezar" % guide, "Acércate a %s y toca el botón ✋ para hablar" % guide)))
 
 func play_story(id: String, then := Callable()) -> void:
 	if id == "" or not story_on or story.seen.has(id):
@@ -1127,13 +1121,8 @@ func continue_after_ending() -> void:
 	menus.hide_ending()
 	state = "play"
 	save_soon()
-	var order: Array = Datos.mundos.order
-	var nxt := order.find(world_id) + 1
-	var tip := func(): Hud.toast("El Cohete Avellana te espera: súbete para viajar a otra galaxia" if nxt < order.size() else "Puedes volver a cualquier galaxia en el Cohete Avellana")
 	if W.scenes.get("rocket"):
-		play_story(str(W.scenes.rocket), tip)
-	else:
-		later(0.8, tip)
+		play_story(str(W.scenes.rocket))
 
 # ----------------------------------------------------------------------------------------------- interacción
 func nearest_interactable():

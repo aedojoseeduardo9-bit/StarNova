@@ -191,28 +191,19 @@ func show_title() -> void:
 	v.set_anchors_preset(Control.PRESET_CENTER)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.custom_minimum_size = Vector2(minf(760, _vw() - 32), 0)
-	v.position = Vector2(-v.custom_minimum_size.x / 2, -190)
-	v.add_theme_constant_override("separation", 12)
+	v.position = Vector2(-v.custom_minimum_size.x / 2, -110)
+	v.add_theme_constant_override("separation", 18)
 	s.add_child(v)
-	v.add_child(_kicker("una pequeña ardilla · un cielo sin estrellas"))
 	var t := _title("STAR NOVA", 84)
 	t.add_theme_color_override("font_color", Color.WHITE)
 	t.add_theme_color_override("font_shadow_color", Color(0.5, 0.25, 0.35, 0.45))
 	t.add_theme_constant_override("shadow_offset_y", 4)
 	v.add_child(t)
-	var st := _label("La estrella Nova cayó y se rompió en fragmentos.\nPip, una ardilla diminuta, recorrerá las islas del cielo para devolverle su luz.", 18, INK, true)
-	v.add_child(st)
 	var row := _row(10, true)
 	var b := button("Comenzar", func(): show_profiles(), true)
 	b.custom_minimum_size = Vector2(220, 0)
 	row.add_child(b)
 	v.add_child(row)
-	if game.is_touch():
-		v.add_child(_label("Joystick izquierdo para moverte · desliza a la derecha para mirar\nPip ataca solo a los enemigos cercanos · botones para saltar, coletazo, voltereta y poder", 14, INK_SOFT, true))
-	else:
-		v.add_child(_label("WASD moverse · Espacio saltar (doble salto) · Ratón mirar\nClic atacar · Q coletazo · Shift voltereta · R poder especial\nE interactuar · Tab menú · Esc pausa · M sonido · también con mando", 14, INK_SOFT, true))
-	var ver := _label(version_text(), 13, INK_SOFT, true)
-	v.add_child(ver)
 	var upd := _row(10, true)
 	v.add_child(upd)
 	b.call_deferred("grab_focus")
@@ -473,8 +464,6 @@ func open_menu(t := "") -> void:
 		body.add_theme_constant_override("separation", 8)
 		sc.add_child(body)
 		var foot := _row(12, true)
-		if not game.is_touch():
-			foot.add_child(_label("Q / E cambian de página · Esc vuelve al juego", 13, INK_SOFT, false, false))
 		foot.add_child(button("Volver al juego", func(): game.close_menu(), true))
 		v.add_child(foot)
 	show_tab(tab)
@@ -835,7 +824,7 @@ func _page_system() -> void:
 	if g.slot:
 		acts.add_child(button("Copiar código de la partida", func():
 			DisplayServer.clipboard_set(export_code())
-			Hud.toast("Código copiado: pégalo en otro aparato (Perfiles → Importar)")))
+			Hud.toast("Código copiado")))
 	body.add_child(acts)
 	var S: Dictionary = g.settings
 	var save := func(): Juego.save_settings()
@@ -867,6 +856,7 @@ func _page_system() -> void:
 				S[pair[0]] = on
 				save.call())
 			body.add_child(cb)
+	body.add_child(_label("Star Nova · " + version_text(), 13, INK_SOFT))
 
 func _slider(text: String, a: float, b: float, step: float, val: float, cb: Callable) -> Control:
 	var h := _row(12)

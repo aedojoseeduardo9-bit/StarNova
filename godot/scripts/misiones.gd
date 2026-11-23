@@ -75,7 +75,6 @@ func complete(id: String) -> void:
 	game.on_mission_complete(m)
 	if tracked == id:
 		tracked = null
-		game.later(2.2, func(): Hud.toast(game.k("Elige tu próxima misión en el menú (Tab)", "Elige tu próxima misión en el menú")))
 	Hud.refresh_missions()
 
 ## Las reglas con condición: región + descubierta, élite o tipo de enemigo.
