@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Star Nova nativo — "los ojos": abre el juego con una pantalla virtual (Xvfb + OpenGL por software),
+# Star Nova — "los ojos": abre el juego con una pantalla virtual (Xvfb + OpenGL por software),
 # recorre los 3 mundos, toma capturas, hace las pruebas automáticas y deja todo en <carpeta>/
-# (report.txt + PNG). Uso: bash godot/tools/ojos_nativo.sh <godot> <carpeta_salida> [islas gemini soledad]
+# (report.txt + PNG). Uso: bash godot/tools/ojos.sh <godot> <carpeta_salida> [islas gemini soledad]
 #   <godot>: el ejecutable del editor de Godot 4.7 para Linux.
 set -u
 GODOT="${1:?falta la ruta de Godot}"

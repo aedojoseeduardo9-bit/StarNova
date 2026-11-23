@@ -1,5 +1,4 @@
-## Star Nova — sonidos y música (autoload "Sfx"). Los sonidos y canciones se exportaron de la web
-## (js/audio.js, sintetizados) a godot/audio/*.ogg con godot/tools/exportar_web.cjs: suenan igual que en la web.
+## Star Nova — sonidos y música (autoload "Sfx"). Los sonidos y las canciones (en cada tono) están en godot/audio/*.ogg.
 ## Música: Sfx.score(canción, tono) con fundido entre canciones; Sfx.score_stop(); Sfx.duck(k) baja el volumen.
 extends Node
 

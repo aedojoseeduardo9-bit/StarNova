@@ -1,11 +1,11 @@
-## Star Nova — proyectiles, zonas, aliados, recogibles y esquirlas (port de js/combat.js).
+## Star Nova — proyectiles, zonas, aliados, recogibles y esquirlas.
 ## Capas: 1 terreno · 2 Pip · 3(4) objetos con física · 4(8) enemigos · 5(16) proyectiles de Pip ·
 ## 6(32) proyectiles enemigos · 7(64) portón · 8(128) esquirlas · 9(256) recogibles.
 class_name Combate
 
 static var _geo := {}
 
-## Mallas facetadas compartidas (como los GEO de la web).
+## Mallas facetadas compartidas .
 static func geo(kind: String) -> Mesh:
 	if _geo.has(kind):
 		return _geo[kind]

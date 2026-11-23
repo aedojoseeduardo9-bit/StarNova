@@ -118,7 +118,7 @@ static func warn_line(owner: Object, parent: Node, from: Vector3, to: Vector3) -
 	im.surface_end()
 	mi.mesh = im
 
-## Una partícula suelta con velocidad (como fx.emit de la web): humo, chispas de cohete, estelas.
+## Una partícula suelta con velocidad: humo, chispas de cohete, estelas.
 static func emit(parent: Node, pos: Vector3, vel: Vector3, color: Color, size := 0.2, life := 0.8, grav := 0.0) -> void:
 	var p := _burst(parent, pos, color, 1, vel.length(), size, life, 0.0, grav)
 	if p:

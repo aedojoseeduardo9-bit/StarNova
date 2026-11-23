@@ -1,4 +1,4 @@
-## Star Nova — Pip: control del personaje (port de js/entities/player.js) con el controlador de Godot
+## Star Nova — Pip: control del personaje con el controlador de Godot
 ## (CharacterBody3D + Jolt). Correr, doble salto con voltereta, salto variable, tiempo de gracia,
 ## voltereta (dash) con recarga, subir escalones bajos, empujar cajas y volver a tierra firme si cae.
 class_name Player
@@ -8,7 +8,7 @@ const GRAVITY := 22.0
 const RAD := 0.17
 const HEIGHT := 0.54
 const CENTER := 0.27
-const STEP := 0.34                 # escalón que sube solo (como el "autostep" de la web)
+const STEP := 0.34                 # escalón que sube solo 
 const DASH_CD := 3.2
 
 var model: PipModel

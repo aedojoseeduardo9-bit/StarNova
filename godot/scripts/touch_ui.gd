@@ -1,4 +1,4 @@
-## Star Nova — controles táctiles (teléfono en horizontal), como en la web: joystick flotante con zona muerta en la
+## Star Nova — controles táctiles (teléfono en horizontal): joystick flotante con zona muerta en la
 ## mitad izquierda, arrastrar en la derecha para mirar y botones con ícono y recarga: saltar, disparar, coletazo,
 ## voltereta, poder y "✋" para interactuar (solo aparece cuando hay algo cerca). Nunca se muestran teclas de PC.
 class_name TouchUI

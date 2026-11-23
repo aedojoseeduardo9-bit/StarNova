@@ -1,6 +1,6 @@
-## Star Nova — piezas de arquitectura (port de js/world/builder.js).
+## Star Nova — piezas de arquitectura.
 ## Junta la geometría de una región en UNA malla con colores por vértice y caras planas (aspecto low-poly),
-## con el mismo "sombreado horneado" de la web: las caras laterales toman el color `shade` de la región.
+## con "sombreado horneado": las caras laterales toman el color `shade` de la región.
 ## Las colisiones van a un StaticBody3D (capa 1 = terreno).
 class_name Builder
 extends RefCounted
@@ -32,7 +32,7 @@ static func material() -> StandardMaterial3D:
 static func col(c) -> Color:
 	return c if c is Color else Color(c)
 
-## Transformación como en three.js: posición + rotación Euler XYZ.
+## Transformación: posición + rotación Euler XYZ.
 static func xf(x: float, y: float, z: float, rx := 0.0, ry := 0.0, rz := 0.0) -> Transform3D:
 	return Transform3D(Basis.from_euler(Vector3(rx, ry, rz), EULER_ORDER_XYZ), Vector3(x, y, z))
 
@@ -68,7 +68,7 @@ func quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, color: Color, hint: Ve
 	tri(a, c, d, color, hint)
 
 # ---------------------------------------------------------------- primitivas (en espacio local, luego t)
-## Cilindro/cono centrado en el origen, eje Y, alto h (como CylinderGeometry de three.js). Devuelve los puntos.
+## Cilindro/cono centrado en el origen, eje Y, alto h. Devuelve los puntos.
 func _cyl_geo(t: Transform3D, r_top: float, r_bot: float, h: float, seg: int, color: Color) -> PackedVector3Array:
 	var pts := PackedVector3Array()
 	var top := PackedVector3Array()
@@ -170,7 +170,7 @@ func _box_shape(w: float, h: float, d: float, t: Transform3D) -> void:
 	s.size = Vector3(w, h, d)
 	_shapes.append([s, t])
 
-# ---------------------------------------------------------------- piezas (misma firma que la web)
+# ---------------------------------------------------------------- piezas 
 ## Caja con base en y (x,z centro).
 func box(x: float, y: float, z: float, w: float, h: float, d: float, color, o := {}) -> void:
 	var ry: float = o.get("ry", 0.0)

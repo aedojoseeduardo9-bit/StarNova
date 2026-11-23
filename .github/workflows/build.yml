@@ -1,48 +1,85 @@
-# Compila la APK de Android (el juego va dentro, funciona sin internet).
-# En ramas solo verifica que compile; en main publica el release "latest" con la APK y su QR.
-name: Compilar APK
+# Star Nova (Godot 4.7, carpeta godot/): prueba el juego con "los ojos" (capturas + pruebas de los 3 mundos) y
+# compila las apps: Android, Mac (universal: Intel y Apple), Windows, Linux y el proyecto de Xcode para iPhone/iPad.
+# En ramas solo prueba y compila; en main publica todo en el release "latest" (enlace fijo de StarNova.apk).
+name: Compilar Star Nova
 on:
   push:
-    paths-ignore: ['**.md', 'docs/**', 'tools/**', 'ci/**', 'godot/**', '.github/workflows/nativo.yml']
+    paths-ignore: ['**.md', 'docs/**']
   workflow_dispatch:
 permissions:
   contents: write
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
+env:
+  GODOT_VERSION: "4.7"
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar Java 17
+      - name: Godot y plantillas de exportación (caché)
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-stable-v1
+
+      - name: Descargar Godot ${{ env.GODOT_VERSION }}
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          V="$GODOT_VERSION-stable"
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/$GODOT_VERSION.stable
+          curl -sSL -f -o g.zip "https://github.com/godotengine/godot/releases/download/$V/Godot_v${V}_linux.x86_64.zip"
+          unzip -q g.zip -d ~/godot && rm g.zip
+          curl -sSL -f -o t.tpz "https://github.com/godotengine/godot/releases/download/$V/Godot_v${V}_export_templates.tpz"
+          unzip -q t.tpz -d tpl && mv tpl/templates/* ~/.local/share/godot/export_templates/$GODOT_VERSION.stable/ && rm -rf t.tpz tpl
+
+      - name: Pantalla virtual y OpenGL por software
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb libgl1-mesa-dri libglx-mesa0 libegl1 qrencode
+          echo "GODOT=$(ls ~/godot/Godot_v*_linux.x86_64)" >> "$GITHUB_ENV"
+
+      - name: Los ojos (capturas y pruebas)
+        run: bash godot/tools/ojos.sh "$GODOT" ojos
+
+      - name: Publicar capturas (release diagnostico)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d ojos ] || exit 0
+          (cd ojos && ls *.png > /dev/null 2>&1 && zip -q capturas.zip *.png)
+          gh release delete diagnostico --yes --cleanup-tag || true
+          gh release delete diagnostico-nativo --yes --cleanup-tag || true
+          F="ojos/report.txt"; [ -f ojos/capturas.zip ] && F="$F ojos/capturas.zip"
+          gh release create diagnostico $F ojos/*.png \
+            --title "Diagnóstico (ojos) · ${GITHUB_REF_NAME}" --notes "Capturas y pruebas automáticas de los 3 mundos." \
+            --prerelease --latest=false --target "$(git rev-parse HEAD)" || true
+
+      - name: Java 17 y Android SDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
-      - name: Instalar Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
         with:
           packages: "platforms;android-36 build-tools;36.0.0"
 
-      - name: Instalar Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.14.3"
-
-      # Llave de firma fija (para que cada APK se instale encima de la anterior), sin guardarla en el repositorio:
-      # 1) si existen los Secrets SIGNING_KEYSTORE_B64 + SIGNING_PASSWORD (+ SIGNING_ALIAS opcional), se usan;
-      # 2) si no, se crea una la primera vez y se guarda en la caché PRIVADA del repositorio.
+      # La llave de firma (Secrets o caché privada del repositorio); nunca va en el repositorio.
+      # Es la misma de siempre: así la app nueva se instala encima de la que ya tiene el jugador.
       - name: Recuperar llave de firma (caché privada)
         uses: actions/cache@v4
         with:
           path: ~/.starnova-signing
           key: starnova-signing-v1
 
-      - name: Preparar llave de firma
+      - name: Preparar firma y número de compilación
         env:
           KS_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
           KS_PASS: ${{ secrets.SIGNING_PASSWORD }}
@@ -51,88 +88,76 @@ jobs:
           D="$HOME/.starnova-signing"
           mkdir -p "$D"
           if [ -n "$KS_B64" ]; then
-            echo "$KS_B64" | base64 -d > "$D/secret.jks"
-            KS="$D/secret.jks"; P="$KS_PASS"; A="${KS_ALIAS:-starnova}"
-            echo "Usando la llave de los Secrets"
+            echo "$KS_B64" | base64 -d > "$D/secret.jks"; KS="$D/secret.jks"; P="$KS_PASS"; A="${KS_ALIAS:-starnova}"
           else
             if [ ! -f "$D/release.jks" ]; then
               openssl rand -hex 16 > "$D/pass.txt"
               keytool -genkeypair -keystore "$D/release.jks" -storepass "$(cat "$D/pass.txt")" -keypass "$(cat "$D/pass.txt")" \
                 -alias starnova -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Star Nova, O=nioro, C=CL"
-              echo "Llave nueva creada (se guarda en la caché privada)"
             fi
             KS="$D/release.jks"; P="$(cat "$D/pass.txt")"; A="starnova"
           fi
           echo "::add-mask::$P"
           {
-            echo "STARNOVA_KEYSTORE=$KS"
-            echo "STARNOVA_KEYSTORE_PASSWORD=$P"
-            echo "STARNOVA_KEY_ALIAS=$A"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KS"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$A"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$P"
           } >> "$GITHUB_ENV"
+          S="$HOME/.config/godot/editor_settings-${GODOT_VERSION}.tres"
+          sed -i "s#^export/android/android_sdk_path = .*#export/android/android_sdk_path = \"$ANDROID_HOME\"#" "$S"
+          sed -i "s#^export/android/java_sdk_path = .*#export/android/java_sdk_path = \"$JAVA_HOME\"#" "$S"
+          grep -q "^export/android/android_sdk_path" "$S" || echo "export/android/android_sdk_path = \"$ANDROID_HOME\"" >> "$S"
+          # número de compilación (la app lo compara con el título del release "latest" para ofrecer "Actualizar")
+          N="${GITHUB_RUN_NUMBER}"
+          sed -i "s/^config\/build=.*/config\/build=$N/" godot/project.godot
+          sed -i "s/^version\/code=.*/version\/code=$(( $(date +%s) / 60 ))/" godot/export_presets.cfg
+          sed -i "s/^version\/name=.*/version\/name=\"0.8.$N\"/" godot/export_presets.cfg
+          sed -i "s/^application\/short_version=.*/application\/short_version=\"0.8.$N\"/; s/^application\/version=.*/application\/version=\"0.8.$N\"/" godot/export_presets.cfg
 
-      - name: Copiar el juego dentro de la app
+      - name: Exportar Android, Mac, Windows, Linux e iOS (proyecto de Xcode)
         run: |
-          mkdir -p android/app/src/main/assets
-          cp -r index.html manifest.webmanifest icon.svg css js vendor android/app/src/main/assets/
+          cd godot
+          mkdir -p build/linux build/windows build/macos build/android build/ios
+          for P in Android Linux Windows macOS iOS; do
+            case $P in
+              Linux) OUT=build/linux/StarNova.x86_64 ;;
+              Windows) OUT=build/windows/StarNova.exe ;;
+              macOS) OUT=build/macos/StarNova_Mac.zip ;;
+              Android) OUT=build/android/StarNova.apk ;;
+              iOS) OUT=build/ios/StarNova.ipa ;;
+            esac
+            "$GODOT" --headless --path . --export-release "$P" "$OUT" 2>&1 | tee "build/export_$P.log"
+            CHK="$OUT"; [ "$P" = iOS ] && CHK=build/ios/StarNova.pck
+            [ -s "$CHK" ] || { echo "::error::No se pudo exportar $P"; grep -E "ERROR|error" "build/export_$P.log" | head -20; exit 1; }
+          done
+          ls -la build/*/
 
-      - name: Compilar APK firmada
-        id: gradle
-        run: |
-          set -o pipefail
-          gradle -p android :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || {
-            grep -a -A5 -E "^e: |What went wrong" build.log | grep -av "^--" | head -16 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
-            exit 1
-          }
-
-      - name: Publicar errores de compilación
-        if: failure() && steps.gradle.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          grep -a -E "^e: |error:|What went wrong|FAILED|Execution failed" -A4 build.log | head -c 100000 > err.txt || true
-          [ -s err.txt ] || tail -c 20000 build.log > err.txt
-          gh release delete build-error --yes --cleanup-tag || true
-          gh release create build-error --title "Error de compilación" --notes-file err.txt --prerelease
-
-      - name: Limpiar aviso de error anterior
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release delete build-error --yes --cleanup-tag || true
-
-      - name: Preparar APK y código QR
+      - name: Empaquetar
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk dist/StarNova.apk
-          sudo apt-get update -y
-          sudo apt-get install -y qrencode
-          URL="https://github.com/${{ github.repository }}/releases/latest/download/StarNova.apk"
-          qrencode -o dist/qr.png -s 14 -m 3 "$URL"
-          echo "Enlace de descarga: $URL"
+          cp godot/build/android/StarNova.apk dist/
+          cp godot/build/macos/StarNova_Mac.zip dist/
+          (cd godot/build/linux && zip -q -9 ../../../dist/StarNova_Linux.zip StarNova.x86_64)
+          (cd godot/build/windows && zip -q -9 ../../../dist/StarNova_Windows.zip StarNova.exe)
+          cp godot/IPHONE.md godot/build/ios/LEEME_IPHONE.md
+          (cd godot/build && zip -q -r -9 ../../dist/StarNova_iOS_Xcode.zip ios)
+          qrencode -o dist/qr.png -s 14 -m 3 "https://github.com/${{ github.repository }}/releases/latest/download/StarNova.apk"
+          ls -la dist
 
-      - name: Publicar versión (enlace fijo, solo rama main)
+      - name: Guardar compilaciones (artefacto)
+        uses: actions/upload-artifact@v4
+        with:
+          name: starnova
+          path: dist/
+          retention-days: 14
+
+      - name: Publicar release "latest" (solo main)
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --cleanup-tag -y || true
-          gh release create latest dist/StarNova.apk dist/qr.png \
-            --target "$(git rev-parse HEAD)" \
-            --title "Star Nova (compilación ${{ github.run_number }})" \
-            --notes "Escanea el QR o abre StarNova.apk desde el celular para instalar. Compilación #${{ github.run_number }}."
-
-      - name: Resumen
-        run: |
-          {
-            echo "## Star Nova — APK"
-            echo ""
-            echo "Descarga: https://github.com/${{ github.repository }}/releases/latest/download/StarNova.apk"
-            echo ""
-            echo "QR: https://github.com/${{ github.repository }}/releases/latest/download/qr.png"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Guardar APK como artefacto
-        uses: actions/upload-artifact@v4
-        with:
-          name: StarNova-apk
-          path: dist/
+          for R in latest nativo build-error; do gh release delete "$R" --yes --cleanup-tag || true; done
+          gh release create latest dist/* \
+            --title "Star Nova 0.8 (compilación ${GITHUB_RUN_NUMBER})" \
+            --notes "Android: StarNova.apk (se instala encima de la versión anterior y recupera sus partidas). Mac: StarNova_Mac.zip (Intel y Apple). Windows: StarNova_Windows.zip. Linux: StarNova_Linux.zip. iPhone/iPad: StarNova_iOS_Xcode.zip (proyecto de Xcode; ver LEEME_IPHONE.md dentro)." \
+            --latest --target "$(git rev-parse HEAD)"

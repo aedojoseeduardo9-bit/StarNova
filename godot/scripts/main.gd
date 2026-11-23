@@ -1,7 +1,7 @@
-## Star Nova — núcleo del juego nativo (port de js/game.js): estados, reglas, cofres, director de enemigos en
+## Star Nova — núcleo del juego: estados, reglas, cofres, director de enemigos en
 ## oleadas, combate, interacción (cofres, PNJ, lechuza, cohete, impulsores), misiones, jefe, muerte, viajes entre
-## mundos, perfiles y atajos de prueba (`-- --auto --ir=coral …`, los mismos de la web; ver godot/LEEME.md).
-## Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena (como la web recarga la página).
+## mundos, perfiles y atajos de prueba (`-- --auto --ir=coral …`; ver CLAUDE.md).
+## Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena.
 extends Node3D
 
 const STEP := 1.0 / 60.0
@@ -223,6 +223,9 @@ func _ready() -> void:
 	add_child(cinema)
 	Hud.attach(self)
 	Juego.apply_quality(self)
+	var rec: int = Juego.recuperar_partidas_anteriores()
+	if rec > 0:
+		later(0.8, func(): Hud.toast("Se recuperaron %d partida%s de la versión anterior de la app" % [rec, "" if rec == 1 else "s"]))
 	_apply_debug()
 	var back: bool = Juego.volver_perfiles
 	Juego.volver_perfiles = false

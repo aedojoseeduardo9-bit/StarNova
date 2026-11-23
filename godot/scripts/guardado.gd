@@ -1,7 +1,7 @@
-## Star Nova — perfiles de guardado (port de js/save.js, versión 2): 3 ranuras en user://perfil_N.json.
+## Star Nova — perfiles de guardado (versión 2): 3 ranuras en user://perfil_N.json.
 ## snapshot(juego) fotografía la partida; restore(juego, datos) la aplica EN SILENCIO sobre el mundo recién creado.
 ## Lo de Pip es común (nivel, objetos, chispas, trajes, historia) y cada mundo guarda lo suyo en worlds[id].
-## El formato es el mismo de la web, así que una partida de la web se puede importar con un código (ver menus.gd).
+## Una partida se puede pasar a otro aparato con un código (ver menus.gd).
 class_name Guardado
 
 const SLOTS := [1, 2, 3]

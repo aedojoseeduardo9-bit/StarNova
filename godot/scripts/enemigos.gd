@@ -1,4 +1,4 @@
-## Star Nova — enemigos (port de js/entities/enemies.js): 16 comportamientos, estados (quemadura, veneno, sangrado,
+## Star Nova — enemigos: 16 comportamientos, estados (quemadura, veneno, sangrado,
 ## frío, aturdido), élites y el jefe final de cada mundo. Los modelos salen de data/modelos.json.
 class_name Enemigos
 

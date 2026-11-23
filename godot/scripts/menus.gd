@@ -1,7 +1,7 @@
-## Star Nova — pantallas y menús nativos (port de js/menus.js): título, perfiles (nueva aventura, continuar,
-## copiar, borrar, importar de la web), menú del juego por páginas (Misiones + Historia, Mochila, Trajes con
+## Star Nova — pantallas y menús: título, perfiles (nueva aventura, continuar,
+## copiar, borrar, importar), menú del juego por páginas (Misiones + Historia, Mochila, Trajes con
 ## probador 3D, Mapa, Compendio, Sistema con ajustes), diálogo, tienda de PNJ, mapa galáctico, muerte y final.
-## Estilo de la web: paneles suaves y redondeados, títulos en serif. En táctil nunca se muestran teclas de PC.
+## Estilo: paneles suaves y redondeados, títulos en serif. En táctil nunca se muestran teclas de PC.
 class_name Menus
 extends CanvasLayer
 
@@ -211,9 +211,49 @@ func show_title() -> void:
 		v.add_child(_label("Joystick izquierdo para moverte · desliza a la derecha para mirar\nPip ataca solo a los enemigos cercanos · botones para saltar, coletazo, voltereta y poder", 14, INK_SOFT, true))
 	else:
 		v.add_child(_label("WASD moverse · Espacio saltar (doble salto) · Ratón mirar\nClic atacar · Q coletazo · Shift voltereta · R poder especial\nE interactuar · Tab menú · Esc pausa · M sonido · también con mando", 14, INK_SOFT, true))
-	var ver := _label("versión nativa " + str(ProjectSettings.get_setting("application/config/version")), 13, INK_SOFT, true)
+	var ver := _label(version_text(), 13, INK_SOFT, true)
 	v.add_child(ver)
+	var upd := _row(10, true)
+	v.add_child(upd)
 	b.call_deferred("grab_focus")
+	if not game.ojos():
+		_check_update(upd)
+
+const REPO := "aedojoseeduardo9-bit/StarNova"
+
+static func build_number() -> int:
+	return int(ProjectSettings.get_setting("application/config/build", 0))
+
+static func version_text() -> String:
+	var b := build_number()
+	return "versión %s%s" % [ProjectSettings.get_setting("application/config/version"), (" · compilación %d" % b) if b > 0 else ""]
+
+## Avisa si en GitHub hay una compilación más nueva (release "latest", título "… compilación N").
+func _check_update(row: HBoxContainer) -> void:
+	var mine := build_number()
+	if mine <= 0:
+		return
+	var http := HTTPRequest.new()
+	http.timeout = 8.0
+	add_child(http)
+	http.request_completed.connect(func(result, code, _headers, body):
+		http.queue_free()
+		if result != HTTPRequest.RESULT_SUCCESS or code != 200 or not is_instance_valid(row):
+			return
+		var j = JSON.parse_string(body.get_string_from_utf8())
+		if not j is Dictionary:
+			return
+		var rx := RegEx.new()
+		rx.compile("compilaci[oó]n\\s*#?(\\d+)")
+		var m := rx.search(str(j.get("name", "")))
+		var latest := int(m.get_string(1)) if m else 0
+		if latest > mine:
+			var url := "https://github.com/%s/releases/latest/download/StarNova.apk" % REPO
+			if not OS.has_feature("android"):
+				url = "https://github.com/%s/releases/latest" % REPO
+			row.add_child(button("Actualizar a la compilación %d" % latest, func(): OS.shell_open(url), true)))
+	if http.request("https://api.github.com/repos/%s/releases/tags/latest" % REPO, ["User-Agent: StarNova", "Accept: application/vnd.github+json"]) != OK:
+		http.queue_free()
 
 func profiles_open() -> bool:
 	return _profiles_open
@@ -228,7 +268,7 @@ func show_profiles() -> void:
 	for n in Guardado.SLOTS:
 		v.add_child(_slot_card(n))
 	var foot := _row(10, true)
-	foot.add_child(button("Importar de la web", func(): _ask_import()))
+	foot.add_child(button("Importar partida", func(): _ask_import()))
 	foot.add_child(button("Volver", func(): show_title()))
 	v.add_child(foot)
 
@@ -302,12 +342,12 @@ func _ask_name(n: int) -> void:
 	v.add_child(row)
 	le.call_deferred("grab_focus")
 
-## Importar una partida de la web: en la web, Menú → Sistema → "Copiar código" da un texto que se pega aquí.
+## Importar una partida: en otro aparato (o en la versión anterior de la app), Menú → Sistema da un código que se pega aquí.
 func _ask_import() -> void:
 	var s := _screen("import", 0.35)
 	var v := _center_panel(s, 620)
-	v.add_child(_title("Traer tu partida de la web", 30))
-	v.add_child(_label("En la versión web abre Menú → Sistema → «Código para la versión nativa», cópialo y pégalo aquí. Se guardará en una ranura libre.", 15, INK_SOFT, true))
+	v.add_child(_title("Traer tu partida", 30))
+	v.add_child(_label("En el otro aparato (o en la versión anterior de la app) abre Menú → Sistema y copia el código de la partida. Pégalo aquí: se guardará en una ranura libre.", 15, INK_SOFT, true))
 	var te := TextEdit.new()
 	te.custom_minimum_size = Vector2(0, 120)
 	te.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
@@ -348,7 +388,7 @@ static func import_code(code: String) -> String:
 			return ""
 	return "No hay ranuras libres: borra un perfil primero."
 
-## Código para pasar esta partida a otro aparato (el mismo formato de la web).
+## Código para pasar esta partida a otro aparato .
 func export_code() -> String:
 	var d := Guardado.snapshot(game)
 	return "STARNOVA:" + Marshalls.utf8_to_base64(JSON.stringify(d))

@@ -1,6 +1,6 @@
-## Star Nova — misiones del mundo abierto (port de js/missions.js): principales (la historia) y secundarias
-## (premios). El jugador elige en el menú cuál seguir. Las reglas `on` vienen de data/mundos.json; las que en la
-## web son funciones (p. ej. "o.region === 'menta' && s.discovered") se interpretan aquí.
+## Star Nova — misiones del mundo abierto: principales (la historia) y secundarias
+## (premios). El jugador elige en el menú cuál seguir. Las reglas `on` vienen de data/mundos.json; las que son
+## condiciones (p. ej. "o.region === 'menta' && s.discovered") se interpretan aquí.
 class_name Misiones
 
 var game
@@ -78,7 +78,7 @@ func complete(id: String) -> void:
 		game.later(2.2, func(): Hud.toast(game.k("Elige tu próxima misión en el menú (Tab)", "Elige tu próxima misión en el menú")))
 	Hud.refresh_missions()
 
-## Las reglas que en la web son funciones: región + descubierta, élite o tipo de enemigo.
+## Las reglas con condición: región + descubierta, élite o tipo de enemigo.
 func _rule(rule: String, obj, s: Dictionary) -> bool:
 	var rx := RegEx.new()
 	rx.compile("o\\.region === '([a-z]+)'")

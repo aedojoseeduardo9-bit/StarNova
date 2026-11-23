@@ -1,4 +1,4 @@
-## Star Nova — ayudantes de las escenas (el "ctx" de js/cinema.js): actores temporales, deshacer, noche cerrada,
+## Star Nova — ayudantes de las escenas (el "ctx"): actores temporales, deshacer, noche cerrada,
 ## cielo de espacio, bruma lejana, Pip actor (mirar arriba, saltito, esconderse), destellos, temblor y piezas
 ## de utilería (estrellas con halo, Guardián, sombras, fragmentos, estelas del hiperespacio, arcoíris).
 class_name CineCtx

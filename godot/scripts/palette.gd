@@ -1,4 +1,4 @@
-## Star Nova — paletas de las regiones (las mismas de js/world/palette.js).
+## Star Nova — paletas de las regiones .
 class_name Palette
 
 const ISLAS := {
@@ -46,7 +46,7 @@ static func region_at(regions: Dictionary, x: float, z: float) -> String:
 			best = id
 	return best if bd < 1.25 else ""
 
-## Pesos de mezcla del cielo y la niebla según la posición (igual que la web).
+## Pesos de mezcla del cielo y la niebla según la posición.
 static func weights(regions: Dictionary, x: float, z: float) -> Dictionary:
 	var w := {}
 	var sum := 0.0
@@ -60,7 +60,7 @@ static func weights(regions: Dictionary, x: float, z: float) -> Dictionary:
 		w[id] /= sum
 	return w
 
-## Convierte las regiones exportadas de la web (data/mundos.json) al formato de este archivo.
+## Convierte las regiones de data/mundos.json al formato de este archivo.
 static func from_world(src: Dictionary) -> Dictionary:
 	var out := {}
 	for id in src:

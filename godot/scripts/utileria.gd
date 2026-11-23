@@ -1,4 +1,4 @@
-## Star Nova — objetos del mundo con física y lógica de misiones (port de js/props.js y js/entities/npcs.js):
+## Star Nova — objetos del mundo con física y lógica de misiones:
 ## campanas colgantes, cristales, luciérnagas/semillas/notas, cofres, puente de tablones, portón, farolillos,
 ## hoguera, lechuza, estrella del santuario, PNJ y el Cohete Avellana. Los modelos salen de data/modelos.json.
 class_name Utileria

@@ -1,7 +1,7 @@
-## Star Nova — Pip, la ardilla diminuta (port de js/entities/pip.js).
+## Star Nova — Pip, la ardilla diminuta.
 ## Modelo con "esqueleto" de pivotes y animación procedural: galope, respiración, cola con resorte,
 ## parpadeo, orejas, voltereta del doble salto, saltito de alegría y aplastarse al caer.
-## El modelo mira hacia +z con los pies en y=0, igual que en la web.
+## El modelo mira hacia +z con los pies en y=0.
 class_name PipModel
 extends Node3D
 
@@ -174,7 +174,7 @@ func _init() -> void:
 	# bufanda con dos puntas que ondean y broche de estrella
 	scarf = _pivot(torso, Vector3(0, 0.145, 0.03))
 	var ring := _part(scarf, _torus, M.scarf, Vector3.ZERO, Vector3.ONE * 0.1)
-	ring.rotation.x = PI / 2 + 0.2 - PI / 2   # el toro de Godot ya está acostado (en three.js hay que girarlo)
+	ring.rotation.x = PI / 2 + 0.2 - PI / 2   # el toro de Godot ya está acostado
 	var parent: Node3D = scarf
 	for i in 2:
 		var tt := _pivot(parent, Vector3(0.06, -0.01, -0.07) if i == 0 else Vector3(0, -0.05, 0))

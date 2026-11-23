@@ -1,7 +1,7 @@
-## Star Nova — interfaz en pantalla (autoload "Hud"; port de js/hud.js): fragmentos, chispas, nivel, misión
+## Star Nova — interfaz en pantalla (autoload "Hud"): fragmentos, chispas, nivel, misión
 ## seguida, reloj y dificultad, vida/escudo/experiencia, objetos, ataque y poder, avisos, carteles de región,
 ## ventana de premio, barra del jefe y una capa 2D con números de daño, barras de enemigos y el marcador de misión.
-## Estilo de la web: suave, redondeado y con títulos en letra serif. En táctil nunca se muestran teclas de PC.
+## Estilo: suave, redondeado y con títulos en letra serif. En táctil nunca se muestran teclas de PC.
 extends CanvasLayer
 
 const DIFF_NAMES := ["Brisa", "Llovizna", "Lluvia", "Chubasco", "Tormenta", "Diluvio", "¡NOVA!"]
@@ -90,7 +90,7 @@ func _ready() -> void:
 	_build_hud()
 
 	version_label = Label.new()
-	version_label.text = "Star Nova · versión nativa " + str(ProjectSettings.get_setting("application/config/version"))
+	version_label.text = "Star Nova · versión " + str(ProjectSettings.get_setting("application/config/version"))
 	version_label.position = Vector2(16, 12)
 	_style(version_label, 14, INK_SOFT)
 	root.add_child(version_label)
@@ -547,7 +547,7 @@ func _process(dt: float) -> void:
 			boss_box.visible = false
 	overlay.queue_redraw()
 
-## Íconos de las habilidades en PC (como en la web): ataque, coletazo, voltereta y poder, con su recarga y su tecla.
+## Íconos de las habilidades en PC: ataque, coletazo, voltereta y poder, con su recarga y su tecla.
 func _draw_skills() -> void:
 	var g = game
 	if g == null or not is_instance_valid(g) or g.is_touch():
