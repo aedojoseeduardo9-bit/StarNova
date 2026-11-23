@@ -56,3 +56,73 @@ static func ring(parent: Node, pos: Vector3, color := Color.WHITE, n := 14, spee
 
 static func burst(parent: Node, pos: Vector3, color: Color, n := 16, speed := 4.0, size := 0.14, life := 0.7) -> void:
 	_burst(parent, pos, color, n, speed, size, life)
+
+## Destellos que suben despacito (cristales, luciérnagas, estrellas).
+static func sparkle(parent: Node, pos: Vector3, color: Color, n := 1, spread := 0.6) -> void:
+	var p := _burst(parent, pos, color, n, 0.6, 0.07, 0.9, 0.0, 0.6)
+	if p:
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+		p.emission_sphere_radius = spread * 0.5
+
+## Rayo en zigzag entre dos puntos (cadena eléctrica, tormenta, curación de los sanadores).
+static var _bolt_mats := {}
+static func bolt(parent: Node, a: Vector3, b: Vector3, color: Color, life := 0.18) -> void:
+	if parent == null or not parent.is_inside_tree():
+		return
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	var n := 6
+	for i in n + 1:
+		var k := float(i) / n
+		var p := a.lerp(b, k)
+		if i > 0 and i < n:
+			p += Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5) * 0.35
+		im.surface_add_vertex(p)
+	im.surface_end()
+	var mi := MeshInstance3D.new()
+	mi.mesh = im
+	var key := color.to_html()
+	if not _bolt_mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = color
+		_bolt_mats[key] = m
+	mi.material_override = _bolt_mats[key]
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	parent.get_tree().create_timer(life).timeout.connect(mi.queue_free)
+
+## Línea de aviso (francotirador apuntando). Con parent == null se quita la de ese dueño.
+static var _warn := {}
+static func warn_line(owner: Object, parent: Node, from: Vector3, to: Vector3) -> void:
+	var mi: MeshInstance3D = _warn.get(owner)
+	if parent == null:
+		if mi and is_instance_valid(mi):
+			mi.queue_free()
+		_warn.erase(owner)
+		return
+	if mi == null or not is_instance_valid(mi):
+		mi = MeshInstance3D.new()
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(1.0, 0.45, 0.55, 0.7)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(mi)
+		_warn[owner] = mi
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINES)
+	im.surface_add_vertex(from)
+	im.surface_add_vertex(to)
+	im.surface_end()
+	mi.mesh = im
+
+## Una partícula suelta con velocidad (como fx.emit de la web): humo, chispas de cohete, estelas.
+static func emit(parent: Node, pos: Vector3, vel: Vector3, color: Color, size := 0.2, life := 0.8, grav := 0.0) -> void:
+	var p := _burst(parent, pos, color, 1, vel.length(), size, life, 0.0, grav)
+	if p:
+		p.direction = vel.normalized() if vel.length_squared() > 1e-6 else Vector3.UP
+		p.spread = 8.0
+		p.initial_velocity_min = vel.length()
+		p.initial_velocity_max = vel.length()

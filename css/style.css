@@ -163,8 +163,6 @@ body:not(.is-touch) .touch-only { display: none !important; }
 
 /* Escudo, equipo, ajustes, pestañas y compendio */
 #shieldFill { position: absolute; left: 0; top: 0; height: 100%; width: 0; background: repeating-linear-gradient(135deg, rgba(215,184,255,.95) 0 6px, rgba(240,228,255,.95) 6px 12px); transition: width .15s; }
-.loadout { font-size: 12px; font-weight: 700; text-align: center; text-shadow: 0 1px 0 rgba(255,255,255,.7); pointer-events: none; }
-.loadout span { padding: 0 4px; }
 .settings { display: flex; flex-direction: column; gap: 10px; text-align: left; font-size: 14px; width: min(320px, 80vw); }
 .settings label { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .settings input[type=range] { flex: 1; max-width: 150px; accent-color: #a996d8; }
@@ -312,6 +310,7 @@ input[type=text] { user-select: text; -webkit-user-select: text; touch-action: a
 .sys-profile .meta { white-space: normal; }
 .sys-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .sys-actions button { padding: 10px 22px; font-size: 15px; }
+.native-code { width: min(460px, 100%); height: 64px; font-size: 11px; border-radius: 12px; border: 1px solid rgba(74,63,92,.2); padding: 8px; resize: none; background: rgba(255,255,255,.85); color: #4a3f5c; word-break: break-all; }
 #btnSaveQuit { background: #ffe7ad; border-color: transparent; }
 
 /* Escenas animadas */

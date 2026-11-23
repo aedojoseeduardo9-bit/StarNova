@@ -34,9 +34,14 @@ class Campfire extends Node3D:
 	var light: OmniLight3D
 	var t := 0.0
 
-	func _init(pos: Vector3) -> void:
+	var p: Vector3
+	var spark_color: Color
+
+	func _init(pos: Vector3, look_id := "fuego") -> void:
 		name = "Hoguera"
 		position = pos
+		p = pos
+		var look: Dictionary = Utileria.CAMP_LOOKS.get(look_id, Utileria.CAMP_LOOKS.fuego)
 		var ico := SphereMesh.new()
 		ico.radius = 1.0
 		ico.height = 2.0
@@ -44,14 +49,14 @@ class Campfire extends Node3D:
 		ico.rings = 3
 		for i in 5:
 			var a := TAU * i / 5.0
-			Props.part(self, ico, Props.mat("#e6d6cc"), Vector3(cos(a) * 0.45, 0.06, sin(a) * 0.45), Vector3(0.13, 0.08, 0.13))
+			Props.part(self, ico, Props.mat(look.stone), Vector3(cos(a) * 0.45, 0.06, sin(a) * 0.45), Vector3(0.13, 0.08, 0.13))
 		var cyl := CylinderMesh.new()
 		cyl.top_radius = 1.0
 		cyl.bottom_radius = 1.0
 		cyl.height = 1.0
 		cyl.radial_segments = 6
 		for i in 3:
-			var lg := Props.part(self, cyl, Props.mat("#a97d62"), Vector3(0, 0.08, 0), Vector3(0.06, 0.6, 0.06))
+			var lg := Props.part(self, cyl, Props.mat(look.log), Vector3(0, 0.08, 0), Vector3(0.06, 0.6, 0.06))
 			lg.rotation_order = EULER_ORDER_XYZ
 			lg.rotation = Vector3(0, PI * i / 3.0, PI / 2)
 		var cone := CylinderMesh.new()
@@ -59,14 +64,14 @@ class Campfire extends Node3D:
 		cone.bottom_radius = 1.0
 		cone.height = 1.0
 		cone.radial_segments = 5
-		var looks := [["#ffb26b", Color("#c05010")], ["#ffd780", Color("#d09020")], ["#fff3c8", Color("#e0c060")]]
+		var looks: Array = look.flames
 		var sizes := [0.28, 0.18, 0.09]
 		for i in 3:
-			var f := Props.part(self, cone, Props.mat(looks[i][0], looks[i][1]), Vector3(0, 0.3, 0), Vector3(sizes[i], sizes[i] * 2.2, sizes[i]))
+			var f := Props.part(self, cone, Props.mat(looks[i][0], Color(looks[i][1])), Vector3(0, 0.3, 0), Vector3(sizes[i], sizes[i] * 2.2, sizes[i]))
 			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			flames.append(f)
 		light = OmniLight3D.new()
-		light.light_color = Color("#ffb070")
+		light.light_color = Color(look.light)
 		light.light_energy = 1.6
 		light.omni_range = 9.0
 		light.omni_attenuation = 1.6
@@ -80,7 +85,7 @@ class Campfire extends Node3D:
 		sm.rings = 2
 		var smat := StandardMaterial3D.new()
 		smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		smat.albedo_color = Color("#ffcf80")
+		smat.albedo_color = Color(look.spark)
 		sm.material = smat
 		sparks.mesh = sm
 		sparks.amount = 12

@@ -33,6 +33,19 @@ var _hor := Color()
 var _bot := Color()
 var _fog := Color()
 var _first := true
+var night := 0.0
+var extra_night := 0.0
+var deep_night := 0.0          ## noche cerrada en todo el cielo (escenas)
+var space := 0.0               ## cielo de espacio profundo (escenas del cohete)
+var cycle_night := 0.0
+var cycle_dusk := 0.0
+var min_stars := 0.0
+var base_sun := 0.16
+var base_ambient := 0.28
+var stars: MeshInstance3D
+var star_mat: StandardMaterial3D
+var planets: Node3D
+var far_nodes: Array = []
 
 func _init(region_defs: Dictionary) -> void:
 	name = "Cielo"
@@ -77,6 +90,7 @@ func _ready() -> void:
 
 	_make_clouds()
 	_make_far_islands()
+	_make_stars()
 
 func _rng(seed: int) -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new()
@@ -152,15 +166,112 @@ func _make_far_islands() -> void:
 		mi.multimesh = mm
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
+		far_nodes.append(mi)
 
-## Mezcla los colores del cielo según la región en la que está Pip y mueve el sol con él.
+## Estilo del cielo de cada mundo: far=false quita las islas lejanas, clouds=false las nubes, stars=k deja
+## siempre estrellas (espacio) y planets=[[color, tamaño, ángulo, altura, anillo]] pone planetas a lo lejos.
+func set_style(st: Dictionary) -> void:
+	for n in far_nodes:
+		n.visible = st.get("far", true) != false
+	clouds.visible = st.get("clouds", true) != false
+	min_stars = float(st.get("stars", 0.0))
+	if planets:
+		planets.queue_free()
+		planets = null
+	if st.has("planets"):
+		planets = Node3D.new()
+		add_child(planets)
+		for pl in st.planets:
+			var color := Color(str(pl[0]))
+			var size := float(pl[1])
+			var ang := float(pl[2])
+			var p := Vector3(cos(ang) * 640.0, float(pl[3]), sin(ang) * 640.0)
+			var m := SphereMesh.new()
+			m.radius = size
+			m.height = size * 2.0
+			m.radial_segments = 24
+			m.rings = 12
+			var mat := StandardMaterial3D.new()
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mat.albedo_color = color
+			mat.disable_fog = true
+			var mi := MeshInstance3D.new()
+			mi.mesh = m
+			mi.material_override = mat
+			mi.position = p
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			planets.add_child(mi)
+			var gm := StandardMaterial3D.new()
+			gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			gm.albedo_color = Color(color, 0.18)
+			gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			gm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			gm.disable_fog = true
+			var glow := MeshInstance3D.new()
+			glow.mesh = m
+			glow.material_override = gm
+			glow.position = p
+			glow.scale = Vector3.ONE * 1.25
+			glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			planets.add_child(glow)
+			if pl.size() > 4 and pl[4] != null:
+				var tm := TorusMesh.new()
+				tm.inner_radius = size * 1.5
+				tm.outer_radius = size * 2.2
+				tm.rings = 48
+				tm.ring_segments = 3
+				var rm := StandardMaterial3D.new()
+				rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				rm.albedo_color = Color(Color(str(pl[4])), 0.55)
+				rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				rm.cull_mode = BaseMaterial3D.CULL_DISABLED
+				rm.disable_fog = true
+				var ring := MeshInstance3D.new()
+				ring.mesh = tm
+				ring.material_override = rm
+				ring.position = p
+				ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				planets.add_child(ring)
+				ring.look_at(planets.global_position + Vector3(0, p.y + size * 3.0, 0), Vector3.UP)
+				ring.rotate_object_local(Vector3.RIGHT, PI / 2)
+				ring.scale = Vector3(1, 0.02, 1)
+
+## Estrellas (puntitos en la cúpula; se ven de noche y siempre en el espacio).
+func _make_stars() -> void:
+	var r := _rng(11)
+	var pts := PackedVector3Array()
+	for i in 900:
+		var u := r.randf() * 0.95 + 0.05
+		var a := r.randf() * TAU
+		var sv := sqrt(1.0 - u * u)
+		pts.append(Vector3(cos(a) * sv, u, sin(a) * sv) * 700.0)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = pts
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arr)
+	star_mat = StandardMaterial3D.new()
+	star_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	star_mat.use_point_size = true
+	star_mat.point_size = 2.0
+	star_mat.albedo_color = Color(1.0, 0.97, 0.88, 0.0)
+	star_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	star_mat.disable_fog = true
+	stars = MeshInstance3D.new()
+	stars.mesh = am
+	stars.material_override = star_mat
+	stars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	stars.extra_cull_margin = 16384.0
+	add_child(stars)
+
+## Mezcla los colores del cielo según la región en la que está Pip, el ciclo de día y noche y el espacio.
 func update_sky(dt: float, focus: Vector3, t: float) -> void:
 	var w := Palette.weights(regions, focus.x, focus.z)
 	var top := Color(0, 0, 0)
 	var hor := Color(0, 0, 0)
 	var bot := Color(0, 0, 0)
 	var fog := Color(0, 0, 0)
-	var night := 0.0
+	var nt := 0.0
 	for id in regions:
 		var r: Dictionary = regions[id]
 		var k: float = w[id]
@@ -168,21 +279,51 @@ func update_sky(dt: float, focus: Vector3, t: float) -> void:
 		hor += Color(r.sky_hor) * k
 		bot += Color(r.sky_bot) * k
 		fog += Color(r.fog) * k
-		night += r.night * k
+		nt += r.night * k
+	var cn := cycle_night * 0.9
+	nt = maxf(nt, maxf(extra_night, maxf(deep_night, cn)))
+	top = top.lerp(Color("#1d2154"), maxf(extra_night, maxf(deep_night, cn)) * 0.8)
+	var deep := maxf(deep_night, cn)
+	if deep > 0:
+		hor = hor.lerp(Color("#8b80c6"), deep * 0.85)
+		bot = bot.lerp(Color("#5b5698"), deep * 0.85)
+		fog = fog.lerp(Color("#6c66a8"), deep * 0.8)
+	if space > 0:
+		top = top.lerp(Color("#05041a"), space)
+		hor = hor.lerp(Color("#2a1a52"), space)
+		bot = bot.lerp(Color("#0a0620"), space)
+		fog = fog.lerp(Color("#1a1238"), space)
+		nt = maxf(nt, space)
+	var dusk := cycle_dusk * (1.0 - deep_night)
+	if dusk > 0:
+		hor = hor.lerp(Color("#ffae86"), dusk * 0.5)
+		top = top.lerp(Color("#e88c9c"), dusk * 0.3)
+		fog = fog.lerp(Color("#f5b39c"), dusk * 0.35)
 	var e := 1.0 if _first else 1.0 - exp(-dt * 2.0)
 	_first = false
 	_top = _top.lerp(top, e)
 	_hor = _hor.lerp(hor, e)
 	_bot = _bot.lerp(bot, e)
 	_fog = _fog.lerp(fog, e)
+	night += (nt - night) * e
 	sky_mat.set_shader_parameter("top_color", _top)
 	sky_mat.set_shader_parameter("hor_color", _hor)
 	sky_mat.set_shader_parameter("bot_color", _bot)
 	sky_mat.set_shader_parameter("night", night)
 	env.fog_light_color = _fog
 	env.ambient_light_color = _hor.lerp(Color.WHITE, 0.35)
+	env.ambient_light_energy = base_ambient * (1.0 - night * 0.22)
+	sun.light_energy = base_sun * (1.0 - night * 0.5)
+	sun.light_color = Color("#fff1df").lerp(Color("#b9c2ff"), night * 0.7)
+	star_mat.albedo_color.a = maxf(min_stars, minf(1.0, night * 1.1)) * (0.75 + sin(t * 2.0) * 0.05)
+	stars.global_position = focus
+	if planets:
+		planets.global_position = focus
 	cloud_mat.albedo_color = Color(_hor.lerp(Color.WHITE, 0.55), 0.9)
 	far_mat.albedo_color = _fog.lerp(_top, 0.25)
 	clouds.rotation.y = t * 0.004
 	sun.global_position = focus + SUN_OFFSET
 	sun.look_at(focus, Vector3.UP)
+
+func fog_color() -> Color:
+	return _fog

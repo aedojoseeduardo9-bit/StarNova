@@ -54,30 +54,47 @@ Con GitHub disponible:
   enemigos, música y escenas (viaje, llegada, recuerdos, puerta, jefe y final). Lista de PNJ e historia completa en
   `docs/StarNova_Historia_y_Datos.docx`.
 
-## Versión NATIVA (Godot) — en construcción por etapas (el dueño la pidió: "que corra nativo en todo")
-La web (Three.js) sigue siendo el juego publicado mientras la nativa la alcanza. La nativa vive en **`godot/`**
-(Godot **4.7**, GDScript, renderizador *Compatibility* = OpenGL, físicas **Jolt**) y exporta apps nativas a
-**Mac (universal: Intel y Apple)**, **Windows**, **Linux** y **Android** (paquete aparte `com.nioro.starnova.nativo`,
-"Star Nova (nativo)", firmado con la misma llave de CI). iPhone/iPad: más adelante (pide Xcode en un Mac y cuenta de Apple).
-- Etapas: **1 (hecha)** base: El Claro, Pip (modelo y animación), movimiento, doble salto, voltereta, cámara, controles
-  (teclado/ratón, mando y táctil), cielo, niebla, hoguera y cajas con física · **2** Islas completas (regiones, enemigos,
-  oleadas, misiones, cofres, jefe, menús y 3 perfiles) · **3** Verdalia, Prismara, cohete, escenas y música ·
-  **4** iPhone/iPad, ajustes de calidad y pasar partidas de la web (código de exportación).
-- Mapa: `scenes/main.tscn` + `scripts/main.gd` (arranque) · `builder.gd` (port de `js/world/builder.js`: una malla por
-  región con color por vértice, caras planas y sombra horneada; colisiones en un StaticBody3D, capa 1) ·
-  `world_islas.gd` (port de `layout.js`) · `palette.gd` (regiones) · `pip.gd` (modelo + animación de Pip) ·
-  `player.gd` (CharacterBody3D: capas 2=Pip, 4=objetos con física; sube escalones de 0.34) · `camera_rig.gd` ·
-  `controls.gd` (acciones creadas por código: mover_*, saltar, voltereta, pausa) · `touch_ui.gd` · `hud.gd` y `sfx.gd`
-  (autoloads `Hud` y `Sfx`; sonidos sintetizados al arrancar) · `sky_env.gd` (cielo, niebla, sol, nubes, islas lejanas) ·
-  `props.gd` (hoguera, cajas) · `fx.gd` (partículas) · `ojos.gd` (capturas y pruebas).
-- **Luz**: en el renderizador Compatibility la luz del sol y la ambiental se suman en espacio sRGB; los valores
-  (sol 0.16, ambiente 0.28) se ajustaron midiendo píxeles contra la web. Si se cambian, comparar capturas con la web.
-- **Ojos nativos** (usar siempre tras un cambio): `bash godot/tools/ojos_nativo.sh <godot> <carpeta>` (Xvfb + OpenGL por
-  software): capturas `NN_*.png` + `report.txt` con pruebas (mover, doble salto, voltereta, escalón, empujar caja, caída).
-  Falla si hay `FALLO` o errores de guion. Godot para Linux: `https://github.com/godotengine/godot/releases/download/4.7-stable/`.
-  Atajos: `-- --cam=yaw,pitch,dist`, `--tactil` (controles táctiles), `--luz=sol,ambiente`.
+## Versión NATIVA (Godot) — el juego completo (el dueño la pidió: "que corra nativo en todo")
+La nativa vive en **`godot/`** (Godot **4.7**, GDScript, renderizador *Compatibility* = OpenGL, físicas **Jolt**) y
+tiene **todo el juego de la web**: los 3 mundos, misiones, enemigos y jefes, cofres, objetos, ataques y poderes, trajes,
+tiendas, PNJ, cohete y viajes, escenas animadas, día y noche, música, 3 perfiles y menús. Exporta a **Mac (universal:
+Intel y Apple)**, **Windows**, **Linux**, **Android** (paquete aparte `com.nioro.starnova.nativo`, "Star Nova (nativo)",
+firmado con la misma llave de CI) e **iPhone/iPad** (proyecto de Xcode: se instala desde un Mac, ver `godot/IPHONE.md`).
+La web sigue publicada en `latest`; la nativa sale en el release **`nativo`**.
+- **Lo que no es lógica se exporta de la web** (para que sea igual): `node godot/tools/exportar_web.cjs [datos,modelos,mundos,iconos,audio]`
+  abre la web con Playwright y genera `godot/data/` (contenido, historia, PNJ, mundos, trajes, **modelos** de enemigos/jefes/PNJ/
+  cofres/campanas/cohete y las **mallas + colisiones + puntos** de cada mundo en `mundo_<id>.json/.bin`), `godot/iconos/` (177 PNG)
+  y `godot/audio/` (canciones en cada tono y efectos en .ogg, grabados del sintetizador de la web). **Si cambia un dato,
+  modelo, mundo o sonido en la web, volver a correr el exportador.** La lógica se porta a mano (mismo comportamiento).
+- Mapa: `main.gd` (**núcleo**, port de `js/game.js`: estados, reglas, combate, cofres, oleadas, interacción, jefe, viajes,
+  atajos) · `juego.gd` (autoload `Juego`: viaje pendiente, ajustes, compendio, calidad gráfica; guarda en `user://`) ·
+  `datos.gd` (autoload `Datos`: JSON, `compute_stats`, `roll_*`) · `modelos.gd` (reconstruye modelos exportados) ·
+  `mundo.gd` (carga un mundo + agua, cascada, metal líquido, impulsor, gelatina) · `enemigos.gd` (16 IA, élites, estados,
+  `Boss`) · `combate.gd` (proyectiles, zonas, aliados, recogibles, esquirlas) · `arsenal.gd` · `utileria.gd` (campanas,
+  cristales, luciérnagas, cofres, puente, portón, farolillos, lechuza, estrella, PNJ, cohete) · `misiones.gd` ·
+  `guardado.gd` (perfiles v2, **mismo formato que la web**) · `trajes.gd` · `hud.gd` (autoload `Hud`) · `touch_ui.gd` ·
+  `menus.gd` (título, perfiles, menú por páginas, tienda, galaxia, muerte, final, importar) · `cine.gd` + `cine_ctx.gd` +
+  `cine_escenas.gd` (las 26 escenas) · `sfx.gd` (autoload `Sfx`: .ogg y música con fundidos) · `sky_env.gd` (cielo,
+  estrellas, planetas, noche, espacio) · `player.gd` · `pip.gd` · `camera_rig.gd` · `controls.gd` · `ojos.gd`.
+- Capas de física: 1 terreno · 2 Pip · 4 objetos · 8 enemigos · 16 proyectiles de Pip · 32 enemigos · 64 portón ·
+  128 esquirlas · 256 recogibles. En GDScript las lambdas copian las variables simples: el estado compartido va en un diccionario.
+- Se carga UN mundo por escena: viajar o "Guardar y salir" recarga la escena (`Juego.viaje`). El árbol se pausa fuera de
+  `play`; `Main`, `Hud`, `Sfx`, `Juego`, menús y escenas siguen con `PROCESS_MODE_ALWAYS`.
+- **Pasar partidas**: en la web, Menú → Sistema → «Código para la versión nativa» (texto `STARNOVA:` + base64 del perfil);
+  en la nativa, Perfiles → «Importar de la web». También funciona entre aparatos nativos («Copiar código de la partida»).
+- **Calidad gráfica** (Sistema): automática, baja, media, alta (sombras, suavizado y resolución 3D).
+- **Luz**: en Compatibility la luz del sol y la ambiental se suman en espacio sRGB; los valores (sol 0.16, ambiente 0.28)
+  se ajustaron midiendo píxeles contra la web. Si se cambian, comparar capturas con la web.
+- **Ojos nativos** (usar siempre tras un cambio): `bash godot/tools/ojos_nativo.sh <godot> <carpeta> [islas gemini soledad]`
+  (Xvfb + OpenGL por software): capturas `<mundo>_NN_*.png` + `report.txt` con pruebas (perfil y prólogo, mover, salto,
+  voltereta, lechuza y misiones, disparo, cofre y botín, campana, guardado, código de partida, jefe, desmayo, agua, traje
+  exclusivo, impulsor y **todas las escenas dejan el mundo como estaba**). Falla si hay `FALLO` o errores de guion.
+  Godot para Linux: `https://github.com/godotengine/godot/releases/download/4.7-stable/`.
+- Atajos (los mismos de la web, tras `--`): `--auto --mundo=gemini --ir=lago --cam=yaw,pitch,dist --dios --t=600 --items
+  --frag=3 --jefe --enemigos=8 --tipo=sombra --elite --arma=rayo:3 --poder=agujero --cofre=todos --menu=mochila --perfil=2
+  --traje=maga --hora=noche --cine=final --cinet=12 --llegada --vencido --tienda=musgo --galaxia --hud=0 --tactil`.
 - CI: `.github/workflows/nativo.yml` (solo corre con cambios en `godot/`): ojos nativos → capturas en el release
-  `diagnostico-nativo` → exporta las 4 plataformas → en main publica el release **`nativo`** (prelanzamiento:
+  `diagnostico-nativo` → exporta las 5 plataformas → en main publica el release **`nativo`** (prelanzamiento:
   no toca el enlace `latest` de la APK web). `build.yml` y `ojos.yml` ignoran `godot/**`.
 - Mac: la app no está notarizada por Apple; la primera vez macOS la bloquea → Ajustes del Sistema → Privacidad y
   seguridad → "Abrir igualmente" (o en Terminal: `xattr -cr StarNova.app`).
@@ -317,7 +334,9 @@ Hecho (v0.6):
 - [x] Documento Word con la historia, los PNJ y los datos técnicos: `docs/StarNova_Historia_y_Datos.docx`.
 
 - [x] Versión nativa (Godot), etapa 1: El Claro, Pip, movimiento, cámara, controles y exportación a Mac/Windows/Linux/Android.
-- [ ] Versión nativa: etapas 2 (Islas completas), 3 (Verdalia, Prismara, cohete, escenas, música) y 4 (iPhone/iPad).
+- [x] Versión nativa, etapas 2–4: el juego completo en Godot (3 mundos, misiones, jefes, escenas, trajes, perfiles,
+  música), iPhone/iPad (proyecto de Xcode), calidad gráfica e importar partidas de la web con un código.
+- [x] Sin textos de explicación bajo la barra de vida (web y nativa; en PC quedan los íconos de habilidades).
 - [ ] Más misiones por región y PNJ; misiones repetibles (escoltas, defender la hoguera, carreras).
 - [ ] Mezcla de sonido más rica (instrumentos con más matices); que la noche cambie algo del juego (criaturas nocturnas).
 - [ ] Más capítulos de historia (qué pasa con la Penumbra dormida) y PNJ con sus propias escenas.

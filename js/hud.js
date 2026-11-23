@@ -77,8 +77,6 @@ export class HUD {
       const b = this.touchBtns[s.id];
       if (b) draw(b.querySelector('canvas'), s.id);
     }
-    const t = RARITY[A.attack.tier];
-    $('loadout').innerHTML = `<span style="color:${t.color === '#e9e2d8' ? 'inherit' : t.color}">${atk.name} · ${t.name}</span>·<span>${pw.name}</span>`;
   }
   buildFrags() {
     const f = $('frags');

@@ -69,6 +69,21 @@ export class Menus {
       this.renderSystem();
     };
     $('btnSaveQuit').onclick = () => g.saveAndQuit();
+    // código para pasar la partida a la versión nativa (Perfiles → «Importar de la web»)
+    $('btnNativeCode').onclick = () => {
+      g.saveNow(true);
+      const d = Profiles.read(g.slot);
+      if (!d) return;
+      const code = 'STARNOVA:' + btoa(unescape(encodeURIComponent(JSON.stringify(d))));
+      const box = $('nativeCode');
+      box.value = code;
+      box.classList.remove('hidden');
+      box.focus(); box.select();
+      const b = $('btnNativeCode');
+      const done = (ok) => { b.textContent = ok ? 'Código copiado ✓' : 'Copia el código de abajo'; clearTimeout(this.codeMsgT); this.codeMsgT = setTimeout(() => { b.textContent = 'Código para la versión nativa'; }, 2200); };
+      try { navigator.clipboard.writeText(code).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+      Audio.play('select');
+    };
   }
 
   /* ---------- perfiles ---------- */
@@ -504,6 +519,8 @@ export class Menus {
     const has = g.slot > 0;
     $('btnSave').classList.toggle('hidden', !has);
     $('btnSaveQuit').classList.toggle('hidden', !has);
+    $('btnNativeCode').classList.toggle('hidden', !has);
+    $('nativeCode').classList.add('hidden');
     const info = el('div', 'info');
     const name = el('div', 'name', has ? g.profile.name : 'Partida de prueba');
     name.append(stars(g.missions.fragments(), g.world.fragSlots));
