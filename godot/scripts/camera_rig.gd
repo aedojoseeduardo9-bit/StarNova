@@ -11,6 +11,7 @@ var shake := 0.0
 var focus := Vector3.ZERO
 var target := Vector3.ZERO
 var follow: Player
+var game = null
 
 func _init() -> void:
 	name = "Camara"
@@ -33,7 +34,16 @@ func snap(to: Vector3) -> void:
 	target = to
 	focus = to
 
+## Pose de la cámara de juego (para que las escenas terminen justo donde vuelve el juego).
+func pose(focus_at: Vector3) -> Dictionary:
+	var cp := cos(pitch)
+	var back := Vector3(sin(yaw) * cp, sin(pitch), cos(yaw) * cp)
+	var pivot := focus_at + Vector3(cos(yaw), 0, -sin(yaw)) * 0.38
+	return {"p": pivot + back * want, "l": pivot + Vector3(0, 0.15, 0)}
+
 func _process(dt: float) -> void:
+	if game and game.state == "cine":
+		return
 	if follow:
 		focus = follow.global_position + Vector3(0, 0.55, 0)
 	target = target.lerp(focus, 1.0 - exp(-dt * 14.0))

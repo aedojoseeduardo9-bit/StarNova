@@ -59,7 +59,7 @@ function waterMaterial(c1, c2) {
 }
 export class Water {
   constructor(game, o) {
-    this.game = game;
+    this.game = game; this.o = o;
     let geo;
     if (o.shape === 'disc') geo = new THREE.CircleGeometry(o.r, 40);
     else if (o.path) {                                   // río: una tira que sigue la curva x = path(z)

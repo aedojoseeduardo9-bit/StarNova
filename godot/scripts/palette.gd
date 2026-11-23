@@ -59,3 +59,17 @@ static func weights(regions: Dictionary, x: float, z: float) -> Dictionary:
 	for id in w:
 		w[id] /= sum
 	return w
+
+## Convierte las regiones exportadas de la web (data/mundos.json) al formato de este archivo.
+static func from_world(src: Dictionary) -> Dictionary:
+	var out := {}
+	for id in src:
+		var r: Dictionary = src[id].duplicate(true)
+		r.center = Vector2(float(r.center[0]), float(r.center[1]))
+		r.r = float(r.r)
+		r.sky_top = r.sky.top
+		r.sky_hor = r.sky.hor
+		r.sky_bot = r.sky.bot
+		r.night = float(r.get("night", 0.0))
+		out[id] = r
+	return out

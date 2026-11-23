@@ -40,6 +40,7 @@ var flip_t := 0.0
 var land_t := 0.0
 var hurt_t := 0.0
 var hop_t := 0.0
+var throw_t := 0.0
 var scarf_wave := 0.0
 var look_up := 0.0       ## 0..1: Pip mira hacia arriba (para las escenas)
 var look_k := 0.0
@@ -209,6 +210,7 @@ func flip() -> void: flip_t = 0.42
 func land(strength: float) -> void: land_t = minf(0.22, 0.08 + strength * 0.012)
 func hurt() -> void: hurt_t = 0.45
 func hop() -> void: hop_t = 0.6
+func throw_anim() -> void: throw_t = 0.25
 
 ## s: { pos, yaw, speed, grounded, vy, dash, spin }
 func animate(dt: float, s: Dictionary) -> void:
@@ -266,6 +268,8 @@ func animate(dt: float, s: Dictionary) -> void:
 	if s.get("dash", 0.0) > 0.0:
 		body.rotation.x = s.spin
 		body.scale = Vector3(0.85, 0.8, 0.85)
+	body.rotation.y = (1.0 - s.get("tail", 0.0) / 0.35) * TAU if s.get("tail", 0.0) > 0.0 else 0.0
+	visible = not s.get("blink", false)
 
 	# patas: galope; brazos: correr, saltar o festejar
 	var leg := sin(ph) * 1.1 * run_k if run else (0.0 if grounded else -0.5)
@@ -277,6 +281,9 @@ func animate(dt: float, s: Dictionary) -> void:
 	if hop_t > 0:
 		arm_l = -2.5
 		arm_r = -2.5
+	if throw_t > 0:
+		throw_t -= dt
+		arm_r = -2.4 * sin(maxf(0.0, throw_t) / 0.25 * PI)
 	arms[0].rotation.x = arm_l
 	arms[1].rotation.x = arm_r
 	arms[0].rotation.z = 0.15 if grounded else 0.6

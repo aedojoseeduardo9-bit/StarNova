@@ -1,5 +1,5 @@
 # Versión NATIVA (Godot 4.7, carpeta godot/): prueba el juego con "los ojos nativos" y compila las apps
-# para Mac (universal: Intel y Apple), Windows, Linux y Android. En ramas solo prueba y compila;
+# para Mac (universal: Intel y Apple), Windows, Linux, Android y el proyecto de Xcode para iPhone/iPad. En ramas solo prueba y compila;
 # en main publica todo en el release "nativo" (marcado como prelanzamiento para no tocar el enlace de la APK web).
 name: Nativo (Godot)
 on:
@@ -16,7 +16,7 @@ env:
 jobs:
   nativo:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -107,19 +107,22 @@ jobs:
           sed -i "s/^version\/code=.*/version\/code=$(( $(date +%s) / 60 ))/" godot/export_presets.cfg
           sed -i "s/^version\/name=.*/version\/name=\"0.7.${GITHUB_RUN_NUMBER}\"/" godot/export_presets.cfg
 
-      - name: Exportar Mac, Windows, Linux y Android
+      - name: Exportar Mac, Windows, Linux, Android e iOS (proyecto de Xcode)
         run: |
           cd godot
-          mkdir -p build/linux build/windows build/macos build/android
-          for P in Linux Windows macOS Android; do
+          mkdir -p build/linux build/windows build/macos build/android build/ios
+          sed -i "s/^application\/short_version=.*/application\/short_version=\"0.7.${GITHUB_RUN_NUMBER}\"/; s/^application\/version=.*/application\/version=\"0.7.${GITHUB_RUN_NUMBER}\"/" export_presets.cfg
+          for P in Linux Windows macOS Android iOS; do
             case $P in
               Linux) OUT=build/linux/StarNova.x86_64 ;;
               Windows) OUT=build/windows/StarNova.exe ;;
               macOS) OUT=build/macos/StarNova_Mac.zip ;;
               Android) OUT=build/android/StarNova_nativo.apk ;;
+              iOS) OUT=build/ios/StarNova.ipa ;;
             esac
             "$GODOT" --headless --path . --export-release "$P" "$OUT" 2>&1 | tee "build/export_$P.log"
-            [ -s "$OUT" ] || { echo "::error::No se pudo exportar $P"; grep -E "ERROR|error" "build/export_$P.log" | head -20; exit 1; }
+            CHK="$OUT"; [ "$P" = iOS ] && CHK=build/ios/StarNova.pck
+            [ -s "$CHK" ] || { echo "::error::No se pudo exportar $P"; grep -E "ERROR|error" "build/export_$P.log" | head -20; exit 1; }
           done
           ls -la build/*/
 
@@ -130,6 +133,8 @@ jobs:
           (cd godot/build/windows && zip -q -9 ../../../dist/StarNova_Windows.zip StarNova.exe)
           cp godot/build/macos/StarNova_Mac.zip dist/
           cp godot/build/android/StarNova_nativo.apk dist/
+          cp godot/IPHONE.md godot/build/ios/LEEME_IPHONE.md
+          (cd godot/build && zip -q -r -9 ../../dist/StarNova_iOS_Xcode.zip ios)
           qrencode -o dist/qr_nativo.png -s 14 -m 3 "https://github.com/${{ github.repository }}/releases/download/nativo/StarNova_nativo.apk"
           ls -la dist
 
@@ -148,5 +153,5 @@ jobs:
           gh release delete nativo --yes --cleanup-tag || true
           gh release create nativo dist/* \
             --title "Star Nova nativo (compilación ${GITHUB_RUN_NUMBER})" \
-            --notes "Versión nativa hecha con Godot (etapa 1: El Claro, Pip, movimiento y controles). Mac: StarNova_Mac.zip (Intel y Apple). Windows: StarNova_Windows.zip. Linux: StarNova_Linux.zip. Android: StarNova_nativo.apk (se instala aparte de la Star Nova de siempre)." \
+            --notes "Versión nativa hecha con Godot: el juego completo (Islas del Cielo, Verdalia y Prismara, misiones, jefes, escenas, trajes, tiendas, perfiles). Mac: StarNova_Mac.zip (Intel y Apple). Windows: StarNova_Windows.zip. Linux: StarNova_Linux.zip. Android: StarNova_nativo.apk (se instala aparte de la Star Nova de siempre). iPhone/iPad: StarNova_iOS_Xcode.zip (proyecto de Xcode; ver LEEME_IPHONE.md dentro)." \
             --prerelease --latest=false --target "$(git rev-parse HEAD)"
