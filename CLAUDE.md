@@ -1,7 +1,11 @@
 # Star Nova — guía para Claude
 
-Aventura **3D de mundo abierto** para el navegador (se juega en el teléfono **en horizontal** o en PC).
+Aventura **3D de mundo abierto** como **app** (se juega en el teléfono **en horizontal** o en PC).
 El dueño habla **español**: responde siempre en español, claro y sin tecnicismos innecesarios.
+
+> **El dueño NO quiere versión de navegador** (lo ha dicho muchas veces): no publicar el juego en una página web,
+> no sugerir GitHub Pages ni "jugar en el navegador". Lo que se entrega son **apps**: la APK y la versión nativa
+> (Mac, Windows, Linux, Android, iPhone/iPad). El código web (`js/`) solo existe como base de la APK actual.
 
 ## Publicar (el dueño lo pidió: hacerlo SIEMPRE al terminar un cambio)
 > **Cuenta de GitHub (nov 2026):** el proyecto vive SOLO en **`aedojoseeduardo9-bit/StarNova`**.
@@ -245,7 +249,7 @@ guardados). Se combinan con `&`:
   (`Audio.setMusicVolume`, ajuste "Volumen de la música"); se silencia al salir de la app. Las notas empiezan con
   volumen 0 (si no, el ruido de la percusión "se cuela" y suena un chasquido). `js/util.js` — utilidades.
 - `tools/ojos.cjs` (capturas), `tools/serve.mjs` (servidor), `tools/capturas.sh` (bajar capturas de CI).
-- `.github/workflows/ojos.yml` (capturas en cada push), `build.yml` (APK + QR), `pages.yml` (versión web).
+- `.github/workflows/ojos.yml` (capturas en cada push), `build.yml` (APK + QR), `nativo.yml` (versión nativa).
 - `tools/compilar_apk.sh` — compila la APK en el contenedor (Gradle + SDK de Android descargados en caché).
 - `android/` — app de Android (Kotlin, sin librerías): `MainActivity.kt` es una WebView que sirve el juego
   desde los assets en `https://appassets.androidplatform.net/` (los módulos ES funcionan sin internet),
@@ -289,7 +293,7 @@ Hecho (v0.1):
 - [x] Misiones: Tres Campanas, Luciérnagas, Plaga de Sombras, Puente Dormido, Guardián (+ final).
 - [x] Físicas: campanas colgantes, puente de tablones con bisagras, cajas, farolillos en cadena, esquirlas.
 - [x] Controles táctiles en horizontal (joystick + botones + ayuda de puntería), aviso de girar el teléfono.
-- [x] Ojos: `tools/ojos.cjs` + workflow con release `diagnostico`; publicación en GitHub Pages.
+- [x] Ojos: `tools/ojos.cjs` + workflow con release `diagnostico`.
 - [x] APK de Android (WebView con el juego dentro), QR en el release `latest`, aviso de actualización.
 
 Hecho (v0.2):
