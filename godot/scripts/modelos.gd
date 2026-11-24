@@ -138,3 +138,74 @@ static func make(id: String) -> Node3D:
 ## Una pieza suelta (por ejemplo, una pieza de traje).
 static func make_node(n: Dictionary) -> Node3D:
 	return _build(n)
+
+## Junta las piezas de un modelo que comparten material y se mueven juntas (mismo padre) en una sola malla: menos
+## dibujos por cuadro (enemigos, cofres, personajes, lechuza). No toca las piezas con nombre (meta "u": se animan,
+## se esconden o cambian de color), las escondidas ni las que tienen hijos. Las mallas juntadas se guardan en caché.
+static var _merged := {}
+
+static func merge(root: Node3D, key: String) -> void:
+	var keep := {}
+	var u: Dictionary = root.get_meta("u", {})
+	for k in u:
+		var v = u[k]
+		if v is Node:
+			keep[v] = true
+		elif v is Array:
+			for x in v:
+				if x is Node:
+					keep[x] = true
+	_merge_node(root, keep, key, [0])
+
+static func _merge_node(n: Node, keep: Dictionary, key: String, idx: Array) -> void:
+	var groups := {}
+	var order: Array = []
+	for c in n.get_children():
+		if c is MeshInstance3D and c.get_child_count() == 0 and c.visible and not keep.has(c) and c.mesh != null:
+			var gk := [c.material_override, c.cast_shadow]
+			var sk := str(gk[0].get_instance_id()) + "/" + str(gk[1])
+			if not groups.has(sk):
+				groups[sk] = []
+				order.append(sk)
+			groups[sk].append(c)
+	for sk in order:
+		var list: Array = groups[sk]
+		if list.size() < 2:
+			continue
+		var ck := "%s#%d#%s" % [key, idx[0], sk.get_slice("/", 1)]
+		idx[0] += 1
+		var am: ArrayMesh = _merged.get(ck)
+		if am == null:
+			var V := PackedVector3Array()
+			var N := PackedVector3Array()
+			for mi in list:
+				var xf: Transform3D = mi.transform
+				var nb := xf.basis.inverse().transposed()
+				var arr: Array = (mi as MeshInstance3D).mesh.surface_get_arrays(0)
+				var vv: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var nn: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+				var flip := xf.basis.determinant() < 0.0
+				for i in range(0, vv.size(), 3):
+					var order3 := [0, 2, 1] if flip else [0, 1, 2]
+					for k in order3:
+						V.append(xf * vv[i + k])
+						N.append((nb * nn[i + k]).normalized())
+			var a := []
+			a.resize(Mesh.ARRAY_MAX)
+			a[Mesh.ARRAY_VERTEX] = V
+			a[Mesh.ARRAY_NORMAL] = N
+			am = ArrayMesh.new()
+			am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+			_merged[ck] = am
+		var m := MeshInstance3D.new()
+		m.mesh = am
+		m.material_override = list[0].material_override
+		m.cast_shadow = list[0].cast_shadow
+		n.add_child(m)
+		n.move_child(m, list[0].get_index())
+		for mi in list:
+			n.remove_child(mi)
+			mi.free()
+	for c in n.get_children():
+		if c.get_child_count() > 0:
+			_merge_node(c, keep, key, idx)

@@ -298,16 +298,40 @@ void fragment() {
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.layers = Reflejo.CAPA_PASTO
 			mi.visibility_range_end = 60.0
+			mi.set_meta("c", Vector3(float(c.cx), 0.0, float(c.cz)))
 			add_child(mi)
 			chunks.append(mi)
+
+	var dens := 1.0
+	var lejos := 55.0
+	var _lod_t := 0.0
 
 	static func calidad(p, q: String) -> void:
 		if p == null:
 			return
+		p.dens = 1.0 if q == "alta" else 0.5
+		p.lejos = 55.0 if q == "alta" else 36.0
 		for mi in p.chunks:
+			mi.visibility_range_end = p.lejos + 18.0
+		p._lod_t = 0.0
+
+	## Cada cuadro de pasto muestra menos matas cuanto más lejos está de la cámara (las matas están mezcladas al
+	## azar, así se ralea parejo). Cerca se ve tupido; lejos casi no se nota y ahorra muchísimos triángulos.
+	func _process(dt: float) -> void:
+		_lod_t -= dt
+		if _lod_t > 0.0 or not is_visible_in_tree():
+			return
+		_lod_t = 0.25
+		var cam := get_viewport().get_camera_3d()
+		if cam == null:
+			return
+		var e := cam.global_position
+		for mi in chunks:
 			var mm: MultiMesh = mi.multimesh
-			mm.visible_instance_count = -1 if q == "alta" else mm.instance_count / 2
-			mi.visibility_range_end = 62.0 if q == "alta" else 40.0
+			var c: Vector3 = mi.get_meta("c")
+			var d := Vector2(e.x - c.x, e.z - c.z).length() - 12.0
+			var f := clampf(1.0 - (d - 8.0) / lejos, 0.0, 1.0)
+			mm.visible_instance_count = int(mm.instance_count * dens * f * f)
 
 
 # ======================================================================== agua (lago y río)

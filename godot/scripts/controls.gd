@@ -95,7 +95,7 @@ func _process(dt: float) -> void:
 		if game.state != "play":
 			player.input_move = Vector2.ZERO
 			if game.state == "cine":
-				game.cinema.holding = Input.is_action_pressed("pausa") or (Hud.touch.visible and false)
+				game.cinema.holding = Input.is_action_pressed("pausa")
 			return
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and game.state == "play" and Input.is_action_just_pressed("pausa"):
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

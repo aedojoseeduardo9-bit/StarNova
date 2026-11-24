@@ -73,7 +73,9 @@ static func prologo(ctx: CineCtx) -> Array:
 	var st := {"shake": 0.0}
 	ctx.always(func(_dt, t):
 		ctx.face_cam(star, t)
-		star.global_position = C + Vector3((randf() - 0.5) * st.shake, (randf() - 0.5) * st.shake, 0)
+		# temblor suave (antes saltaba al azar cada cuadro) y el aura acompaña a la estrella
+		star.global_position = C + Vector3(sin(t * 37.0) * 0.5, sin(t * 29.0 + 1.3) * 0.5, 0) * st.shake
+		halo.global_position = star.global_position
 		halo.scale = Vector3.ONE * (4.6 + sin(t * (2.0 + st.shake * 30.0)) * 0.4)
 		if star.visible and randf() < 0.5:
 			ctx.sparkle(C, "#fff2b8", 1, 2.4))
@@ -343,7 +345,8 @@ static func cohete(ctx: CineCtx) -> Array:
 			brio = n
 	ctx.night(0.8)
 	ctx.pip_at(v(P.x + 1.5, P.y + 0.02, P.z - 3.6), atan2(-1.5, 3.6))
-	var sky := v(P.x - 6, P.y + 26, P.z - 34)
+	# Nova habla desde el cielo abierto del borde de la isla (antes quedaba detrás de las torres del Claro)
+	var sky := v(P.x + 16, P.y + 22, P.z + 24)
 	var nova := ctx.star_actor("#fff3bf", 1.6)
 	nova.global_position = sky
 	var tarp := Node3D.new()
@@ -362,8 +365,8 @@ static func cohete(ctx: CineCtx) -> Array:
 			tarp.rotation.z = st.lift * 2.5
 			tarp.scale = Vector3.ONE * maxf(0.01, 1.0 - st.lift * 0.6))
 	return [
-		{"t": 5.6, "music": "recuerdo", "cam": {"p": [v(P.x + 3, 1.0, P.z - 6.5), v(P.x + 2.4, 1.3, P.z - 7.2)], "l": [v(P.x + 1.5, 0.8, P.z - 3.6), sky]}, "say": ["Nova", "«Pip… gracias. Pero no fui la única que cayó aquella noche.»"], "on": func(): ctx.pip_look_up = 1.0},
-		{"t": 7.0, "cam": {"p": [v(P.x + 2.4, 1.3, P.z - 7.2), v(P.x + 1, 3, P.z - 9)], "l": [sky]}, "say": ["Nova", "«Mis hermanas también perdieron su luz: las gemelas de Gemini… y Sola, allá en la Galaxia Soledad.»"]},
+		{"t": 5.6, "music": "recuerdo", "cam": {"p": [v(P.x - 1.2, 0.9, P.z - 7.0), v(P.x - 1.8, 1.1, P.z - 7.8)], "l": [v(P.x + 1.5, 0.8, P.z - 3.6), sky]}, "say": ["Nova", "«Pip… gracias. Pero no fui la única que cayó aquella noche.»"], "on": func(): ctx.pip_look_up = 1.0},
+		{"t": 7.0, "cam": {"p": [v(P.x - 1.8, 1.1, P.z - 7.8), v(P.x - 3, 2.6, P.z - 9.5)], "l": [sky]}, "say": ["Nova", "«Mis hermanas también perdieron su luz: las gemelas de Gemini… y Sola, allá en la Galaxia Soledad.»"]},
 		{"t": 5.6, "cam": {"p": [v(B.x - 2.6, 1.3, B.z - 3.4), v(B.x - 2.2, 1.4, B.z - 2.9)], "l": [v(B.x, 0.9, B.z)]}, "say": ["Brío", "«¡Para eso armé esto! Con los pedacitos de estrella que llovieron sobre el Claro…»"], "on": func(): ctx.pip_look_up = 0.0},
 		{"t": 4.4, "music": "esperanza", "cam": {"p": [v(P.x + 5, 1.8, P.z - 6), v(P.x + 6.5, 2.6, P.z - 2)], "l": [v(P.x, 2, P.z)]}, "say": ["Brío", "«¡El Cohete Avellana!»"],
 			"on": func():

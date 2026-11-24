@@ -215,7 +215,7 @@ func _apply_cam(shot: Dictionary, k: float) -> void:
 		var l: Array = c.l
 		_l = l[0].lerp(l[1] if l.size() > 1 else l[0], e)
 	var cam: Camera3D = game.cam
-	var pos := _p
+	var pos := _unblock(_p, _l)
 	if shake_k > 0:
 		pos += Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5) * shake_k
 	cam.global_position = pos
@@ -223,6 +223,23 @@ func _apply_cam(shot: Dictionary, k: float) -> void:
 		cam.look_at(_l, Vector3.UP)
 	var f: float = (c.fov[0] + (c.fov[1] - c.fov[0]) * e) if c.has("fov") else fov0
 	cam.fov = f
+
+## Si la cámara de la escena quedó dentro de un muro o justo detrás de una torre (pasaba en algunas escenas, sobre
+## todo con la arquitectura HD), se acerca al personaje hasta quedar delante del obstáculo. Solo mira los últimos
+## metros junto a la cámara: los planos lejanos que pasan por detrás de una isla no cambian.
+func _unblock(p: Vector3, l: Vector3) -> Vector3:
+	var to := l - p
+	var d := to.length()
+	if d < 0.5:
+		return p
+	var dir := to / d
+	var near := minf(d - 0.3, 7.0)
+	if near <= 0.2:
+		return p
+	var hit = game.ray(p + dir * near, -dir, near, 1)
+	if hit == null:
+		return p
+	return hit.position + dir * 0.35
 
 func flash_screen(color: Color, dur := 0.6) -> void:
 	flash_rect.color = color

@@ -51,6 +51,7 @@ var spots: Dictionary
 var props := {}
 var stats: Dictionary
 const MAX_ACTIVOS := 5
+var anim_t := 0.0          ## reloj de las animaciones de adorno (sigue corriendo en las escenas animadas)
 var bag := {}               ## todos los objetos de Pip (id → cantidad), en la Mochila
 var active: Array = []      ## los que funcionan: máximo 5, el jugador los elige en la Mochila
 var items := {}             ## solo los activos: esto leen las estadísticas y los efectos
@@ -102,7 +103,6 @@ var acc := 0.0
 var _music_t := 0.0
 var _fight := 0.0
 var _timers: Array = []
-var _cine_first := true
 
 # ----------------------------------------------------------------------------------------------- arranque
 func _ready() -> void:
@@ -1510,7 +1510,9 @@ func update_day() -> void:
 
 # ----------------------------------------------------------------------------------------------- ciclo
 func _process(dt: float) -> void:
+	Juego.govern(self, dt)
 	dt = minf(dt, 0.1)
+	anim_t += dt
 	for tm in _timers.duplicate():
 		if state == "play" or state == "title" or state == "ending" or state == "cine" or state == "menu":
 			tm[0] -= dt

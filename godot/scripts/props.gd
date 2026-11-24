@@ -38,6 +38,7 @@ class Campfire extends Node3D:
 	var spark_color: Color
 
 	func _init(pos: Vector3, look_id := "fuego") -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # el fuego sigue vivo durante las escenas
 		name = "Hoguera"
 		position = pos
 		p = pos

@@ -234,6 +234,64 @@ func _init() -> void:
 			_part(seg, _low, m, Vector3(cos(a) * r * 0.55, 0.04 + (k - 1) * r * 0.2, sin(a) * r * 0.5), Vector3(r * 0.55, r * 0.5, r * 0.5))
 		tail.append(seg)
 		parent = seg
+	_merge_parts(self)
+
+## Junta las piezas que comparten material y se mueven juntas (mismo hueso) en una sola malla: Pip pasa de ~80 a
+## ~35 dibujos por cuadro (y lo mismo en cada sombra). Los materiales siguen siendo los mismos, así los trajes que
+## cambian colores funcionan igual. Las piezas con nombre propio (pin) no se tocan.
+func _merge_parts(n: Node) -> void:
+	var groups := {}
+	for c in n.get_children():
+		if c is MeshInstance3D and c != pin and c.mesh != null:
+			var key = c.material_override
+			if not groups.has(key):
+				groups[key] = []
+			groups[key].append(c)
+	for key in groups:
+		var list: Array = groups[key]
+		if list.size() < 2:
+			continue
+		var V := PackedVector3Array()
+		var N := PackedVector3Array()
+		var I := PackedInt32Array()
+		var shadow := false
+		for mi in list:
+			var arr: Array = (mi as MeshInstance3D).mesh.surface_get_arrays(0)
+			var xf: Transform3D = mi.transform
+			var nb := xf.basis.inverse().transposed()
+			var base := V.size()
+			var vv: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var nn: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			for i in vv.size():
+				V.append(xf * vv[i])
+				N.append((nb * nn[i]).normalized())
+			var ii = arr[Mesh.ARRAY_INDEX]
+			if ii is PackedInt32Array and ii.size() > 0:
+				for k in ii:
+					I.append(base + k)
+			else:
+				for k in vv.size():
+					I.append(base + k)
+			if mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				shadow = true
+		var a := []
+		a.resize(Mesh.ARRAY_MAX)
+		a[Mesh.ARRAY_VERTEX] = V
+		a[Mesh.ARRAY_NORMAL] = N
+		a[Mesh.ARRAY_INDEX] = I
+		var am := ArrayMesh.new()
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		var m := MeshInstance3D.new()
+		m.mesh = am
+		m.material_override = key
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(m)
+		for mi in list:
+			n.remove_child(mi)
+			mi.free()
+	for c in n.get_children():
+		if not c is MeshInstance3D:
+			_merge_parts(c)
 
 func flip() -> void: flip_t = 0.42
 func land(strength: float) -> void: land_t = minf(0.22, 0.08 + strength * 0.012)

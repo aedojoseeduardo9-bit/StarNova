@@ -700,7 +700,11 @@ func _outfit_panel(parent: Control, shop_id = null) -> void:
 	side.add_child(_title(def.name if def else "Bufanda de siempre", 26, false))
 	side.add_child(_label(def.desc if def else "La bufanda menta con su broche de estrella: Pip tal como es.", 14, INK_SOFT))
 	var row := _row(8)
-	var redraw := func(): show_shop(shop_id) if shop_id != null else show_tab("trajes")
+	var redraw := func():
+		if shop_id != null:
+			show_shop(shop_id)
+		else:
+			show_tab("trajes")
 	if on:
 		row.add_child(_label("Puesto", 15, Color("#4fae98"), false, false))
 	if owned:
@@ -864,6 +868,8 @@ func _page_system() -> void:
 		var b := button(pair[1], func():
 			S.quality = pair[0]
 			save.call()
+			if pair[0] == "auto":
+				Juego.reset_auto_quality()
 			Juego.apply_quality(g)
 			show_tab("sistema"))
 		b.modulate = Color(1, 1, 1, 1) if S.get("quality", "auto") == pair[0] else Color(1, 1, 1, 0.6)
