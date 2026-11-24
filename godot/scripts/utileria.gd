@@ -5,6 +5,16 @@ class_name Utileria
 
 const ALL := 1 | 2 | 4 | 16 | 128
 
+## La estrella (modelo "estrella") con su centro en el origen. En el modelo original la malla está 1,4 m más arriba
+## (para posarse sobre el pedestal) y entonces, al girar o crecer, la estrella daba vueltas fuera de su aura y de
+## sus chispas. Así gira y crece sobre su propio centro.
+static func star_model() -> Node3D:
+	var m := Modelos.make("estrella")
+	var mi := first_mesh(m)
+	if mi and mi.mesh:
+		mi.position = -(mi.basis * mi.mesh.get_aabb().get_center())
+	return m
+
 static func first_mesh(n: Node) -> MeshInstance3D:
 	if n is MeshInstance3D:
 		return n
@@ -127,6 +137,7 @@ class Crystal extends StaticBody3D:
 	var active := false
 
 	func _init(g, spot: Dictionary, i: int) -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # se anima también durante las escenas (solo es visual)
 		game = g
 		index = i
 		p = Utileria._v3(spot.pos)
@@ -164,7 +175,7 @@ class Crystal extends StaticBody3D:
 
 	func _process(dt: float) -> void:
 		mesh.rotation.y += dt * (2.5 if active else 0.6)
-		mesh.position.y = sin(game.time * 1.6 + index) * 0.1
+		mesh.position.y = sin(game.anim_t * 1.6 + index) * 0.1
 		if active:
 			mat.albedo_color = Color(colors[1], mat.albedo_color.a)
 			mat.emission_enabled = true
@@ -183,6 +194,7 @@ class Firefly extends Node3D:
 	var wings: Array = []
 
 	func _init(g, spot: Dictionary, i: int) -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # se anima también durante las escenas (solo es visual)
 		game = g
 		index = i
 		p = Utileria._v3(spot.pos)
@@ -205,7 +217,7 @@ class Firefly extends Node3D:
 	func _process(_dt: float) -> void:
 		if taken:
 			return
-		var t: float = game.time
+		var t: float = game.anim_t
 		position = p + Vector3(sin(t * 1.3 + index) * 0.3, sin(t * 2.1 + index) * 0.2, cos(t * 1.1 + index) * 0.3)
 		if wings.size() == 2:
 			wings[0].rotation.z = sin(t * 30.0) * 0.6
@@ -269,6 +281,7 @@ class Chest extends StaticBody3D:
 		lid_t = 0.0
 		respawn_t = 0.0
 		model = Modelos.make("cofre_" + id)
+		Modelos.merge(model, "cofre_" + id)
 		var u: Dictionary = model.get_meta("u")
 		lid = u.get("lid")
 		ring = u.get("ring")
@@ -559,9 +572,11 @@ class Owl extends Node3D:
 	var blink := 2.0
 
 	func _init(g, pos: Vector3) -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # se anima también durante las escenas (solo es visual)
 		game = g
 		p = pos
 		model = Modelos.make("lechuza")
+		Modelos.merge(model, "lechuza")
 		u = model.get_meta("u")
 		model.position = Vector3.ZERO
 		model.scale = Vector3.ONE * 0.85
@@ -573,7 +588,7 @@ class Owl extends Node3D:
 		var yaw := atan2(pl.x - p.x, pl.z - p.z)
 		rotation.y += wrapf(yaw - rotation.y, -PI, PI) * minf(1.0, dt * 3.0)
 		if u.get("head"):
-			u.head.rotation.z = sin(game.time * 0.8) * 0.12
+			u.head.rotation.z = sin(game.anim_t * 0.8) * 0.12
 		blink -= dt
 		var closed := blink < 0.12
 		for e in u.get("eyes", []):
@@ -597,6 +612,7 @@ class NovaStar extends Node3D:
 	var lit := 0.0
 
 	func _init(g, spot) -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # se anima también durante las escenas (solo es visual)
 		game = g
 		p = Utileria._pos(spot)
 		lit0 = Color(str(spot.get("color", "#fff0b0"))) if spot is Dictionary else Color("#fff0b0")
@@ -608,7 +624,7 @@ class NovaStar extends Node3D:
 			mat2 = _mat_of(star2)
 
 	func _make() -> Node3D:
-		var m := Modelos.make("estrella")
+		var m := Utileria.star_model()
 		add_child(m)
 		return m
 
@@ -627,20 +643,21 @@ class NovaStar extends Node3D:
 		awake = 0.001
 
 	func _process(dt: float) -> void:
-		var t: float = game.time
+		var t: float = game.anim_t
 		var l := maxf(lit, 1.0 if awake > 0 else 0.0)
 		mat.albedo_color = lit0 if l > 0.5 else Color("#8e94d6")
 		mat.emission = Color(0.1 + l * 0.7, 0.1 + l * 0.55, 0.15 + l * 0.2) * 0.6
 		star.rotation.y = t * (0.4 + minf(4.0, awake) * 0.3)
-		var y := 1.4
+		# el centro de la estrella flota a 2,8 m sobre el pedestal (antes: raíz a 1,4 m + malla 1,4 m más arriba)
+		var y := 2.8
 		if awake > 0:
 			awake += dt
-			y = 1.4 + minf(14.0, awake * awake * 1.4)
+			y = 2.8 + minf(14.0, awake * awake * 1.4)
 			star.scale = Vector3.ONE * (1.0 + minf(2.0, awake * 0.3))
 			if randf() < 0.8:
 				Fx.sparkle(game.world, star.global_position, Color("#fff2b8"), 2, 2.5)
 		else:
-			y = 1.4 + sin(t) * 0.15
+			y = 2.8 + sin(t) * 0.15
 		star.global_position = p + Vector3(0, y, 0)
 		if star2:
 			mat2.albedo_color = twin if l > 0.5 else Color("#8e94d6")
@@ -666,6 +683,7 @@ class NPC extends StaticBody3D:
 	var t0: float
 
 	func _init(g, spot: Dictionary) -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # se anima también durante las escenas (solo es visual)
 		game = g
 		id = str(spot.id)
 		def = Datos.pnj[id]
@@ -682,6 +700,7 @@ class NPC extends StaticBody3D:
 		cs.position.y = 0.5
 		add_child(cs)
 		model = Modelos.make("pnj_" + id)
+		Modelos.merge(model, "pnj_" + id)
 		u = model.get_meta("u")
 		model.position = Vector3.ZERO
 		model.rotation = Vector3(0, base_yaw, 0)
@@ -702,7 +721,7 @@ class NPC extends StaticBody3D:
 		var near := pl.distance_to(p) < 6
 		var want := atan2(pl.x - p.x, pl.z - p.z) if near else base_yaw
 		model.rotation.y += wrapf(want - model.rotation.y, -PI, PI) * minf(1.0, dt * 3.0)
-		var tt: float = game.time + t0
+		var tt: float = game.anim_t + t0
 		model.position.y = (0.25 + sin(tt * 2.0) * 0.12) if u.get("float", false) else absf(sin(tt * 1.6)) * 0.02
 		if u.get("head"):
 			u.head.rotation.z = sin(tt * 0.9) * 0.08
@@ -726,6 +745,7 @@ class Rocket extends StaticBody3D:
 	var ready_ := false
 
 	func _init(g, spot: Dictionary) -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS   # se anima también durante las escenas (solo es visual)
 		game = g
 		p = Utileria._v3(spot.pos)
 		ry = float(spot.get("ry", 0.0))
@@ -771,5 +791,5 @@ class Rocket extends StaticBody3D:
 		if f and f.visible:
 			var i := 0
 			for c in f.get_children():
-				c.scale.y = 1.0 + sin(game.time * (24.0 + i * 7.0)) * 0.2
+				c.scale.y = 1.0 + sin(game.anim_t * (24.0 + i * 7.0)) * 0.2
 				i += 1

@@ -39,7 +39,7 @@ func refresh_icons() -> void:
 	queue_redraw()
 
 func _buttons() -> Dictionary:
-	var s := get_viewport_rect().size
+	var s := size if size.x > 0 else get_viewport_rect().size   # dentro de la zona segura
 	var r: float = clampf(s.y * 0.085, 34.0, 60.0)
 	var j := Vector2(s.x - r * 1.6, s.y - r * 1.7)
 	var b := {
@@ -60,13 +60,30 @@ func _hit(p: Vector2) -> String:
 			return id
 	return ""
 
+## Suelta todo (joystick, cámara y botones). Se llama al ocultar los controles y al salir de la app: si un dedo
+## estaba apoyado en ese momento, su "soltar" no llega y Pip seguía caminando o disparando solo al volver.
+func reset() -> void:
+	_stick_id = -1
+	_look_id = -1
+	_btn_ids.clear()
+	move = Vector2.ZERO
+	look = Vector2.ZERO
+	jump_held = false
+	held.primary = false
+	queue_redraw()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED or what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
+		reset()
+
 func _input(e: InputEvent) -> void:
 	if not visible:
 		return
 	if e is InputEventScreenTouch:
 		var t := e as InputEventScreenTouch
+		var tp := t.position - global_position
 		if t.pressed:
-			var btn := _hit(t.position)
+			var btn := _hit(tp)
 			if btn != "":
 				_btn_ids[t.index] = btn
 				if btn == "jump":
@@ -79,13 +96,13 @@ func _input(e: InputEvent) -> void:
 				else:
 					pressed[btn] = true
 				get_viewport().set_input_as_handled()
-			elif t.position.x < get_viewport_rect().size.x * 0.45 and _stick_id == -1:
+			elif tp.x < size.x * 0.45 and _stick_id == -1:
 				_stick_id = t.index
-				_stick_origin = t.position
-				_stick_pos = t.position
+				_stick_origin = tp
+				_stick_pos = tp
 			elif _look_id == -1:
 				_look_id = t.index
-				_look_last = t.position
+				_look_last = tp
 		else:
 			if _btn_ids.has(t.index):
 				if _btn_ids[t.index] == "jump":
@@ -101,8 +118,9 @@ func _input(e: InputEvent) -> void:
 		queue_redraw()
 	elif e is InputEventScreenDrag:
 		var d := e as InputEventScreenDrag
+		var dp := d.position - global_position
 		if d.index == _stick_id:
-			_stick_pos = d.position
+			_stick_pos = dp
 			var v := (_stick_pos - _stick_origin) / RADIUS
 			if v.length() > 1.0:
 				v = v.normalized()
@@ -111,8 +129,8 @@ func _input(e: InputEvent) -> void:
 			move = Vector2(v.x, -v.y)
 			queue_redraw()
 		elif d.index == _look_id:
-			look += d.position - _look_last
-			_look_last = d.position
+			look += dp - _look_last
+			_look_last = dp
 
 func take_look() -> Vector2:
 	var l := look

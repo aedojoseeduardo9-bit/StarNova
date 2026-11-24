@@ -134,6 +134,7 @@ class Enemy extends CharacterBody3D:
 		add_child(cs)
 		position = p
 		model = Modelos.make("enemigo_" + ty)
+		Modelos.merge(model, "enemigo_" + ty)
 		u = model.get_meta("u")
 		model.scale = Vector3.ONE * 0.01
 		if elite:

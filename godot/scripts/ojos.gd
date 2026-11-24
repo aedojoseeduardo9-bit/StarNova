@@ -98,11 +98,14 @@ func _play_ready() -> void:
 
 func _run() -> void:
 	await _secs(0.5)
-	match set_id:
-		"islas": await _islas()
-		"gemini": await _gemini()
-		"soledad": await _soledad()
-	await _escenas()
+	if main.args.has("estres"):
+		await _estres()
+	else:
+		match set_id:
+			"islas": await _islas()
+			"gemini": await _gemini()
+			"soledad": await _soledad()
+		await _escenas()
 	report.append("Pruebas con fallos (%s): %d" % [set_id, fails])
 	var fa := FileAccess.open(out_dir.path_join("report_%s.txt" % set_id), FileAccess.WRITE)
 	fa.store_string("Star Nova — informe de los ojos (%s) · Godot %s\n%s\n" % [set_id, Engine.get_version_info().string, "\n".join(report)])
@@ -426,3 +429,81 @@ func _escenas() -> void:
 	_check(bad == 0, "[prueba_escenas] %d escenas de %s se ven y dejan el mundo como estaba" % [ids.size(), main.world_id])
 	if bad:
 		fails += bad - 1
+
+# ----------------------------------------------------------------------------------------------- estrés (--estres)
+## Todos los enemigos (con y sin élite), todos los ataques en varios rangos, todos los poderes, todos los objetos (de 5
+## en 5) y todos los estilos de cofre, peleando. Cualquier error de guion en el registro hace fallar a ojos.sh.
+func _anillo(types: Array, elite: bool) -> void:
+	var p: Vector3 = main.player.global_position
+	for j in types.size():
+		var a := TAU * j / types.size()
+		var ty: String = types[j]
+		var fly: bool = Datos.enemies[ty].get("flying", false)
+		var el = Datos.elite_list[j % Datos.elite_list.size()].id if elite else null
+		main.spawn_enemy(ty, Vector3(p.x + cos(a) * 7, p.y + (2.0 if fly else 0.3), p.z + sin(a) * 7), {"force": true, "elite": el})
+
+func _cercano():
+	var best = null
+	var bd := 1e9
+	for e in main.enemies:
+		if e.dead:
+			continue
+		var d: float = e.global_position.distance_to(main.player.global_position)
+		if d < bd:
+			bd = d
+			best = e
+	return best
+
+func _estres() -> void:
+	await _play_ready()
+	main.god = true
+	var all: Array = Datos.enemy_list.map(func(e): return e.id)
+	for chunk in [all.slice(0, 11), all.slice(11, 22), all.slice(22)]:
+		_anillo(chunk, false)
+		await _secs(5.0)
+		_anillo(chunk, true)
+		await _secs(5.0)
+	for a in Datos.attack_list:
+		for tier in [0, 3, 5]:
+			main.equip_attack({"id": a.id, "tier": tier}, true)
+			for k in 5:
+				var e = _cercano()
+				if e == null:
+					_anillo(all.slice(0, 6), false)
+					await _secs(0.3)
+					e = _cercano()
+				main.fire_primary(e.center() if e else main.player.global_position + Vector3(0, 0.5, 4))
+				await _secs(0.12)
+	for pw in Datos.power_list:
+		main.equip_power(pw.id, true)
+		if _cercano() == null:
+			_anillo(all.slice(0, 6), true)
+			await _secs(0.3)
+		main.arsenal.use_power()
+		await _secs(1.4)
+		main.tail_swipe()
+		await _secs(0.3)
+	var ids: Array = Datos.items.keys()
+	for i in range(0, ids.size(), 5):
+		main.bag = {}
+		main.active = []
+		for id in ids.slice(i, i + 5):
+			main.add_item(id, true)
+		if _cercano() == null:
+			_anillo(all.slice(6, 12), true)
+		for k in 6:
+			var e = _cercano()
+			main.fire_primary(e.center() if e else main.player.global_position + Vector3(0, 0.5, 4))
+			await _secs(0.15)
+		main.god = false
+		main.hurt_player(3.0, null)
+		main.god = true
+	for ch in main.props.chests.duplicate():
+		if not is_instance_valid(ch) or ch.opened:
+			continue
+		main.sparks = 99999
+		main.hp = main.stats.maxHp
+		main.interact({"type": "chest", "obj": ch})
+		await _secs(0.25)
+	await _secs(2.0)
+	_check(main.state == "play" and main.hp > 0, "[prueba_estres] %d enemigos, %d ataques, %d poderes, %d objetos y los cofres sin errores" % [all.size(), Datos.attack_list.size(), Datos.power_list.size(), ids.size()])

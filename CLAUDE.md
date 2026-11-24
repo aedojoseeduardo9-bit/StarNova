@@ -79,11 +79,24 @@ Con GitHub disponible:
   ½ de la pantalla cada cuadro; media: ⅓ cada 2 cuadros; baja: sin reflejos). El agua de Verdalia y el metal líquido de
   Prismara lo leen con ondas y fresnel. Capas visuales: 1 mundo · 2 superficies que reflejan · 3 pasto (no se reflejan).
 
+- **Rendimiento** (el dueño notó lag en Windows): partículas en UN MultiMesh reciclado por mundo (`Fx.Pool`, también se
+  mueven en las escenas); piezas de Pip, enemigos, cofres, PNJ y lechuza juntadas por material (`Modelos.merge`,
+  `PipModel._merge_parts`); pasto que se ralea con la distancia; reflejos solo si el agua está a la vista; en calidad
+  media, sombras de una pasada y más cortas. **Calidad "Automática"**: `Juego.govern` mide los FPS en partida y, si va
+  lento, baja un nivel (alta → media → baja) y lo recuerda (`calidad_auto`); elegir "Automática" en el menú lo reinicia.
+- **Escenas animadas**: el juego está en pausa durante las escenas; lo que solo es adorno (fuego, luciérnagas,
+  cristales, PNJ, lechuza, estrella, cohete) usa `game.anim_t` y `PROCESS_MODE_ALWAYS` para seguir moviéndose. La
+  cámara de las escenas no queda dentro de muros (`Cine._unblock`). El modelo "estrella" tiene la malla 1,4 m arriba:
+  usar siempre `Utileria.star_model()` (centrada) para que gire y crezca dentro de su aura.
+- **Teléfonos**: zona segura (notch) en `Hud.apply_safe_area`; los controles táctiles se sueltan solos al ocultarse o
+  al salir de la app (`TouchUI.reset`).
+
 ## Ver el juego (los "ojos")
 1. **En el contenedor** (usar siempre tras un cambio): `bash godot/tools/ojos.sh <godot> <carpeta> [islas gemini soledad]`
    (Xvfb + OpenGL por software). Deja capturas `<mundo>_NN_*.png` + `report.txt` con pruebas: perfil y prólogo, mover,
    salto, voltereta, lechuza y misiones, disparo, cofre y botín, campana, guardado, código de partida, jefe, desmayo,
-   agua, traje exclusivo, impulsor y **todas las escenas dejan el mundo como estaba**. Falla si hay `FALLO` o errores de
+   agua, traje exclusivo, impulsor, mochila y **todas las escenas dejan el mundo como estaba**. Con `--estres` (en vez de
+   las pruebas normales) prueba todos los enemigos, ataques, poderes, objetos y cofres buscando errores. Falla si hay `FALLO` o errores de
    guion. Mira las capturas con **Read**. Godot para Linux:
    `https://github.com/godotengine/godot/releases/download/4.7-stable/`.
 2. **En GitHub**: cada push publica capturas + informe en el release **`diagnostico`**. Descárgalas con

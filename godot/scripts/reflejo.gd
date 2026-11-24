@@ -48,10 +48,10 @@ func set_quality(q: String) -> void:
 	match q:
 		"alta":
 			escala = 0.5
-			cada = 1
+			cada = 2
 		"media":
 			escala = 0.33
-			cada = 2
+			cada = 3
 		_:
 			escala = 0.0
 	if escala <= 0.0:
@@ -77,10 +77,13 @@ func _process(_dt: float) -> void:
 	# el plano que más importa: el más cercano a la cámara (y la cámara por encima de él)
 	var best = null
 	var bd := 75.0
+	var frustum := main_cam.get_frustum()
 	for p in planos:
 		if e.y <= float(p.h) + 0.05:
 			continue
 		var bb: AABB = p.aabb
+		if not _visible(bb, float(p.h), frustum):
+			continue   # el agua no está a la vista: no se dibuja el reflejo (antes se dibujaba igual)
 		var q := Vector3(clampf(e.x, bb.position.x, bb.end.x), float(p.h), clampf(e.z, bb.position.z, bb.end.z))
 		var d := e.distance_to(q)
 		if d < bd:
@@ -121,3 +124,18 @@ func _process(_dt: float) -> void:
 		sm.set_shader_parameter("refl_h", h)
 	_on = true
 	_h = h
+
+## ¿Se ve algo del plano (su rectángulo a la altura h) desde la cámara? Fuera si todas sus esquinas quedan del lado de
+## afuera de alguno de los planos de la vista.
+static func _visible(bb: AABB, h: float, fr: Array) -> bool:
+	var pts := [Vector3(bb.position.x, h, bb.position.z), Vector3(bb.end.x, h, bb.position.z),
+		Vector3(bb.position.x, h, bb.end.z), Vector3(bb.end.x, h, bb.end.z)]
+	for pl in fr:
+		var fuera := true
+		for q in pts:
+			if not (pl as Plane).is_point_over(q):
+				fuera = false
+				break
+		if fuera:
+			return false
+	return true

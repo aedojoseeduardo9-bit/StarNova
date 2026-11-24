@@ -160,8 +160,50 @@ func quality() -> String:
 		if a.begins_with("--calidad="):
 			q = a.substr(10)
 	if q == "auto":
-		q = "media" if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else "alta"
+		var base := "media" if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else "alta"
+		q = str(store_get("calidad_auto", base))   # lo que el ajuste automático aprendió de este aparato
 	return q
+
+## Ajuste automático (solo con calidad "Automática"): si el juego va lento durante la partida, baja un nivel
+## (alta → media → baja) y lo recuerda para la próxima vez. No muestra textos. Lo llama Main cada cuadro.
+const _NIVELES := ["baja", "media", "alta"]
+var _gov_t := 0.0
+var _gov_frames := 0
+var _gov_bad := 0
+var _gov_warm := 8.0
+
+func govern(g, dt: float) -> void:
+	if str(settings.get("quality", "auto")) != "auto" or g.args.has("ojos") or g.args.has("calidad") or g.state != "play":
+		_gov_t = 0.0
+		_gov_frames = 0
+		return
+	if _gov_warm > 0.0:
+		_gov_warm -= dt   # los primeros segundos de cada mundo cargan sombras y materiales: no cuentan
+		return
+	_gov_t += dt
+	_gov_frames += 1
+	if _gov_t < 3.0:
+		return
+	var fps := _gov_frames / _gov_t
+	_gov_t = 0.0
+	_gov_frames = 0
+	var hz := DisplayServer.screen_get_refresh_rate()
+	var meta := minf(40.0, (hz if hz > 0 else 60.0) * 0.66)
+	_gov_bad = _gov_bad + 1 if fps < meta else 0
+	if _gov_bad < 2:
+		return
+	_gov_bad = 0
+	var i := _NIVELES.find(quality())
+	if i <= 0:
+		return
+	store_set("calidad_auto", _NIVELES[i - 1])
+	apply_quality(g)
+	_gov_warm = 4.0
+
+## Al elegir "Automática" a mano en el menú, el ajuste vuelve a empezar desde lo que le toca al aparato.
+func reset_auto_quality() -> void:
+	_store.erase("calidad_auto")
+	write("varios", _store)
 
 ## Aplica la calidad: arquitectura HD y pasto (media y alta), sombras, suavizado, brillo y resolución 3D.
 func apply_quality(g, forzar := "") -> void:
@@ -179,9 +221,14 @@ func apply_quality(g, forzar := "") -> void:
 			vp.msaa_3d = Viewport.MSAA_2X
 			vp.scaling_3d_scale = 0.85
 			g.sky.sun.shadow_enabled = true
+			# una sola pasada de sombras y más cortas: casi la mitad de trabajo que en alta
+			g.sky.sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+			g.sky.sun.directional_shadow_max_distance = 34.0
 			RenderingServer.directional_shadow_atlas_set_size(1024, true)
 		_:
 			vp.msaa_3d = Viewport.MSAA_4X
 			vp.scaling_3d_scale = 1.0
 			g.sky.sun.shadow_enabled = true
+			g.sky.sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			g.sky.sun.directional_shadow_max_distance = 48.0
 			RenderingServer.directional_shadow_atlas_set_size(2048, true)

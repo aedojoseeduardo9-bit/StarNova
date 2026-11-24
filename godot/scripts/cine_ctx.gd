@@ -183,7 +183,7 @@ func frag(pos: Vector3, s := 0.2) -> MeshInstance3D:
 
 ## Malla de estrella (la de la Nova del santuario) con un material propio.
 func star_mesh(color: Color) -> Node3D:
-	var m := Modelos.make("estrella")
+	var m := Utileria.star_model()
 	var mi := Utileria.first_mesh(m)
 	if mi:
 		mi.material_override = basic(color)
@@ -195,7 +195,7 @@ func star_mesh(color: Color) -> Node3D:
 func star_actor(color: String, scale := 1.0) -> Node3D:
 	var g := Node3D.new()
 	add(g)
-	var m := Modelos.make("estrella")
+	var m := Utileria.star_model()
 	var mi := Utileria.first_mesh(m)
 	if mi:
 		mi.material_override = basic(Color(color))

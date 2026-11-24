@@ -83,7 +83,9 @@ func _ready() -> void:
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.draw.connect(_draw_overlay)
-	root.add_child(overlay)
+	# la capa de números y barras de enemigos usa coordenadas de toda la pantalla (no se corre con la zona segura)
+	add_child(overlay)
+	move_child(overlay, 0)
 
 	hud = Control.new()
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -137,6 +139,28 @@ func _ready() -> void:
 	touch = TouchUI.new()
 	touch.visible = false
 	root.add_child(touch)
+	get_viewport().size_changed.connect(apply_safe_area)
+	apply_safe_area()
+
+## Zona segura (teléfonos con notch, isla o cámara en la pantalla): la interfaz y los botones táctiles se corren para
+## que nada quede tapado. En PC no hace falta.
+func apply_safe_area() -> void:
+	if not (OS.has_feature("android") or OS.has_feature("ios")):
+		return
+	var win := Vector2(DisplayServer.window_get_size())
+	var vis := root.get_viewport_rect().size
+	if win.x <= 0 or vis.x <= 0:
+		return
+	var safe := Rect2(DisplayServer.get_display_safe_area())
+	var k := vis / win
+	var l := maxf(0.0, safe.position.x) * k.x
+	var t := maxf(0.0, safe.position.y) * k.y
+	var r := maxf(0.0, win.x - safe.end.x) * k.x
+	var b := maxf(0.0, win.y - safe.end.y) * k.y
+	root.offset_left = l
+	root.offset_top = t
+	root.offset_right = -r
+	root.offset_bottom = -b
 
 func _style(l: Label, size: int, color: Color) -> void:
 	l.add_theme_font_size_override("font_size", size)
@@ -598,6 +622,20 @@ func _process(dt: float) -> void:
 			boss_box.visible = false
 	overlay.queue_redraw()
 
+var _boxes := {}
+## Fondo de cada ícono de habilidad (se crea una vez; antes se creaban 4 por cuadro).
+func _skill_box(special: bool) -> StyleBoxFlat:
+	if not _boxes.has(special):
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(1, 1, 1, 0.8)
+		sb.set_corner_radius_all(16)
+		sb.border_color = Color(1, 0.86, 0.6, 0.95) if special else Color(1, 1, 1, 0.95)
+		sb.set_border_width_all(3)
+		sb.shadow_color = Color(0.35, 0.2, 0.3, 0.25)
+		sb.shadow_size = 4
+		_boxes[special] = sb
+	return _boxes[special]
+
 ## Íconos de las habilidades en PC: ataque, coletazo, voltereta y poder, con su recarga (sin letras).
 func _draw_skills() -> void:
 	var g = game
@@ -610,14 +648,7 @@ func _draw_skills() -> void:
 	for i in ids.size():
 		var id: String = ids[i]
 		var r := Rect2(x0 + i * (sz + gap), 0, sz, sz)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(1, 1, 1, 0.8)
-		sb.set_corner_radius_all(16)
-		sb.border_color = Color(1, 0.86, 0.6, 0.95) if id == "special" else Color(1, 1, 1, 0.95)
-		sb.set_border_width_all(3)
-		sb.shadow_color = Color(0.35, 0.2, 0.3, 0.25)
-		sb.shadow_size = 4
-		skill_bar.draw_style_box(sb, r)
+		skill_bar.draw_style_box(_skill_box(id == "special"), r)
 		var c := r.get_center()
 		match id:
 			"primary":
